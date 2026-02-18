@@ -1057,6 +1057,82 @@ function protectSheet(sheet) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// SITE CONFIG FOR UI - Provides branding and labels to HTML dialogs
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Gets site configuration for use in HTML UI dialogs
+ * Returns branding (colors, logo) and school name
+ * @returns {Object} Site config with schoolName, primaryColor, secondaryColor, logoFileId
+ */
+function getSiteConfigForUI() {
+  const defaults = {
+    schoolName: "UFLI Master System",
+    primaryColor: "#4A90E2",
+    secondaryColor: "#90EE90",
+    logoFileId: "",
+    accentColor: "#B8E6DC"
+  };
+
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const configSheet = ss.getSheetByName(SHEET_NAMES.CONFIG);
+
+    if (!configSheet) return defaults;
+
+    // Row 2: School Name
+    // Row 24: Primary Color, Row 25: Secondary Color, Row 26: Logo File ID
+    const schoolName = configSheet.getRange(2, 2).getValue();
+    const primaryColor = configSheet.getRange(24, 2).getValue();
+    const secondaryColor = configSheet.getRange(25, 2).getValue();
+    const logoFileId = configSheet.getRange(26, 2).getValue();
+
+    // Derive accent color by lightening primary color
+    const accent = lightenColor(primaryColor || defaults.primaryColor, 0.7);
+
+    return {
+      schoolName: schoolName || defaults.schoolName,
+      primaryColor: primaryColor || defaults.primaryColor,
+      secondaryColor: secondaryColor || defaults.secondaryColor,
+      logoFileId: logoFileId || "",
+      accentColor: accent
+    };
+  } catch (e) {
+    Logger.log("Could not load site config for UI: " + e.message);
+    return defaults;
+  }
+}
+
+/**
+ * Lightens a hex color by a factor
+ * @param {string} hex - Hex color (e.g., "#00838F")
+ * @param {number} factor - Lightening factor 0-1 (0.7 = 70% lighter)
+ * @returns {string} Lightened hex color
+ */
+function lightenColor(hex, factor) {
+  // Remove # if present
+  hex = hex.replace('#', '');
+  
+  // Convert to RGB
+  let r = parseInt(hex.substring(0, 2), 16);
+  let g = parseInt(hex.substring(2, 4), 16);
+  let b = parseInt(hex.substring(4, 6), 16);
+  
+  // Lighten by moving toward white (255)
+  r = Math.round(r + (255 - r) * factor);
+  g = Math.round(g + (255 - g) * factor);
+  b = Math.round(b + (255 - b) * factor);
+  
+  // Convert back to hex
+  const toHex = (n) => {
+    const hex = n.toString(16);
+    return hex.length === 1 ? '0' + hex : hex;
+  };
+  
+  return '#' + toHex(r) + toHex(g) + toHex(b);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // MANAGE STUDENTS - UI LAUNCHER & DATA FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════
 
