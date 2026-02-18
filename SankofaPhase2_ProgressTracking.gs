@@ -3,7 +3,6 @@
 // Sheet Generation, Progress Tracking, Sync, and Pacing Engine
 // ═══════════════════════════════════════════════════════════════════════════
 // Core calculation functions are imported from SharedEngine.gs
-//
 // Version: 5.2 - WEIGHTED REVIEW LESSONS
 // Last Updated: January 2026
 //
@@ -172,7 +171,7 @@ var COLORS = {
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Returns Sankofa-specific configuration for SharedEngine.gs
+ * Returns configuration object containing Sankofa-specific constants for SharedEngine.gs
  * @returns {Object} Configuration object with all necessary constants
  */
 function getSankofaConfig() {
