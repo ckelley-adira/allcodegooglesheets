@@ -100,7 +100,7 @@ const COLORS = {
 // - getPerformanceStatus(): Helper function to determine status from percentage
 // ═══════════════════════════════════════════════════════════════════════════
 
-// Core calculation functions are imported from SharedEngine.gs
+// Core calculation functions are defined in SharedEngine.gs and available globally
 
 const FOUNDATIONAL_LESSONS = Array.from({length: 34}, (_, i) => i + 1);
 
