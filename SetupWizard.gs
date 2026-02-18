@@ -634,8 +634,8 @@ function getExistingGroups() {
  * @returns {Object} Grade mixing settings
  */
 function getExistingGradeMixing(configSheet) {
-  const allowed = configSheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.COMBINATIONS_ROW, CONFIG_LAYOUT.COLS.VALUE).getValue();
-  const combinations = configSheet.getRange(19, 2).getValue();
+  const allowed = configSheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.GRADE_MIXING_ROW, CONFIG_LAYOUT.COLS.VALUE).getValue();
+  const combinations = configSheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.COMBINATIONS_ROW, CONFIG_LAYOUT.COLS.VALUE).getValue();
   
   return {
     allowed: allowed === true || allowed === "TRUE",
