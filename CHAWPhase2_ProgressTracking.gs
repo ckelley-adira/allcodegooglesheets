@@ -1518,7 +1518,7 @@ function updateGroupArrayInMemory(groupSheetsData, groupName, studentName, lesso
  * @returns {Array} Merged row with 'Y' preserved from either source
  */
 // ═══════════════════════════════════════════════════════════════════════════
-// UPDATE ALL STATS (v5.3 - Suppress Negative Growth)
+// STATISTICS UPDATE - Using SharedEngine.gs
 // ═══════════════════════════════════════════════════════════════════════════
 // Note: updateAllStats is imported from SharedEngine.gs
 // Call it with: updateAllStats(ss, mapData, getCHAWConfig())

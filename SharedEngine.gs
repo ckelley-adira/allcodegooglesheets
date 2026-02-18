@@ -108,7 +108,7 @@ const G4_MINIMUM_LESSONS = (() => {
 const ALL_NON_REVIEW_LESSONS = (() => {
   const lessons = [];
   for (let i = 1; i <= 128; i++) {
-    if (!REVIEW_LESSONS.includes(i)) lessons.push(i);
+    if (!REVIEW_LESSONS_SET.has(i)) lessons.push(i);
   }
   return lessons;
 })();
