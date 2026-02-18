@@ -276,61 +276,26 @@ const GRADE_METRICS = {
   };
 });
 // ═══════════════════════════════════════════════════════════════════════════
-// UTILITY FUNCTIONS
+// CONFIGURATION HELPER
 // ═══════════════════════════════════════════════════════════════════════════
 
-function getColumnLetter(columnNumber) {
-  if (columnNumber < 1) return 'A';
-  let letter = '';
-  while (columnNumber > 0) {
-    const remainder = (columnNumber - 1) % 26;
-    letter = String.fromCharCode(65 + remainder) + letter;
-    columnNumber = Math.floor((columnNumber - 1) / 26);
-  }
-  return letter;
-}
-
-function extractLessonNumber(lessonText) {
-  if (lessonText === null || lessonText === undefined) return null;
-  const str = lessonText.toString().toUpperCase().trim();
-  if (str === '') return null;
-  const match = str.match(/(?:LESSON\s*|L\s*)?(\d{1,3})/);
-  if (match && match[1]) {
-    const num = parseInt(match[1], 10);
-    return (num >= 1 && num <= LAYOUT.TOTAL_LESSONS) ? num : null;
-  }
-  return null;
-}
-
-function log(functionName, message, level = 'INFO') {
-  Logger.log(`[${level}] [${functionName}] ${message}`);
-}
-
-function normalizeStudent(student) {
+/**
+ * Returns Sankofa-specific configuration for SharedEngine functions
+ */
+function getSankofaConfig() {
   return {
-    name: (student && student.name) ? student.name.toString().trim() : "",
-    grade: (student && student.grade) ? student.grade.toString().trim() : "",
-    teacher: (student && student.teacher) ? student.teacher.toString().trim() : "",
-    group: (student && student.group) ? student.group.toString().trim() : ""
+    SHEET_NAMES_V2: SHEET_NAMES_V2,
+    SHEET_NAMES_PREK: SHEET_NAMES_PREK,
+    LAYOUT: LAYOUT,
+    PREK_CONFIG: PREK_CONFIG,
+    GRADE_METRICS: GRADE_METRICS
   };
 }
 
-function getLastLessonColumn() {
-  return getColumnLetter(LAYOUT.COL_FIRST_LESSON + LAYOUT.TOTAL_LESSONS - 1);
-}
-
-function getOrCreateSheet(ss, sheetName, clearIfExists = true) {
-  let sheet = ss.getSheetByName(sheetName);
-  if (sheet) {
-    if (clearIfExists) {
-      sheet.clear();
-      sheet.clearConditionalFormatRules();
-    }
-  } else {
-    sheet = ss.insertSheet(sheetName);
-  }
-  return sheet;
-}
+// ═══════════════════════════════════════════════════════════════════════════
+// UTILITY FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════
+// Core calculation functions are imported from SharedEngine.gs
 
 function createMergedHeader(sheet, row, text, width, options = {}) {
   const values = [text];
@@ -407,190 +372,7 @@ function calculatePercentage(mapRow, lessonIndices) {
   return attempted > 0 ? Math.round((passed / attempted) * 100) : "";
 }
 
-/**
- * Calculates benchmark percentage with SECTION-BASED gateway logic
- * 
- * For each skill section that overlaps with the benchmark range:
- * 1. If section's review(s) are ASSIGNED (Y or N) AND all passed → full section credit
- * 2. Otherwise → count actual Y's in non-review lessons
- * 
- * Blanks are NEVER counted as N (not assigned = ignored for gateway)
- * Denominator: Total non-review lessons in benchmark (consistent for growth calc)
- * 
- * @param {Array} mapRow - Student's row data from UFLI Map
- * @param {Array<number>} lessonIndices - Lessons in benchmark
- * @param {number} denominator - Original fixed denominator (kept for compatibility)
- * @returns {number} Percentage integer (0-100)
- */
-function calculateBenchmark(mapRow, lessonIndices, denominator) {
-  if (!lessonIndices || lessonIndices.length === 0) return 0;
-  
-  // Get non-review lessons in benchmark (this is our denominator)
-  const nonReviewsInBenchmark = lessonIndices.filter(l => !REVIEW_LESSONS.includes(l));
-  if (nonReviewsInBenchmark.length === 0) return 0;
-  
-  let totalPassed = 0;
-  
-  // Process each skill section
-  Object.entries(SKILL_SECTIONS).forEach(([sectionName, sectionLessons]) => {
-    // Get section lessons that are in the benchmark range
-    const sectionInBenchmark = sectionLessons.filter(l => lessonIndices.includes(l));
-    if (sectionInBenchmark.length === 0) return;
-    
-    const sectionReviews = sectionInBenchmark.filter(l => REVIEW_LESSONS.includes(l));
-    const sectionNonReviews = sectionInBenchmark.filter(l => !REVIEW_LESSONS.includes(l));
-    
-    // Check gateway for this section
-    let gatewayTriggered = false;
-    if (sectionReviews.length > 0) {
-      let reviewsAssigned = false;
-      let allAssignedPassed = true;
-      
-      for (const lessonNum of sectionReviews) {
-        const idx = LAYOUT.LESSON_COLUMN_OFFSET + lessonNum - 1;
-        if (idx < mapRow.length) {
-          const status = mapRow[idx] ? mapRow[idx].toString().toUpperCase().trim() : "";
-          if (status === 'Y') {
-            reviewsAssigned = true;
-          } else if (status === 'N') {
-            reviewsAssigned = true;
-            allAssignedPassed = false;
-          }
-          // Blank = not assigned, ignore for gateway check
-        }
-      }
-      
-      if (reviewsAssigned && allAssignedPassed) {
-        gatewayTriggered = true;
-      }
-    }
-    
-    if (gatewayTriggered) {
-      // Gateway: Count ALL non-reviews in this section as passed
-      totalPassed += sectionNonReviews.length;
-    } else {
-      // No gateway: Count actual Y's in non-review lessons
-      for (const lessonNum of sectionNonReviews) {
-        const idx = LAYOUT.LESSON_COLUMN_OFFSET + lessonNum - 1;
-        if (idx < mapRow.length) {
-          const status = mapRow[idx] ? mapRow[idx].toString().toUpperCase().trim() : "";
-          if (status === 'Y') totalPassed++;
-        }
-      }
-    }
-  });
-  
-  return Math.round((totalPassed / nonReviewsInBenchmark.length) * 100);
-}
 
-/**
- * Calculates section percentage with gateway logic
- *
- * Initial Assessment: Y_count / total_non_review (reviews not assessed)
- * Ongoing Progress:
- *   - Gateway: If section's review(s) ASSIGNED (Y or N) AND all Y → 100%
- *   - Otherwise: Y_count / total_non_review
- *
- * Blanks are NEVER counted as N (not assigned = ignored)
- *
- * @param {Array} mapRow - Student's row data
- * @param {Array<number>} sectionLessons - All lessons in this section
- * @param {boolean} isInitialAssessment - If true, no gateway (baseline calc)
- * @returns {number|string} Percentage integer or "" if nothing attempted
- */
-function calculateSectionPercentage(mapRow, sectionLessons, isInitialAssessment = false) {
-  const reviewLessonsInSection = sectionLessons.filter(l => REVIEW_LESSONS.includes(l));
-  const nonReviewLessonsInSection = sectionLessons.filter(l => !REVIEW_LESSONS.includes(l));
-
-  if (nonReviewLessonsInSection.length === 0) return "";
-
-  // For Initial Assessment: Only count non-review Y's (no gateway)
-  if (isInitialAssessment) {
-    let passed = 0;
-    for (const lessonNum of nonReviewLessonsInSection) {
-      const idx = LAYOUT.LESSON_COLUMN_OFFSET + lessonNum - 1;
-      if (idx < mapRow.length) {
-        const status = mapRow[idx] ? mapRow[idx].toString().toUpperCase().trim() : "";
-        if (status === 'Y') passed++;
-      }
-    }
-    return Math.round((passed / nonReviewLessonsInSection.length) * 100);
-  }
-
-  // === ONGOING PROGRESS LOGIC ===
-
-  // Check gateway: Are any reviews ASSIGNED (Y or N)?
-  let reviewsAssigned = false;
-  let allAssignedPassed = true;
-
-  for (const lessonNum of reviewLessonsInSection) {
-    const idx = LAYOUT.LESSON_COLUMN_OFFSET + lessonNum - 1;
-    if (idx < mapRow.length) {
-      const status = mapRow[idx] ? mapRow[idx].toString().toUpperCase().trim() : "";
-      if (status === 'Y') {
-        reviewsAssigned = true;
-      } else if (status === 'N') {
-        reviewsAssigned = true;
-        allAssignedPassed = false;
-      }
-      // Blank = not assigned, ignore
-    }
-  }
-
-  // Gateway: If reviews assigned AND all passed → 100%
-  if (reviewsAssigned && allAssignedPassed) {
-    return 100;
-  }
-
-  // No gateway - count Y's in non-review lessons
-  let passed = 0;
-  for (const lessonNum of nonReviewLessonsInSection) {
-    const idx = LAYOUT.LESSON_COLUMN_OFFSET + lessonNum - 1;
-    if (idx < mapRow.length) {
-      const status = mapRow[idx] ? mapRow[idx].toString().toUpperCase().trim() : "";
-      if (status === 'Y') passed++;
-    }
-  }
-
-  return Math.round((passed / nonReviewLessonsInSection.length) * 100);
-}
-
-/**
- * Calculates HWT Pre-K scores using FIXED DENOMINATORS (Benchmark-style)
- *
- * Metrics (based on Handwriting Without Tears pedagogy):
- * - Foundational Skills % = Form Y count / 26 (Motor Integration - fine motor production)
- * - Min Grade Skills % = (Name Y + Sound Y) / 52 (Literacy Knowledge - cognitive/receptive)
- * - Full Grade Skills % = (Name Y + Sound Y + Form Y) / 78 (K-Readiness - visual-motor integration)
- *
- * @param {Array} row - Student's row data from Pre-K Data sheet
- * @param {Array} headers - Header row from Pre-K Data sheet
- * @returns {Object} { foundational, minGrade, fullGrade } percentages
- */
-function calculatePreKScores(row, headers) {
-  let nameY = 0;
-  let soundY = 0;
-  let formY = 0;
-
-  // Loop through columns starting at index 2 (Column C)
-  for (let i = 2; i < row.length; i++) {
-    const header = headers[i];
-    const value = row[i] ? row[i].toString().toUpperCase() : "";
-    
-    if (!header) continue;
-
-    if (header.includes("- Name") && value === "Y") nameY++;
-    else if (header.includes("- Sound") && value === "Y") soundY++;
-    else if (header.includes("- Form") && value === "Y") formY++;
-  }
-
-  // Fixed Denominators (Benchmark-style)
-  return {
-    foundational: Math.round((formY / PREK_CONFIG.FORM_DENOMINATOR) * 100),
-    minGrade: Math.round(((nameY + soundY) / PREK_CONFIG.NAME_SOUND_DENOMINATOR) * 100),
-    fullGrade: Math.round(((nameY + soundY + formY) / PREK_CONFIG.FULL_DENOMINATOR) * 100)
-  };
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SYSTEM SHEET GENERATION
@@ -1452,7 +1234,7 @@ function syncSmallGroupProgress() {
   });
   
   // 6. CHAIN REACTION: Update Stats (Skills & Summary) using the updated Map Data
-  updateAllStats(ss, mapData);
+  updateAllStats(ss, mapData, getSankofaConfig());
   
   log(functionName, 'Sync Complete.');
 }
@@ -1655,177 +1437,11 @@ function createMergedRow(currentRow, initialRow) {
  * v5.3 FIX:
  * - Suppress negative growth: If student passed in Initial Assessment, preserve 'Y'
  * - Uses merged row (best of Initial + Current) for benchmark calculations
+ * 
+ * NOTE: Now uses SharedEngine.updateAllStats with Sankofa configuration
  */
-function updateAllStats(ss, mapData) {
-  const functionName = 'updateAllStats';
-  
-  // 1. GET UFLI DATA
-  if (!mapData) {
-    const mapSheet = ss.getSheetByName(SHEET_NAMES_V2.UFLI_MAP);
-    mapData = mapSheet ? mapSheet.getDataRange().getValues() : [];
-  }
-
-  // 2. GET PRE-K DATA
-  const preKSheet = ss.getSheetByName(SHEET_NAMES_PREK.DATA);
-  let preKData = [];
-  let preKHeaders = [];
-  if (preKSheet) {
-    preKData = preKSheet.getDataRange().getValues();
-    if (preKData.length >= PREK_CONFIG.HEADER_ROW) {
-      preKHeaders = preKData[PREK_CONFIG.HEADER_ROW - 1];
-    }
-  }
-
-  // 3. READ INITIAL ASSESSMENT DATA (for growth suppression)
-  const initialSheet = ss.getSheetByName(SHEET_NAMES_V2.INITIAL_ASSESSMENT);
-  const initialData = initialSheet ? initialSheet.getDataRange().getValues() : [];
-  const initialMap = {};
-  for (let i = LAYOUT.DATA_START_ROW - 1; i < initialData.length; i++) {
-    if (initialData[i][0]) {
-      initialMap[initialData[i][0].toString().trim().toUpperCase()] = initialData[i];
-    }
-  }
-  
-  // Output Arrays
-  const skillsOutput = []; 
-  const summaryOutput = []; 
-  const skillEntries = Object.entries(SKILL_SECTIONS);
-  
-  // --- PROCESS UFLI STUDENTS (K-8) ---
-  for (let i = LAYOUT.DATA_START_ROW - 1; i < mapData.length; i++) {
-    const row = mapData[i];
-    if (!row[0]) continue; // Skip blank names
-    
-    // Skip PreK students - they are handled separately from Pre-K Data sheet
-    if (row[1] && row[1].toString().trim() === "PreK") continue;
-
-    const metadata = [row[0], row[1], row[2], row[3]]; // Name, Grade, Teacher, Group
-    const cleanName = row[0].toString().trim().toUpperCase();
-    const initialRow = initialMap[cleanName];
-    const grade = row[1];
-
-    // Create merged row for calculations (preserves 'Y' from either source)
-    const mergedRow = createMergedRow(row, initialRow);
-
-    // Skills Tracker Row (uses merged data to prevent negative growth)
-    // Uses weighted review logic: reviews act as gateway tests for section credit
-    const skillsRow = [...metadata];
-    skillEntries.forEach(([_, lessons]) => {
-      skillsRow.push(calculateSectionPercentage(mergedRow, lessons, false));
-    });
-    skillsOutput.push(skillsRow);
-
-    // Grade Summary Row
-    const summaryRow = [...metadata];
-    const metrics = GRADE_METRICS[grade];
-
-    if (metrics) {
-      // Use merged row for benchmark calculations (suppresses negative growth)
-      const foundPct = calculateBenchmark(mergedRow, metrics.foundational.lessons, metrics.foundational.denominator);
-      const minPct = calculateBenchmark(mergedRow, metrics.minimum.lessons, metrics.minimum.denominator);
-      const fullPct = calculateBenchmark(mergedRow, metrics.currentYear.lessons, metrics.currentYear.denominator);
-      
-      summaryRow.push(foundPct);
-      summaryRow.push(minPct);
-      summaryRow.push(fullPct);
-      
-      // Benchmark Status based on Min Grade Skills % (v5.2 fix)
-      let status = "Intervention";
-      if (minPct >= 80) status = "On Track";
-      else if (minPct >= 50) status = "Needs Support";
-      summaryRow.push(status);
-    } else {
-      summaryRow.push("", "", "", "");
-    }
-
-    // Add Detailed Skill Sections (Initial/AG/Total)
-    // Note: AG (Additive Growth) uses merged row for Total, so growth is always >= 0
-    // Initial uses isInitialAssessment=true to exclude review lessons from baseline
-    // Total uses isInitialAssessment=false to include weighted review logic
-    skillEntries.forEach(([_, lessons]) => {
-      const totalPct = calculateSectionPercentage(mergedRow, lessons, false);
-      const initialPct = initialRow ? calculateSectionPercentage(initialRow, lessons, true) : "";
-
-      // Growth is always non-negative since mergedRow includes all initial 'Y' values
-      let agPct = "";
-      if (totalPct !== "" && initialPct !== "") {
-        agPct = Math.max(0, totalPct - initialPct); // Extra safety: floor at 0
-      }
-
-      summaryRow.push(initialPct, agPct, totalPct);
-    });
-    summaryOutput.push(summaryRow);
-  }
-
-  // --- PROCESS PRE-K STUDENTS (HWT) ---
-  if (preKData.length > 0) {
-    for (let i = PREK_CONFIG.DATA_START_ROW - 1; i < preKData.length; i++) {
-      const row = preKData[i];
-      if (!row[0]) continue;
-
-      // HWT Sheet Structure: [Name, Group, Program, ...] 
-      // We map this to: [Name, "PreK", "", Group]
-      const metadata = [row[0], "PreK", "", row[1]]; 
-      
-      // Use corrected calculatePreKScores with fixed denominators
-      const scores = calculatePreKScores(row, preKHeaders);
-
-      // Skills Tracker Row (PreK doesn't use UFLI Skills, fill with blanks)
-      const skillsRow = [...metadata];
-      skillEntries.forEach(() => skillsRow.push(""));
-      skillsOutput.push(skillsRow);
-
-      // Grade Summary Row
-      const summaryRow = [...metadata];
-      
-      // PreK Mapping:
-      // Foundational Skills % = Form / 26 (Motor Integration)
-      // Min Grade Skills %    = (Name + Sound) / 52 (Literacy Knowledge)
-      // Full Grade Skills %   = (Name + Sound + Form) / 78 (K-Readiness)
-      summaryRow.push(scores.foundational);  // Form / 26
-      summaryRow.push(scores.minGrade);      // (Name + Sound) / 52
-      summaryRow.push(scores.fullGrade);     // (Name + Sound + Form) / 78
-      
-      // Status Logic for PreK (based on Full Grade Skills - K-Readiness)
-      let status = "Intervention";
-      if (scores.fullGrade >= 80) status = "On Track";
-      else if (scores.fullGrade >= 50) status = "Needs Support";
-      summaryRow.push(status);
-
-      // Fill remaining detailed columns with blanks (PreK doesn't use UFLI skill sections)
-      skillEntries.forEach(() => summaryRow.push("", "", ""));
-      
-      summaryOutput.push(summaryRow);
-    }
-  }
-
-  // --- WRITE DATA ---
-  
-  // 1. Skills Tracker
-  const skillsSheet = getOrCreateSheet(ss, SHEET_NAMES_V2.SKILLS, false);
-  if (skillsOutput.length > 0) {
-    // Sort combined list by Grade, then Name
-    skillsOutput.sort((a, b) => (a[1] || "").localeCompare(b[1] || "") || (a[0] || "").localeCompare(b[0] || ""));
-    
-    skillsSheet.getRange(LAYOUT.DATA_START_ROW, 1, skillsOutput.length, skillsOutput[0].length).setValues(skillsOutput);
-    skillsSheet.getRange(LAYOUT.DATA_START_ROW, 5, skillsOutput.length, skillsOutput[0].length - 4).setNumberFormat('0"%"');
-  }
-  
-  // 2. Grade Summary
-  const summarySheet = getOrCreateSheet(ss, SHEET_NAMES_V2.GRADE_SUMMARY, false);
-  if (summaryOutput.length > 0) {
-    // Sort combined list by Grade, then Name
-    summaryOutput.sort((a, b) => (a[1] || "").localeCompare(b[1] || "") || (a[0] || "").localeCompare(b[0] || ""));
-
-    summarySheet.getRange(LAYOUT.DATA_START_ROW, 1, summaryOutput.length, summaryOutput[0].length).setValues(summaryOutput);
-    
-    // Formatting
-    summarySheet.getRange(LAYOUT.DATA_START_ROW, 5, summaryOutput.length, 3).setNumberFormat('0"%"'); // Main metrics
-    const remainingCols = summaryOutput[0].length - 8;
-    if (remainingCols > 0) {
-      summarySheet.getRange(LAYOUT.DATA_START_ROW, 9, summaryOutput.length, remainingCols).setNumberFormat('0"%"');
-    }
-  }
+function updateAllStats_Sankofa(ss, mapData) {
+  updateAllStats(ss, mapData, getSankofaConfig());
 }
 
 function updateStatsForNewStudents() {
@@ -2293,9 +1909,9 @@ function calculateGrowthMetrics(students, initialData, grade) {
       
       // Calculate initial metrics using the same logic as updateAllStats
       if (metrics) {
-        initialFoundational = calculateBenchmarkFromRow(initialRow, metrics.foundational.lessons, metrics.foundational.denominator);
-        initialMinGrade = calculateBenchmarkFromRow(initialRow, metrics.minimum.lessons, metrics.minimum.denominator);
-        initialFullGrade = calculateBenchmarkFromRow(initialRow, metrics.currentYear.lessons, metrics.currentYear.denominator);
+        initialFoundational = calculateBenchmark(initialRow, metrics.foundational.lessons, metrics.foundational.denominator, LAYOUT);
+        initialMinGrade = calculateBenchmark(initialRow, metrics.minimum.lessons, metrics.minimum.denominator, LAYOUT);
+        initialFullGrade = calculateBenchmark(initialRow, metrics.currentYear.lessons, metrics.currentYear.denominator, LAYOUT);
       }
     }
     
@@ -2352,33 +1968,7 @@ function calculateGrowthMetrics(students, initialData, grade) {
     growth: foundCurrentAvg - foundInitialAvg
   };
 }
-/**
- * Calculate benchmark from Initial Assessment row
- * NO gateway logic for Initial - reviews aren't assessed initially
- * Just counts Y's in non-review lessons
- * 
- * @param {Array} row - Student's row from Initial Assessment
- * @param {Array<number>} lessonIndices - Lessons in benchmark
- * @param {number} denominator - Original fixed denominator (kept for compatibility)
- * @returns {number} Percentage integer (0-100)
- */
-function calculateBenchmarkFromRow(row, lessonIndices, denominator) {
-  if (!row || !lessonIndices || lessonIndices.length === 0) return 0;
-  
-  const nonReviewsInBenchmark = lessonIndices.filter(l => !REVIEW_LESSONS.includes(l));
-  if (nonReviewsInBenchmark.length === 0) return 0;
-  
-  let passed = 0;
-  for (const lessonNum of nonReviewsInBenchmark) {
-    const idx = LAYOUT.LESSON_COLUMN_OFFSET + lessonNum - 1;
-    if (idx < row.length) {
-      const status = row[idx] ? row[idx].toString().toUpperCase().trim() : "";
-      if (status === 'Y') passed++;
-    }
-  }
-  
-  return Math.round((passed / nonReviewsInBenchmark.length) * 100);
-}
+
 function calculateDistributionBands(students) {
   const bands = { onTrack: 0, progressing: 0, atRisk: 0 };
   students.forEach(s => {
@@ -2530,13 +2120,13 @@ function fixMissingTeachers() {
 
 function repairSkillsTrackerFormulas() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  updateAllStats(ss);
+  updateAllStats(ss, null, getSankofaConfig());
   SpreadsheetApp.getUi().alert('Skills Tracker values recalculated.');
 }
 
 function repairGradeSummaryFormulas() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  updateAllStats(ss);
+  updateAllStats(ss, null, getSankofaConfig());
   SpreadsheetApp.getUi().alert('Grade Summary values recalculated.');
 }
 

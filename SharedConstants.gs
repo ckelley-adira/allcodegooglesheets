@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // SHARED CONSTANTS - UFLI SYSTEM (ALL SCHOOLS)
 // ═══════════════════════════════════════════════════════════════════════════
-// Version: 1.0
+// Version: 2.0 (Phase 2 Consolidation)
 // Last Updated: February 2026
 //
 // PURPOSE:
@@ -14,11 +14,16 @@
 // - REVIEW_LESSONS: 23 review lesson numbers that act as "gateway tests"
 // - PERFORMANCE_THRESHOLDS: Score thresholds for performance status
 // - STATUS_LABELS: Performance status text labels
+// - getPerformanceStatus(): Helper function to determine status from percentage
+//
+// RELATED MODULES:
+// - SharedEngine.gs: Contains core calculation functions that use these constants
+//   (calculateBenchmark, calculateSectionPercentage, updateAllStats, etc.)
 //
 // USAGE:
 // School-specific Phase2_ProgressTracking.gs files import these constants
-// instead of defining them locally. This ensures consistency and makes
-// updates easier.
+// and SharedEngine functions instead of defining them locally. This ensures
+// consistency and makes updates easier across all schools.
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════════════════
