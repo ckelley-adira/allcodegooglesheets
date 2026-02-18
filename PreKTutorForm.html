@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Tutor Session Tracker - MZA PreK Program</title>
+    <base target="_top">
+    
+    <style>
+        /* CSS Variables - Indianapolis Library Branding */
+        :root {
+            --primary-color: #1E3A5F;
+            --primary-light: #2E5A8F;
+            --accent-color: #E8B923;
+            --success-color: #22C55E;
+            --warning-color: #F59E0B;
+            --danger-color: #EF4444;
+            --secondary-color: #64748B;
+            --background: #F8FAFC;
+            --card-background: #FFFFFF;
+            --text-primary: #1E293B;
+            --text-secondary: #64748B;
+            --border-color: #E2E8F0;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+            --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--background);
+            color: var(--text-primary);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        /* Header - Indianapolis Library Branding */
+        .header {
+            background: linear-gradient(135deg, var(--accent-color) 0%, #D4A520 100%);
+            color: var(--primary-color);
+            padding: 1.25rem 1.5rem;
+            box-shadow: var(--shadow-md);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 1024px;
+            margin: 0 auto;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .header-logo {
+            font-size: 1.75rem;
+        }
+
+        .header h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 0.125rem;
+        }
+
+        .header .subtitle {
+            font-size: 0.8rem;
+            opacity: 0.8;
+            font-weight: 500;
+        }
+
+        .header-badge {
+            background: var(--primary-color);
+            color: white;
+            padding: 0.35rem 0.75rem;
+            border-radius: 50px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1024px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--card-background);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+        }
+
+        .card.active {
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Selection Cards */
+        .selection-card {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .selection-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--primary-color);
+            transform: translateX(-100%);
+            transition: var(--transition);
+        }
+
+        .selection-card.has-value::before {
+            transform: translateX(0);
+        }
+
+        /* Labels */
+        .label {
+            display: flex;
+            align-items: center;
+            font-size: 0.875rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+        }
+
+        .label .step-number {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--accent-color);
+            color: var(--primary-color);
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-right: 0.5rem;
+        }
+
+        /* Select Dropdowns */
+        .select-wrapper {
+            position: relative;
+        }
+
+        .select-wrapper::after {
+            content: '▼';
+            position: absolute;
+            right: 1.25rem;
+            top: 50%;
+            transform: translateY(-50%);
+            pointer-events: none;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+        }
+
+        select {
+            width: 100%;
+            padding: 1rem 3rem 1rem 1rem;
+            font-size: 1.125rem;
+            font-weight: 500;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            background: white;
+            color: var(--text-primary);
+            appearance: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+            transition: var(--transition);
+            min-height: 56px;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.1);
+        }
+
+        select:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background: var(--background);
+        }
+
+        /* Option Groups Styling */
+        optgroup {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        option {
+            font-weight: 400;
+            padding: 0.5rem;
+        }
+
+        /* Session Options Area */
+        .session-options {
+            display: none;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .session-options.visible {
+            display: block;
+        }
+
+        .divider {
+            height: 1px;
+            background: var(--border-color);
+            margin: 1.5rem 0;
+        }
+
+        /* Buttons Grid */
+        .button-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        /* Primary and Secondary Buttons */
+        .btn {
+            padding: 1.25rem;
+            min-height: 64px;
+            font-size: 1.125rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 16px;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color), #0051D5);
+            color: white;
+            box-shadow: 0 8px 24px rgba(0, 122, 255, 0.3);
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, var(--secondary-color), #636366);
+            color: white;
+            box-shadow: 0 8px 24px rgba(142, 142, 147, 0.3);
+        }
+
+        .btn:active {
+            transform: scale(0.95);
+        }
+
+        .btn:disabled {
+            background: var(--border-color);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        /* Assessment Area */
+        #assessment-area {
+            display: none;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        #assessment-area.visible {
+            display: block;
+        }
+
+        /* Lesson Groups */
+        .lesson-group {
+            background: var(--card-background);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            border: 2px solid var(--border-color);
+            transition: var(--transition);
+        }
+
+        .lesson-group:active {
+            transform: scale(0.98);
+        }
+
+        .lesson-name {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            line-height: 1.4;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .lesson-icon {
+            font-size: 1.25rem;
+        }
+
+        /* Status Buttons */
+        .status-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+
+        .status-btn {
+            padding: 1rem;
+            min-height: 60px;
+            font-size: 1rem;
+            font-weight: 600;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            background: white;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .status-btn:active {
+            transform: scale(0.95);
+        }
+
+        .status-btn .icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .status-btn .text {
+            font-size: 0.875rem;
+        }
+
+        /* Active Button States */
+        .status-btn.active-y {
+            background: linear-gradient(135deg, #52c41a, #73d13d);
+            border-color: var(--success-color);
+            color: white;
+            box-shadow: 0 4px 12px rgba(52, 199, 89, 0.3);
+        }
+
+        .status-btn.active-n {
+            background: linear-gradient(135deg, #ff4d4f, #ff7875);
+            border-color: var(--danger-color);
+            color: white;
+            box-shadow: 0 4px 12px rgba(255, 59, 48, 0.3);
+        }
+
+        /* Selected Letter Display */
+        .selected-letter-card {
+            background: linear-gradient(135deg, #FFF5E6, #FFE4CC);
+            border: 2px solid var(--warning-color);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .selected-letter-card .letter-label {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        .selected-letter-card .letter-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--warning-color);
+        }
+
+        /* Save Button Container */
+        .save-button-container {
+            position: sticky;
+            bottom: 1.5rem;
+            padding: 0 1.5rem;
+            z-index: 50;
+            display: none;
+        }
+
+        .save-button-container.visible {
+            display: block;
+        }
+
+        .save-button {
+            width: 100%;
+            padding: 1.25rem;
+            min-height: 64px;
+            font-size: 1.125rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 16px;
+            background: linear-gradient(135deg, var(--success-color), #00C851);
+            color: white;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 8px 24px rgba(52, 199, 89, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .save-button:active {
+            transform: scale(0.95);
+        }
+
+        .save-button:disabled {
+            background: var(--border-color);
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        /* Status Messages */
+        .status-message {
+            padding: 1rem 1.5rem;
+            border-radius: 12px;
+            margin: 1rem 0;
+            display: flex;
+            align-items: center;
+            animation: slideIn 0.3s ease-out;
+            font-weight: 500;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(-100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .status-message.success {
+            background: linear-gradient(135deg, rgba(52, 199, 89, 0.1), rgba(52, 199, 89, 0.2));
+            color: var(--success-color);
+            border-left: 4px solid var(--success-color);
+        }
+
+        .status-message.error {
+            background: linear-gradient(135deg, rgba(255, 59, 48, 0.1), rgba(255, 59, 48, 0.2));
+            color: var(--danger-color);
+            border-left: 4px solid var(--danger-color);
+        }
+
+        /* Loading Spinner */
+        .loader {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .loader.visible {
+            display: block;
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--warning-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loader-text {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1.5rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state .icon {
+            font-size: 4rem;
+            opacity: 0.3;
+            margin-bottom: 1rem;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+
+            .card {
+                padding: 1.25rem;
+            }
+
+            .button-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .save-button-container {
+                bottom: 1rem;
+                padding: 0 1rem;
+            }
+        }
+
+        @media (min-width: 1024px) {
+            .container {
+                padding: 2rem;
+            }
+
+            .lesson-groups-grid {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1rem;
+            }
+
+            .button-grid {
+                max-width: 600px;
+                margin: 0 auto;
+            }
+        }
+
+        /* Accessibility */
+        .visually-hidden {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+
+        *:focus-visible {
+            outline: 3px solid var(--primary-color);
+            outline-offset: 2px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            background: var(--warning-color);
+            color: white;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+        /* Portal Navigation */
+        .portal-nav { background: #B8960E; padding: 0.5rem 1rem; display: flex; justify-content: center; gap: 0.25rem; flex-wrap: wrap; }
+        .portal-nav a { color: rgba(30,58,95,0.7); text-decoration: none; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 500; transition: var(--transition); cursor: pointer; }
+        .portal-nav a:hover { background: rgba(30,58,95,0.1); color: var(--primary-color); }
+        .portal-nav a.active { background: rgba(30,58,95,0.2); color: var(--primary-color); font-weight: 600; }
+        .portal-nav .nav-home { color: var(--primary-color); font-weight: 600; }
+        .portal-nav .nav-home:hover { background: rgba(30,58,95,0.15); }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="header-brand">
+                <span class="header-logo">✏️</span>
+                <div>
+                    <h1>Tutor Session Tracker</h1>
+                    <div class="subtitle">MZA PreK Program</div>
+                </div>
+            </div>
+            <div class="header-badge">Tutor Tracker</div>
+        </div>
+    </header>
+    <nav class="portal-nav">
+        <a onclick="navigateToPortal('')" class="nav-home">Home Page</a>
+        <a onclick="navigateToPortal('teacher')">Teacher</a>
+        <a class="active">Tutor</a>
+        <a onclick="navigateToPortal('dashboard')">Dashboard</a>
+    </nav>
+
+    <div class="container">
+        <section aria-label="Session Setup">
+            <div class="card selection-card" id="tutor-card">
+                <label for="tutor-select" class="label"><span class="step-number">1</span> Select Your Name</label>
+                <div class="select-wrapper">
+                    <select id="tutor-select" onchange="resetStudent()" aria-label="Select tutor"><option value="">Loading tutors...</option></select>
+                </div>
+            </div>
+
+            <div class="card selection-card" id="student-card">
+                <label for="student-select" class="label"><span class="step-number">2</span> Select Student</label>
+                <div class="select-wrapper">
+                    <select id="student-select" onchange="showSessionOptions()" disabled aria-label="Select student"><option value="">Select your name first</option></select>
+                </div>
+            </div>
+
+            <div id="session-options-area" class="session-options">
+                <div class="card">
+                    <div class="divider"></div>
+                    <div class="button-grid">
+                        <button id="start-lesson-btn" class="btn btn-primary" onclick="loadTutorLessonList()"><span>📚</span> <span>Start Lesson</span></button>
+                        <button id="mark-absent-btn" class="btn btn-secondary" onclick="markAbsent()"><span>🚫</span> <span>Mark Absent</span></button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="lesson-select-area" style="display: none;">
+                <div class="card selection-card" id="lesson-card">
+                    <label for="lesson-select" class="label"><span class="step-number">3</span> Select a Letter to Review</label>
+                    <div class="select-wrapper">
+                        <select id="lesson-select" onchange="showLessonCard()" aria-label="Select lesson"><option value="">Choose a letter...</option></select>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="assessment-area" aria-label="Letter Assessment">
+            </section>
+
+        <div id="status-container"></div>
+        <div id="loader" class="loader">
+            <div class="spinner"></div>
+            <div class="loader-text" id="loader-text">Loading...</div>
+        </div>
+    </div>
+
+    <div id="save-button-container" class="save-button-container">
+        <button id="save-button" class="save-button" onclick="saveData()" aria-label="Save session data"><span>💾</span> <span>Save Session</span></button>
+    </div>
+
+    <script>
+        // --- Portal Navigation ---
+        function navigateToPortal(page) {
+            google.script.run.withSuccessHandler(function(url) {
+                window.top.location.href = page ? url + '?page=' + page : url;
+            }).getWebAppUrl();
+        }
+
+        let studentRoster = [];
+        let currentStudent = null;
+
+        document.addEventListener("DOMContentLoaded", () => {
+            showLoader("Loading tutors...");
+            google.script.run.withSuccessHandler(populateTutors).withFailureHandler(showError).getTutorNames();
+            google.script.run.withSuccessHandler(cacheStudents).withFailureHandler(showError).getStudentRoster();
+            addKeyboardSupport();
+        });
+
+        function populateTutors(tutors) {
+            const select = document.getElementById("tutor-select");
+            select.innerHTML = '<option value="">Choose your name...</option>';
+            tutors.forEach(tutor => { const opt = document.createElement("option"); opt.value = tutor; opt.textContent = tutor; select.appendChild(opt); });
+            hideLoader(); updateCardState('tutor-card', false);
+        }
+        
+        function cacheStudents(students) {
+            studentRoster = students;
+            const select = document.getElementById("student-select");
+            select.innerHTML = '<option value="">Choose a student...</option>';
+            students.forEach(student => {
+                const opt = document.createElement("option");
+                opt.value = student.name; // Value is just the name
+                opt.textContent = student.name;
+                select.appendChild(opt);
+            });
+            if (document.getElementById("tutor-select").value) { select.disabled = false; }
+        }
+        
+        function resetStudent() {
+            const tutorValue = document.getElementById("tutor-select").value;
+            updateCardState('tutor-card', !!tutorValue);
+            document.getElementById("student-select").disabled = !tutorValue;
+            document.getElementById("student-select").value = "";
+            document.getElementById("session-options-area").classList.remove("visible");
+            document.getElementById("lesson-select-area").style.display = "none";
+            document.getElementById("assessment-area").classList.remove("visible");
+            document.getElementById("save-button-container").classList.remove("visible");
+            clearStatus();
+            currentStudent = null;
+            updateCardState('student-card', false);
+        }
+        
+        function showSessionOptions() {
+            const studentName = document.getElementById("student-select").value;
+            updateCardState('student-card', !!studentName);
+            if (studentName) {
+                document.getElementById("session-options-area").classList.add("visible");
+                currentStudent = studentRoster.find(s => s.name === studentName); // Find the full student object
+            } else {
+                document.getElementById("session-options-area").classList.remove("visible");
+                currentStudent = null;
+            }
+            document.getElementById("lesson-select-area").style.display = "none";
+            document.getElementById("assessment-area").classList.remove("visible");
+            document.getElementById("save-button-container").classList.remove("visible");
+            clearStatus();
+        }
+        
+        function loadTutorLessonList() {
+            if (!currentStudent) { showError("No student selected."); return; }
+            showLoader("Finding suggested lessons...");
+            document.getElementById("session-options-area").classList.remove("visible");
+            google.script.run.withSuccessHandler(populateTutorLessonList).withFailureHandler(showError).getTutorLessonList(currentStudent.name, currentStudent.program);
+        }
+        
+        function populateTutorLessonList(data) {
+            hideLoader();
+            const lessonArea = document.getElementById("lesson-select-area");
+            const select = document.getElementById("lesson-select");
+            lessonArea.style.display = "block";
+            select.innerHTML = '<option value="">Choose a letter...</option>'; // Clear old options
+
+            if (data.needsWork && data.needsWork.length > 0) {
+                const group = document.createElement("optgroup");
+                group.label = "🎯 Suggested (Needs Work)";
+                group.style.color = "#FF9500";
+                data.needsWork.forEach(letter => {
+                    const opt = document.createElement("option"); opt.value = letter; opt.textContent = `Letter ${letter}`; opt.style.fontWeight = "600"; group.appendChild(opt);
+                });
+                select.appendChild(group);
+            }
+            
+            if (data.otherLetters && data.otherLetters.length > 0) {
+                const group = document.createElement("optgroup");
+                group.label = "📚 All Available Letters";
+                data.otherLetters.forEach(letter => {
+                    const opt = document.createElement("option"); opt.value = letter; opt.textContent = `Letter ${letter}`; group.appendChild(opt);
+                });
+                select.appendChild(group);
+            }
+            updateCardState('lesson-card', false);
+        }
+        
+        function showLessonCard() {
+            const lessonLetter = document.getElementById("lesson-select").value;
+            updateCardState('lesson-card', !!lessonLetter);
+
+            // Dynamically create the assessment card content
+            const assessmentArea = document.getElementById("assessment-area");
+            assessmentArea.innerHTML = ''; // Clear previous
+
+            if (lessonLetter) {
+                // Add hidden input
+                const hiddenInput = document.createElement('input');
+                hiddenInput.type = 'hidden';
+                hiddenInput.id = 'lesson-letter';
+                hiddenInput.value = lessonLetter;
+                assessmentArea.appendChild(hiddenInput);
+
+                // Add letter display card
+                assessmentArea.innerHTML += `
+                    <div class="selected-letter-card">
+                        <div class="letter-label">Currently Testing</div>
+                        <div class="letter-value" id="current-letter-display">${lessonLetter}</div>
+                    </div>`;
+                
+                // Add lesson groups
+                const grid = document.createElement('div');
+                grid.className = 'lesson-groups-grid';
+                grid.innerHTML = `
+                    <div class="lesson-group" data-skill="Form">
+                        <div class="lesson-name"><span class="lesson-icon">✍️</span> <span>Letter Form</span></div>
+                        <div class="status-buttons">
+                            <button type="button" class="status-btn" value="Y" onclick="toggleButton(this)" aria-label="Letter form correct"><span class="icon">✅</span> <span class="text">Correct</span></button>
+                            <button type="button" class="status-btn" value="N" onclick="toggleButton(this)" aria-label="Letter form incorrect"><span class="icon">❌</span> <span class="text">Needs Work</span></button>
+                        </div>
+                    </div>
+                    <div class="lesson-group" data-skill="Name">
+                        <div class="lesson-name"><span class="lesson-icon">🔤</span> <span>Letter Name</span></div>
+                        <div class="status-buttons">
+                            <button type="button" class="status-btn" value="Y" onclick="toggleButton(this)" aria-label="Letter name correct"><span class="icon">✅</span> <span class="text">Correct</span></button>
+                            <button type="button" class="status-btn" value="N" onclick="toggleButton(this)" aria-label="Letter name incorrect"><span class="icon">❌</span> <span class="text">Needs Work</span></button>
+                        </div>
+                    </div>
+                    <div class="lesson-group" data-skill="Sound">
+                        <div class="lesson-name"><span class="lesson-icon">🔊</span> <span>Letter Sound</span></div>
+                        <div class="status-buttons">
+                            <button type="button" class="status-btn" value="Y" onclick="toggleButton(this)" aria-label="Letter sound correct"><span class="icon">✅</span> <span class="text">Correct</span></button>
+                            <button type="button" class="status-btn" value="N" onclick="toggleButton(this)" aria-label="Letter sound incorrect"><span class="icon">❌</span> <span class="text">Needs Work</span></button>
+                        </div>
+                    </div>`;
+                assessmentArea.appendChild(grid);
+                
+                // Show area and save button
+                assessmentArea.classList.add("visible");
+                document.getElementById("save-button-container").classList.add("visible");
+                document.getElementById("save-button").disabled = false; // Ensure save button is enabled
+
+                setTimeout(() => assessmentArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 100);
+            } else {
+                assessmentArea.classList.remove("visible");
+                document.getElementById("save-button-container").classList.remove("visible");
+            }
+        }
+        
+        function toggleButton(buttonEl) {
+            const value = buttonEl.value;
+            const parent = buttonEl.parentElement;
+            const buttons = parent.querySelectorAll('button');
+            const activeClass = 'active-' + value.toLowerCase();
+            if (buttonEl.classList.contains(activeClass)) {
+                buttonEl.classList.remove(activeClass); buttonEl.setAttribute('aria-checked', 'false');
+            } else {
+                buttons.forEach(b => { b.className = 'status-btn'; b.setAttribute('aria-checked', 'false'); });
+                buttonEl.classList.add(activeClass); buttonEl.setAttribute('aria-checked', 'true');
+            }
+            if (window.navigator && window.navigator.vibrate) { window.navigator.vibrate(10); }
+        }
+        
+        function markAbsent() {
+            const tutor = document.getElementById("tutor-select").value;
+            if (!currentStudent || !tutor) { showError("Please select a tutor and student first."); return; }
+            showLoader("Saving absence...");
+            document.getElementById("session-options-area").classList.remove("visible");
+            const data = { tutor: tutor, student: currentStudent.name };
+            google.script.run.withSuccessHandler(showSuccess).withFailureHandler(showError).saveTutorAbsence(data);
+        }
+        
+        function saveData() {
+            const tutor = document.getElementById("tutor-select").value;
+            const lesson = document.getElementById("lesson-letter").value;
+            if (!currentStudent || !tutor || !lesson) { showError("Please select a tutor, student, and lesson."); return; }
+
+            const formButton = document.querySelector('.lesson-group[data-skill="Form"] button[class*="active-"]');
+            const nameButton = document.querySelector('.lesson-group[data-skill="Name"] button[class*="active-"]');
+            const soundButton = document.querySelector('.lesson-group[data-skill="Sound"] button[class*="active-"]');
+
+            const data = {
+                tutor: tutor,
+                student: currentStudent.name,
+                program: currentStudent.program,
+                lesson: lesson,
+                formStatus: formButton ? formButton.value : "",
+                nameStatus: nameButton ? nameButton.value : "",
+                soundStatus: soundButton ? soundButton.value : ""
+            };
+
+            if (data.formStatus === "" && data.nameStatus === "" && data.soundStatus === "") { showError("Please select an assessment for at least one skill."); return; }
+            
+            showLoader("Saving session...");
+            document.getElementById("save-button").disabled = true;
+            google.script.run.withSuccessHandler(showSuccess).withFailureHandler(showError).saveTutorSession(data);
+        }
+
+        /* --- NEW FUNCTION: Resets the form for the next letter --- */
+        function resetForNextLetter() {
+            try {
+                // 1. Hide assessment & save button
+                document.getElementById("assessment-area").classList.remove("visible");
+                document.getElementById("save-button-container").classList.remove("visible");
+                document.getElementById("save-button").disabled = true;
+
+                // 2. Show lesson selection area
+                document.getElementById("lesson-select-area").style.display = "block";
+                
+                // 3. Reset lesson dropdown
+                const select = document.getElementById("lesson-select");
+                select.value = "";
+                updateCardState('lesson-card', false);
+                
+                // 4. Reload the lesson list to show updated "Needs Work"
+                if (currentStudent) {
+                    // Show a mini-loader in the dropdown
+                    select.innerHTML = '<option value="">Refreshing list...</option>';
+                    google.script.run
+                        .withSuccessHandler(populateTutorLessonList)
+                        .withFailureHandler(showError)
+                        .getTutorLessonList(currentStudent.name, currentStudent.program);
+                }
+            } catch (e) {
+                console.error("Error in resetForNextLetter:", e);
+                // Fallback: just reset the whole student
+                resetStudent();
+            }
+        }
+        
+        /* Utility Functions */
+        function updateCardState(id, hasVal) { const c=document.getElementById(id); if (c) { hasVal ? c.classList.add('has-value') : c.classList.remove('has-value'); } }
+        function showLoader(msg) { const l=document.getElementById("loader"), t=document.getElementById("loader-text"); if (l && t) { t.textContent = msg; l.classList.add("visible"); } clearStatus(); }
+        function hideLoader() { const l=document.getElementById("loader"); if (l) l.classList.remove("visible"); }
+        function showError(err) { hideLoader(); const msg = (err instanceof Error) ? err.message : String(err); showStatus(`⚠️ ${msg}`, 'error'); document.getElementById("save-button").disabled = false; const s=document.getElementById("session-options-area"); if(currentStudent)s.classList.add("visible"); }
+        
+        /* --- UPDATED showSuccess with try...catch --- */
+        function showSuccess(message) {
+            try {
+                hideLoader();
+                showStatus(`✅ ${message}`, 'success'); // This will show for 5 seconds
+
+                // Check if this was an absence save or a lesson save
+                if (message && message.includes("absent")) {
+                    // This was an absence, so reset all the way
+                    setTimeout(() => { // Wait for user to read message
+                        resetStudent();
+                    }, 2000);
+                } else {
+                    // This was a lesson save, just reset for next letter
+                    resetForNextLetter();
+                }
+            } catch (e) {
+                console.error("Error inside showSuccess:", e);
+                // Fallback in case resetForNextLetter fails, reset completely
+                showStatus(`✅ ${message}. Resetting form.`, 'success');
+                resetStudent();
+            }
+        }
+        
+        function showStatus(msg, type = 'info') { const c=document.getElementById('status-container'); if (!c) return; c.innerHTML = `<div class="status-message ${type}">${message}</div>`; setTimeout(clearStatus, 5000); }
+        function clearStatus() { const c=document.getElementById('status-container'); if (c) c.innerHTML = ''; }
+
+        /* Keyboard Support */
+        function addKeyboardSupport() { document.addEventListener('keydown', (e) => { if (document.activeElement && document.activeElement.classList.contains('status-btn')) { const p = document.activeElement.closest('.lesson-group'); if (!p) return; let t = null; switch(e.key.toLowerCase()) { case 'y': case '1': t = p.querySelector('.status-btn[value="Y"]'); break; case 'n': case '2': t = p.querySelector('.status-btn[value="N"]'); break; case 'arrowright': t = document.activeElement.nextElementSibling || p.querySelector('.status-btn:first-child'); break; case 'arrowleft': t = document.activeElement.previousElementSibling || p.querySelector('.status-btn:last-child'); break; } if (t) { e.preventDefault(); t.click(); t.focus(); } } if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); const sB = document.getElementById('save-button'); if (sB && !sB.disabled && document.getElementById('save-button-container').classList.contains('visible')) { sB.click(); } } }); }
+    </script>
+</body>
+</html>
