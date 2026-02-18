@@ -326,16 +326,6 @@ function getImportDialogHtml() {
         return;
       }
       
-      // Map UI type to backend type
-      let importType;
-      if (selectedType === 'initial-grid' || selectedType === 'initial-row') {
-        importType = 'initial';
-      } else {
-        importType = 'progress';
-      }
-      
-      const format = selectedType.endsWith('-grid') ? 'grid' : 'row';
-      
       showStatus('info', 'Processing import...');
       document.getElementById('importBtn').disabled = true;
       
@@ -353,7 +343,7 @@ function getImportDialogHtml() {
           showStatus('error', 'Import failed: ' + error.message);
           document.getElementById('importBtn').disabled = false;
         })
-        .importCsvToStaging(csvData, importType);
+        .importCsvToStaging(csvData, selectedType);
     }
 
     function showStatus(type, message) {
