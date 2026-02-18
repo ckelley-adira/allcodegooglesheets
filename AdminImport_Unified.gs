@@ -285,7 +285,13 @@ function getImportDialogHtml() {
       document.querySelectorAll('.import-type-option').forEach(option => {
         option.classList.remove('selected');
       });
-      event.currentTarget.classList.add('selected');
+      const selectedRadio = document.querySelector('input[name="importType"][value="' + type + '"]:checked');
+      if (selectedRadio) {
+        const selectedOption = selectedRadio.closest('.import-type-option');
+        if (selectedOption) {
+          selectedOption.classList.add('selected');
+        }
+      }
       
       // Update format info boxes
       const isGrid = (type === 'initial-grid');
