@@ -133,7 +133,8 @@ const COLORS = {
 // GRADE METRICS (Updated January 2026)
 // ═══════════════════════════════════════════════════════════════════════════
 // NOTE: GlobalPrep uses custom GRADE_METRICS that differs from SHARED_GRADE_METRICS
-// Specifically, G3 currentYear denominator is 120 instead of 107
+// Specifically, G3 currentYear denominator is 120 instead of 107 (all non-review lessons)
+// This is an intentional school-specific configuration.
 // ═══════════════════════════════════════════════════════════════════════════
 
 const GRADE_METRICS = {
