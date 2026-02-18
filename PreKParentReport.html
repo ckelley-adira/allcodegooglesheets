@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Progress Report</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            line-height: 1.6;
+        }
+
+        .report-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        /* Header */
+        .report-header {
+            background: linear-gradient(135deg, #1E3A5F 0%, #2E5A8F 100%);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .report-header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 300px;
+            height: 300px;
+            background: rgba(232, 185, 35, 0.1);
+            border-radius: 50%;
+        }
+
+        .report-header::after {
+            content: '';
+            position: absolute;
+            bottom: -30%;
+            left: -10%;
+            width: 200px;
+            height: 200px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 50%;
+        }
+
+        .library-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.15);
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            margin-bottom: 1rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .report-title {
+            font-size: 1.75rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .report-subtitle {
+            font-size: 1rem;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Student Info Card */
+        .student-card {
+            background: linear-gradient(135deg, #E8B923 0%, #F59E0B 100%);
+            margin: -1.5rem 2rem 2rem;
+            padding: 1.5rem;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(232, 185, 35, 0.3);
+            position: relative;
+            z-index: 10;
+        }
+
+        .student-name {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #1E3A5F;
+            margin-bottom: 0.5rem;
+        }
+
+        .student-details {
+            display: flex;
+            gap: 2rem;
+            color: #1E3A5F;
+            font-size: 0.9rem;
+        }
+
+        .student-details span {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Content */
+        .report-content {
+            padding: 0 2rem 2rem;
+        }
+
+        /* Progress Section */
+        .progress-section {
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1E3A5F;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-title::after {
+            content: '';
+            flex: 1;
+            height: 2px;
+            background: linear-gradient(90deg, #E8B923, transparent);
+            margin-left: 1rem;
+        }
+
+        /* Overall Progress Ring */
+        .overall-progress {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            background: #f8fafc;
+            padding: 1.5rem;
+            border-radius: 16px;
+            margin-bottom: 1.5rem;
+        }
+
+        .progress-ring-container {
+            position: relative;
+            width: 120px;
+            height: 120px;
+        }
+
+        .progress-ring {
+            transform: rotate(-90deg);
+        }
+
+        .progress-ring-bg {
+            fill: none;
+            stroke: #e2e8f0;
+            stroke-width: 10;
+        }
+
+        .progress-ring-fill {
+            fill: none;
+            stroke: #22C55E;
+            stroke-width: 10;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.5s ease;
+        }
+
+        .progress-ring-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+
+        .progress-percentage {
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: #1E3A5F;
+        }
+
+        .progress-label {
+            font-size: 0.75rem;
+            color: #64748b;
+        }
+
+        .progress-summary {
+            flex: 1;
+        }
+
+        .progress-summary h3 {
+            font-size: 1.125rem;
+            color: #1E3A5F;
+            margin-bottom: 0.5rem;
+        }
+
+        .progress-summary p {
+            color: #64748b;
+            font-size: 0.95rem;
+        }
+
+        /* Skill Cards */
+        .skills-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .skill-card {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1.25rem;
+            transition: all 0.3s ease;
+        }
+
+        .skill-card:hover {
+            border-color: #E8B923;
+            box-shadow: 0 4px 12px rgba(232, 185, 35, 0.15);
+        }
+
+        .skill-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .skill-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.25rem;
+        }
+
+        .skill-icon.form { background: #DBEAFE; }
+        .skill-icon.name { background: #FCE7F3; }
+        .skill-icon.sound { background: #D1FAE5; }
+
+        .skill-name {
+            font-weight: 700;
+            color: #1E3A5F;
+        }
+
+        .skill-bar {
+            height: 12px;
+            background: #e2e8f0;
+            border-radius: 6px;
+            overflow: hidden;
+            margin-bottom: 0.5rem;
+        }
+
+        .skill-fill {
+            height: 100%;
+            border-radius: 6px;
+            transition: width 0.5s ease;
+        }
+
+        .skill-fill.high { background: linear-gradient(90deg, #22C55E, #4ADE80); }
+        .skill-fill.medium { background: linear-gradient(90deg, #F59E0B, #FBBF24); }
+        .skill-fill.low { background: linear-gradient(90deg, #EF4444, #F87171); }
+
+        .skill-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+        }
+
+        .skill-mastery {
+            font-weight: 700;
+        }
+
+        .skill-mastery.high { color: #22C55E; }
+        .skill-mastery.medium { color: #F59E0B; }
+        .skill-mastery.low { color: #EF4444; }
+
+        /* Encouragement Section */
+        .encouragement {
+            background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-top: 2rem;
+            text-align: center;
+        }
+
+        .encouragement-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .encouragement h3 {
+            color: #166534;
+            font-size: 1.125rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .encouragement p {
+            color: #166534;
+            opacity: 0.8;
+        }
+
+        /* Footer */
+        .report-footer {
+            background: #f8fafc;
+            padding: 1.5rem 2rem;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .footer-text {
+            font-size: 0.85rem;
+            color: #64748b;
+        }
+
+        .footer-logo {
+            font-weight: 700;
+            color: #1E3A5F;
+        }
+
+        /* Print Styles */
+        @media print {
+            body { background: white; }
+            .report-container { box-shadow: none; }
+            .report-header, .student-card, .skill-card {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
+
+        @page {
+            size: letter;
+            margin: 0.5in;
+        }
+    </style>
+</head>
+<body>
+    <div class="report-container">
+        <header class="report-header">
+            <div class="library-badge">Mount Zion Academy Pre-K</div>
+            <h1 class="report-title">Literacy Progress Report</h1>
+            <p class="report-subtitle">The Indy Learning Team with Adira Reads/p>
+        </header>
+
+        <div class="student-card">
+            <div class="student-name" id="student-name">{{StudentName}}</div>
+            <div class="student-details">
+                <span>{{Program}} Program</span>
+                <span>Report Date: {{Date}}</span>
+            </div>
+        </div>
+
+        <div class="report-content">
+            <section class="progress-section">
+                <h2 class="section-title">Overall Progress</h2>
+
+                <div class="overall-progress">
+                    <div class="progress-ring-container">
+                        <svg class="progress-ring" width="120" height="120">
+                            <circle class="progress-ring-bg" cx="60" cy="60" r="50"/>
+                            <circle class="progress-ring-fill" cx="60" cy="60" r="50"
+                                stroke-dasharray="314.159"
+                                stroke-dashoffset="{{OverallOffset}}"/>
+                        </svg>
+                        <div class="progress-ring-text">
+                            <div class="progress-percentage">{{OverallMastery}}%</div>
+                            <div class="progress-label">Mastery</div>
+                        </div>
+                    </div>
+                    <div class="progress-summary">
+                        <h3>{{ProgressMessage}}</h3>
+                        <p>{{ProgressDetail}}</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="progress-section" id="prek-skills" style="{{PreKDisplay}}">
+                <h2 class="section-title">Skill Breakdown</h2>
+
+                <div class="skills-grid">
+                    <div class="skill-card">
+                        <div class="skill-header">
+                            <div class="skill-icon form">✏️</div>
+                            <div class="skill-name">Letter Form</div>
+                        </div>
+                        <div class="skill-bar">
+                            <div class="skill-fill {{FormClass}}" style="width: {{FormMastery}}%"></div>
+                        </div>
+                        <div class="skill-stats">
+                            <span class="skill-mastery {{FormClass}}">{{FormMastery}}% Mastery</span>
+                            <span>{{FormCumulative}}% Complete</span>
+                        </div>
+                    </div>
+
+                    <div class="skill-card">
+                        <div class="skill-header">
+                            <div class="skill-icon name">🔤</div>
+                            <div class="skill-name">Letter Name</div>
+                        </div>
+                        <div class="skill-bar">
+                            <div class="skill-fill {{NameClass}}" style="width: {{NameMastery}}%"></div>
+                        </div>
+                        <div class="skill-stats">
+                            <span class="skill-mastery {{NameClass}}">{{NameMastery}}% Mastery</span>
+                            <span>{{NameCumulative}}% Complete</span>
+                        </div>
+                    </div>
+
+                    <div class="skill-card">
+                        <div class="skill-header">
+                            <div class="skill-icon sound">🔊</div>
+                            <div class="skill-name">Letter Sound</div>
+                        </div>
+                        <div class="skill-bar">
+                            <div class="skill-fill {{SoundClass}}" style="width: {{SoundMastery}}%"></div>
+                        </div>
+                        <div class="skill-stats">
+                            <span class="skill-mastery {{SoundClass}}">{{SoundMastery}}% Mastery</span>
+                            <span>{{SoundCumulative}}% Complete</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="progress-section" id="preschool-skills" style="{{PreSchoolDisplay}}">
+                <h2 class="section-title">Letter Sounds Progress</h2>
+
+                <div class="skills-grid">
+                    <div class="skill-card" style="grid-column: span 2;">
+                        <div class="skill-header">
+                            <div class="skill-icon sound">🔊</div>
+                            <div class="skill-name">Letter Sound Recognition</div>
+                        </div>
+                        <div class="skill-bar">
+                            <div class="skill-fill {{PSClass}}" style="width: {{PSMastery}}%"></div>
+                        </div>
+                        <div class="skill-stats">
+                            <span class="skill-mastery {{PSClass}}">{{PSMastery}}% Mastery</span>
+                            <span>{{PSCumulative}}% Complete</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <div class="encouragement">
+                <div class="encouragement-icon">{{EncouragementIcon}}</div>
+                <h3>{{EncouragementTitle}}</h3>
+                <p>{{EncouragementText}}</p>
+            </div>
+        </div>
+
+        <footer class="report-footer">
+            <p class="footer-text">
+                This report was generated by the <span class="footer-logo">The Indy Learning Team / Adira Reads in partnership with Mount Zion Academy</span>
+                <br>in partnership with local schools and community tutors.
+            </p>
+        </footer>
+    </div>
+</body>
+</html>
