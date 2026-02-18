@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PreK and PreSchool Literacy Program - The Indy Learning Team Adira Reads</title>
+    <base target="_top">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #1E3A5F 0%, #2E5A8F 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 1.5rem 2rem;
+            text-align: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header-badge {
+            display: inline-block;
+            background: #E8B923;
+            color: #1E3A5F;
+            padding: 0.5rem 1.25rem;
+            border-radius: 50px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            letter-spacing: 0.5px;
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.5px;
+        }
+
+        .header p {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1.1rem;
+        }
+
+        /* Main Content */
+        .main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .portal-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            max-width: 1000px;
+            width: 100%;
+        }
+
+        /* Portal Cards */
+        .portal-card {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .portal-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: linear-gradient(90deg, var(--card-color), var(--card-color-light));
+        }
+
+        .portal-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .portal-card:active {
+            transform: translateY(-4px);
+        }
+
+        /* Card Colors */
+        .portal-card.teacher {
+            --card-color: #E8B923;
+            --card-color-light: #F59E0B;
+        }
+
+        .portal-card.tutor {
+            --card-color: #22C55E;
+            --card-color-light: #4ADE80;
+        }
+
+        .portal-card.dashboard {
+            --card-color: #3B82F6;
+            --card-color-light: #60A5FA;
+        }
+
+        .card-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            margin: 0 auto 1.25rem;
+            background: linear-gradient(135deg, var(--card-color), var(--card-color-light));
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .card-title {
+            font-size: 1.35rem;
+            font-weight: 800;
+            color: #1E3A5F;
+            margin-bottom: 0.5rem;
+        }
+
+        .card-description {
+            color: #64748B;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin-bottom: 1.25rem;
+        }
+
+        .card-features {
+            text-align: left;
+            background: #F8FAFC;
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .card-features li {
+            color: #475569;
+            font-size: 0.85rem;
+            padding: 0.35rem 0;
+            padding-left: 1.5rem;
+            position: relative;
+            list-style: none;
+        }
+
+        .card-features li::before {
+            content: '✓';
+            position: absolute;
+            left: 0;
+            color: var(--card-color);
+            font-weight: 700;
+        }
+
+        .card-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: linear-gradient(135deg, var(--card-color), var(--card-color-light));
+            color: white;
+            padding: 0.85rem 1.75rem;
+            border-radius: 50px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .card-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+        }
+
+        .card-button span {
+            transition: transform 0.3s ease;
+        }
+
+        .portal-card:hover .card-button span {
+            transform: translateX(3px);
+        }
+
+        /* Footer */
+        .footer {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 1.25rem 2rem;
+            text-align: center;
+        }
+
+        .footer p {
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.85rem;
+        }
+
+        .footer a {
+            color: #E8B923;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .portal-grid {
+                grid-template-columns: 1fr;
+                max-width: 400px;
+            }
+
+            .portal-card {
+                padding: 1.5rem;
+            }
+        }
+
+        /* Loading state */
+        .loading {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-badge">The Indy Learning Team with Adira Reads</div>
+        <h1>PreK and PreSchool Literacy Program</h1>
+        <p>Student Assessment Tracker</p>
+    </header>
+
+    <main class="main">
+        <div class="portal-grid">
+            <!-- Teacher Portal -->
+            <div class="portal-card teacher" onclick="navigateTo('teacher')">
+                <div class="card-icon">📚</div>
+                <h2 class="card-title">Teacher Tracker</h2>
+                <p class="card-description">Full student assessment and progress tracking.</p>
+                <ul class="card-features">
+                    <li>Record Form, Name & Sound assessments</li>
+                    <li>View individual student progress</li>
+                    <li>Generate parent reports</li>
+                    <li>Manage roster and groups</li>
+                </ul>
+                <div class="card-button">
+                    Open Teacher Tracker <span>→</span>
+                </div>
+            </div>
+
+            <!-- Tutor Portal -->
+            <div class="portal-card tutor" onclick="navigateTo('tutor')">
+                <div class="card-icon">✏️</div>
+                <h2 class="card-title">Tutor Tracker</h2>
+                <p class="card-description">Streamlined assessment entry for 1:1 Tutoring.</p>
+                <ul class="card-features">
+                    <li>Quick session tracking</li>
+                    <li>Sequence-based assessments</li>
+                    <li>Mobile-friendly interface</li>
+                    <li>Simple Y/N recording</li>
+                </ul>
+                <div class="card-button">
+                    Open Tutor Tracker <span>→</span>
+                </div>
+            </div>
+
+            <!-- Program Overview Dashboard -->
+            <div class="portal-card dashboard" onclick="navigateTo('dashboard')">
+                <div class="card-icon">📊</div>
+                <h2 class="card-title">Program Overview Dashboard</h2>
+                <p class="card-description">Program-wide analytics and reporting for administrators.</p>
+                <ul class="card-features">
+                    <li>Site-wide progress overview</li>
+                    <li>Group comparison charts</li>
+                    <li>Mastery distribution analysis</li>
+                    <li>Export data to CSV</li>
+                </ul>
+                <div class="card-button">
+                    Open Dashboard <span>→</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <p>PreK Literacy Program &copy; 2025 | <a href="#">The Indy Learning Team with Adira Reads</a> | Need help? Contact your site coordinator.</p>
+    </footer>
+
+    <script>
+        // Get the web app URL on page load
+        var webAppUrl = '';
+
+        google.script.run
+            .withSuccessHandler(function(url) {
+                webAppUrl = url;
+            })
+            .getWebAppUrl();
+
+        function navigateTo(page) {
+            // Add loading state
+            var cards = document.querySelectorAll('.portal-card');
+            cards.forEach(function(card) {
+                card.classList.add('loading');
+            });
+
+            // Navigate using the server-provided URL
+            if (webAppUrl) {
+                window.top.location.href = webAppUrl + '?page=' + page;
+            } else {
+                // Fallback: request URL and navigate
+                google.script.run
+                    .withSuccessHandler(function(url) {
+                        window.top.location.href = url + '?page=' + page;
+                    })
+                    .getWebAppUrl();
+            }
+        }
+    </script>
+</body>
+</html>
