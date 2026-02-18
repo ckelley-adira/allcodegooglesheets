@@ -94,7 +94,7 @@ function getCHAWConfig() {
     SHEET_NAMES_PREK,
     LAYOUT,
     PREK_CONFIG,
-    GRADE_METRICS
+    GRADE_METRICS: SHARED_GRADE_METRICS
   };
 }
 
@@ -214,116 +214,14 @@ const COLORS = {
 // CALCULATION HELPER UTILITIES (Reduce code duplication)
 // ═══════════════════════════════════════════════════════════════════════════
 
-const FOUNDATIONAL_LESSONS = Array.from({length: 34}, (_, i) => i + 1);
-
 // ═══════════════════════════════════════════════════════════════════════════
-// MINIMUM GRADE LESSON ARRAYS (Updated January 2026)
+// LESSON ARRAYS & GRADE METRICS
 // ═══════════════════════════════════════════════════════════════════════════
+// These constants are now imported from SharedEngine.gs:
+// - FOUNDATIONAL_LESSONS, G1_MINIMUM_LESSONS, G1_CURRENT_YEAR_LESSONS
+// - G2_MINIMUM_LESSONS, G2_CURRENT_YEAR_LESSONS, G4_MINIMUM_LESSONS
+// - ALL_NON_REVIEW_LESSONS, SHARED_GRADE_METRICS
 
-// G1 Minimum: Lessons 1-34 + Digraphs (42-53), excluding reviews
-const G1_MINIMUM_LESSONS = (() => {
-  const lessons = [];
-  // Foundational: 1-34
-  for (let i = 1; i <= 34; i++) lessons.push(i);
-  // Digraphs: 42-53, excluding reviews 49, 53
-  for (let i = 42; i <= 53; i++) {
-    if (![49, 53].includes(i)) lessons.push(i);
-  }
-  return lessons;  // 34 + 10 = 44 lessons
-})();
-
-const G1_CURRENT_YEAR_LESSONS = (() => {
-  const lessons = [];
-  for (let i = 35; i <= 62; i++) {
-    if (![49, 53, 57, 59, 62].includes(i)) lessons.push(i);
-  }
-  return lessons;
-})();
-
-// G2/G3 Minimum: Lessons 1-34 + Digraphs + VCE + RLW, excluding reviews
-const G2_MINIMUM_LESSONS = (() => {
-  const lessons = [];
-  // Foundational: 1-34
-  for (let i = 1; i <= 34; i++) lessons.push(i);
-  // Digraphs: 42-53, excluding reviews 49, 53
-  for (let i = 42; i <= 53; i++) {
-    if (![49, 53].includes(i)) lessons.push(i);
-  }
-  // VCE: 54-62, excluding reviews 57, 59, 62
-  for (let i = 54; i <= 62; i++) {
-    if (![57, 59, 62].includes(i)) lessons.push(i);
-  }
-  // Reading Longer Words: 63-68 (no reviews)
-  for (let i = 63; i <= 68; i++) lessons.push(i);
-  return lessons;  // 34 + 10 + 6 + 6 = 56 lessons
-})();
-
-const G2_CURRENT_YEAR_LESSONS = (() => {
-  const lessons = [38];
-  for (let i = 63; i <= 83; i++) {
-    if (![71, 76, 79, 83].includes(i)) lessons.push(i);
-  }
-  return lessons;
-})();
-
-// G4-G8 Minimum: Lessons 1-34 + 42-110, excluding only Alphabet Review section
-const G4_MINIMUM_LESSONS = (() => {
-  const lessons = [];
-  // Foundational: 1-34
-  for (let i = 1; i <= 34; i++) lessons.push(i);
-  // Everything from 42-110 (includes review lessons)
-  for (let i = 42; i <= 110; i++) lessons.push(i);
-  return lessons;  // 34 + 69 = 103 lessons
-})();
-
-const ALL_NON_REVIEW_LESSONS = (() => {
-  const lessons = [];
-  for (let i = 1; i <= 128; i++) {
-    if (!REVIEW_LESSONS.includes(i)) lessons.push(i);
-  }
-  return lessons;
-})();
-
-// ═══════════════════════════════════════════════════════════════════════════
-// GRADE METRICS (Updated January 2026)
-// ═══════════════════════════════════════════════════════════════════════════
-
-const GRADE_METRICS = {
-  'PreK': {
-    foundational: { lessons: FOUNDATIONAL_LESSONS, denominator: 26 },
-    minimum: { lessons: FOUNDATIONAL_LESSONS, denominator: 26 },
-    currentYear: { lessons: FOUNDATIONAL_LESSONS, denominator: 26 }
-  },
-  'KG': {
-    foundational: { lessons: FOUNDATIONAL_LESSONS, denominator: 34 },
-    minimum: { lessons: FOUNDATIONAL_LESSONS, denominator: 34 },
-    currentYear: { lessons: FOUNDATIONAL_LESSONS, denominator: 34 }
-  },
-  'G1': {
-    foundational: { lessons: FOUNDATIONAL_LESSONS, denominator: 34 },
-    minimum: { lessons: G1_MINIMUM_LESSONS, denominator: 44 },
-    currentYear: { lessons: G1_CURRENT_YEAR_LESSONS, denominator: 23 }
-  },
-  'G2': {
-    foundational: { lessons: FOUNDATIONAL_LESSONS, denominator: 34 },
-    minimum: { lessons: G2_MINIMUM_LESSONS, denominator: 56 },
-    currentYear: { lessons: G2_CURRENT_YEAR_LESSONS, denominator: 18 }
-  },
-  'G3': {
-    foundational: { lessons: FOUNDATIONAL_LESSONS, denominator: 34 },
-    minimum: { lessons: G2_MINIMUM_LESSONS, denominator: 56 },
-    currentYear: { lessons: ALL_NON_REVIEW_LESSONS, denominator: 107 }
-  }
-};
-
-// G4-G8 share the same configuration
-['G4', 'G5', 'G6', 'G7', 'G8'].forEach(grade => {
-  GRADE_METRICS[grade] = {
-    foundational: { lessons: FOUNDATIONAL_LESSONS, denominator: 34 },
-    minimum: { lessons: G4_MINIMUM_LESSONS, denominator: 103 },
-    currentYear: { lessons: ALL_NON_REVIEW_LESSONS, denominator: 107 }
-  };
-});
 // ═══════════════════════════════════════════════════════════════════════════
 // UTILITY FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════
@@ -1956,7 +1854,7 @@ function calculateGrowthMetrics(students, initialData, grade) {
   let fullInitialSum = 0, fullCurrentSum = 0, fullCount = 0;
   
   // Get the correct metric configuration for this grade
-  const metrics = GRADE_METRICS[grade];
+  const metrics = SHARED_GRADE_METRICS[grade];
   
   students.forEach(s => {
     const studentName = s[0];
