@@ -1,4 +1,76 @@
 Summary: Repository Structure & Understanding Confirmation
+
+## Phase 4: Feature Modules Extraction (February 2026)
+
+**Status:** ✅ Complete
+
+**Summary:** All optional features have been extracted into the `modules/` directory with feature flag-driven activation. This modular architecture allows schools to enable/disable features without code changes, reducing drift and simplifying maintenance.
+
+### What Changed
+
+1. **New Directory Structure:**
+   ```
+   modules/
+   ├── README.md                    # Module documentation
+   ├── AdminImport.gs               # Historical data import
+   ├── CoachingDashboard.gs         # Weekly coaching metrics
+   ├── GrantReporting.gs            # Grant report generation
+   ├── GrowthHighlighter.gs         # Visual growth highlighting
+   ├── MixedGradeSupport.gs         # Cross-grade grouping
+   ├── ModuleLoader.gs              # Dynamic menu building
+   ├── TutoringSystem.gs            # Dual-track progress
+   ├── UnenrollmentAutomation.gs    # Auto-archival & Monday.com
+   └── onOpen_Example.gs            # Implementation example
+   
+   SiteConfig_TEMPLATE.gs           # Feature flag configuration
+   ```
+
+2. **Feature Flags:** All features are now controlled via `SITE_CONFIG.features`:
+   ```javascript
+   const SITE_CONFIG = {
+     features: {
+       mixedGradeSupport: false,
+       coachingDashboard: false,
+       tutoringSystem: false,
+       grantReporting: false,
+       growthHighlighter: false,
+       adminImport: false,
+       unenrollmentAutomation: false
+     }
+   };
+   ```
+
+3. **Dynamic Menus:** Menu items now appear/disappear based on enabled features, using `buildFeatureMenu()` from `ModuleLoader.gs`.
+
+### Benefits
+
+- **Reduced Drift:** Modules are centralized, preventing version differences between schools
+- **Cleaner Codebase:** Optional features are separated from core system
+- **Easier Testing:** Features can be toggled on/off without code changes
+- **Better Documentation:** Each module is self-documented with purpose and usage
+- **Simplified Onboarding:** New schools only see features they need
+
+### For School Administrators
+
+To enable a feature for your school:
+1. Open `SiteConfig_TEMPLATE.gs` in your Apps Script project
+2. Set the desired feature flag to `true`
+3. Configure any required settings (see `modules/README.md`)
+4. Reload your spreadsheet
+
+Menu items for enabled features will appear automatically.
+
+### For Developers
+
+When adding a new feature module:
+1. Create the module in `modules/` directory
+2. Add feature flag to `SiteConfig_TEMPLATE.gs`
+3. Update `ModuleLoader.gs` to add menu items
+4. Document in `modules/README.md`
+5. Test with feature toggled on/off
+
+---
+
 Based on my thorough review of the repository files, here's what I found:
 
 1. SHARED vs. SCHOOL-SPECIFIC FILES
