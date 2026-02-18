@@ -510,6 +510,10 @@
         <div class="step-number">8</div>
         <div class="step-label">Layout</div>
       </div>
+      <div class="step" data-step="9">
+        <div class="step-number">9</div>
+        <div class="step-label">Review</div>
+      </div>
     </div>
     
     <div class="wizard-content">
@@ -784,10 +788,10 @@
         <div class="form-group">
           <label for="groupFormat">Group Format Style</label>
           <select id="groupFormat">
-            <option value="standard" selected>Standard - Default balanced layout</option>
-            <option value="condensed">Condensed - Compact view for more data on screen</option>
-            <option value="expanded">Expanded - Spacious layout with extra white space</option>
-            <option value="sankofa">Sankofa - Specialized format for coaching-focused tracking</option>
+            <option value="standard" selected>Standard - Traditional layout with group name in column D</option>
+            <option value="condensed">Condensed - Minimal layout for small displays or printing</option>
+            <option value="expanded">Expanded - Additional metadata columns for detailed tracking</option>
+            <option value="sankofa">Sankofa Format - Co-teaching format with 'Student Name' header rows and group name in column D</option>
           </select>
           <div class="small-text">Layout style affects column widths, spacing, and visual presentation of group sheets.</div>
         </div>
@@ -834,7 +838,7 @@
   <script>
     // Global state
     let currentStep = 1;
-    const totalSteps = 8;
+    const totalSteps = 9;
     const stepOrder = [1, 2, 3, 4, 5, 6, 7, 8, 9]; // 9 is the confirmation step
     const wizardData = {
       schoolName: '',
