@@ -17,7 +17,7 @@
     }
     
     .header {
-      background: linear-gradient(135deg, #4A90A4 0%, #357a8a 100%);
+      background: linear-gradient(135deg, <?= getBranding().accentColor ?> 0%, <?= getBranding().accentColor ?> 100%);
       color: white;
       padding: 20px 16px;
       text-align: center;
@@ -46,7 +46,7 @@
     .section-title {
       font-size: 13px;
       font-weight: 500;
-      color: #4A90A4;
+      color: <?= getBranding().accentColor ?>;
       margin: 0 0 12px 0;
       padding-bottom: 8px;
       border-bottom: 1px solid #e8eaed;
@@ -68,7 +68,7 @@
     .info-value {
       font-size: 20px;
       font-weight: 500;
-      color: #4A90A4;
+      color: <?= getBranding().accentColor ?>;
     }
     
     .info-label {
@@ -91,7 +91,7 @@
       margin-right: 10px;
       width: 16px;
       height: 16px;
-      accent-color: #4A90A4;
+      accent-color: <?= getBranding().accentColor ?>;
     }
     
     .checkbox-item label {
@@ -147,12 +147,12 @@
     }
     
     .btn-primary {
-      background: #4A90A4;
+      background: <?= getBranding().accentColor ?>;
       color: white;
     }
     
     .btn-primary:hover {
-      background: #357a8a;
+      background: <?= getBranding().accentColor ?>;
     }
     
     .btn-primary:disabled {
@@ -162,8 +162,8 @@
     
     .btn-secondary {
       background: white;
-      color: #4A90A4;
-      border: 1px solid #4A90A4;
+      color: <?= getBranding().accentColor ?>;
+      border: 1px solid <?= getBranding().accentColor ?>;
     }
     
     .btn-secondary:hover {
@@ -290,7 +290,7 @@
       width: 30px;
       height: 30px;
       border: 3px solid #e8eaed;
-      border-top-color: #4A90A4;
+      border-top-color: <?= getBranding().accentColor ?>;
       border-radius: 50%;
       animation: spin 1s linear infinite;
       margin: 0 auto 10px;
@@ -387,48 +387,11 @@
 
   <script>
     let lastResults = [];
-    let siteConfig = null;
     
     // Load sheet info on startup
     document.addEventListener('DOMContentLoaded', function() {
-      loadSiteConfig();
       loadSheetInfo();
     });
-    
-    function loadSiteConfig() {
-      google.script.run
-        .withSuccessHandler(applySiteConfig)
-        .withFailureHandler(function(error) {
-          console.error('Failed to load site config:', error);
-        })
-        .getSiteConfigForUI();
-    }
-
-    function applySiteConfig(config) {
-      siteConfig = config;
-      
-      // Apply accent color
-      const accentColor = config.accentColor || '#B8E6DC';
-      const style = document.createElement('style');
-      style.innerHTML = `
-        .section-title { color: ${config.primaryColor || '#4A90E2'} !important; }
-        .btn-primary { background: ${accentColor} !important; border-color: ${accentColor} !important; }
-        .btn-primary:hover { background: ${config.primaryColor || '#4A90E2'} !important; }
-      `;
-      document.head.appendChild(style);
-
-      // Update logo if available
-      if (config.logoFileId) {
-        const logoImg = document.querySelector('.logo img');
-        if (logoImg) {
-          logoImg.src = `https://drive.google.com/uc?export=view&id=${config.logoFileId}`;
-          logoImg.style.display = 'block';
-        }
-      } else {
-        const logo = document.querySelector('.logo');
-        if (logo) logo.style.display = 'none';
-      }
-    }
     
     function loadSheetInfo() {
       google.script.run

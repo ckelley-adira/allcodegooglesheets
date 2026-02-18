@@ -1,212 +1,240 @@
-# Phase 5: HTML & UI Unification - Implementation Summary
+# Phase 5: HTML & UI Unification - Server-Side Template Approach
 
 ## Overview
-Phase 5 unified all major UI HTML files to use canonical versions with SITE_CONFIG parameterization, eliminating duplication and enabling school-specific branding through configuration rather than separate files.
+Phase 5 unified all major UI HTML files to canonical versions using Apps Script server-side templating with `<?= ?>` tokens. This approach allows school-specific branding (colors, logos, labels) to be injected at render time from SITE_CONFIG.
 
-## Completed Work
+## Approach: Server-Side Templating
 
-### 1. Canonical UI Files Created
-The following UI files were unified from Adelante-specific versions to canonical versions:
+Instead of client-side dynamic loading via `google.script.run`, this implementation uses Apps Script's native template system:
 
-- **ManageStudentsUI.html** - Student roster management dialog
-- **ManageGroupsUI.html** - Group configuration management dialog
-- **GenerateReportsUI.html** - Custom report generation interface
-- **GrowthHighlighterSidebar.html** - Growth highlighting utility sidebar
+```html
+<!-- Before: Hardcoded -->
+<div style="background: #B8E6DC;">
 
-All canonical files are now used by all schools (Adelante, Sankofa, GlobalPrep, CCA, CHAW).
-
-### 2. SITE_CONFIG Parameterization
-Each canonical UI file now:
-- Loads site configuration on page load via `getSiteConfigForUI()`
-- Applies dynamic colors based on site configuration:
-  - **Primary Color**: Main branding color (buttons hover, headings)
-  - **Accent Color**: Derived color for section headers and highlights (70% lighter than primary)
-  - **Secondary Color**: Available for future use
-- Loads school logo from Google Drive (if configured)
-- Hides logo section if no logo is configured
-
-#### Color Mapping
-- **Hardcoded #B8E6DC** (old Adelante accent) → **Computed accentColor** (from SITE_CONFIG)
-- Section headers, selected rows, modal headers → Use accentColor
-- Button hover states → Use primaryColor
-- Default colors if not configured: Primary=#4A90E2, Accent=#B8E6DC
-
-### 3. Server-Side Functions Added
-Added to all setup wizard files:
-- **SetupWizard.gs** (canonical)
-- **AdelanteSetUpWizard.gs**
-- **CCASetupWizard.gs**
-- **CHAWSetupWizard.gs**
-- **GlobalPrepSetupWizard.gs**
-- **SankofaSetupWizard.gs**
-- **AdelanteGrowthHighlighter.gs** (for sidebar)
-
-Functions added:
-```javascript
-/**
- * Gets site configuration for use in HTML UI dialogs
- * @returns {Object} {schoolName, primaryColor, secondaryColor, logoFileId, accentColor}
- */
-function getSiteConfigForUI()
-
-/**
- * Lightens a hex color by a factor (for computing accent colors)
- * @param {string} hex - Hex color code
- * @param {number} factor - Lightening factor (0-1)
- * @returns {string} Lightened hex color
- */
-function lightenColor(hex, factor)
+<!-- After: Template token -->
+<div style="background: <?= getBranding().primaryColor ?>;">
 ```
 
-### 4. Logo Handling
-- **Before**: Hardcoded base64-encoded logos embedded in HTML (35KB+ per file)
-- **After**: Dynamic loading from Google Drive using logoFileId
-- Logo display controlled via Site Configuration sheet (Row 26: Logo File ID)
-- Logo section hidden if no logoFileId is configured
+### Benefits
+- **No additional API calls** - Branding injected at page load
+- **Faster rendering** - No wait for async config loading
+- **Simpler code** - No client-side JavaScript for branding
+- **Native Apps Script** - Uses built-in template system
 
-## Files Modified
+## Canonical UI Files
 
-### New Files Created
-1. `ManageStudentsUI.html` - Canonical student management UI
-2. `ManageGroupsUI.html` - Canonical group management UI
-3. `GenerateReportsUI.html` - Canonical report generation UI
-4. `GrowthHighlighterSidebar.html` - Canonical growth highlighter sidebar
+### Renamed from Adelante (Base Template)
+1. **ManageStudentsUI.html** (was AdelanteManageStudentsUI.html)
+2. **ManageGroupsUI.html** (was AdelanteManageGroupsUI.html)
+3. **GenerateReportsUI.html** (was AdelanteGenerateReportsUI.html)
+4. **GrowthHighlighterSidebar.html** (was AdelanteGrowthHighlighterSidebar.html)
+5. **LessonEntryForm.html** (was AdelanteLessonEntryForm.html)
 
-### Files Modified
-1. `SetupWizard.gs` - Added getSiteConfigForUI() and lightenColor()
-2. `AdelanteSetUpWizard.gs` - Added getSiteConfigForUI() and lightenColor()
-3. `CCASetupWizard.gs` - Added getSiteConfigForUI() and lightenColor()
-4. `CHAWSetupWizard.gs` - Added getSiteConfigForUI() and lightenColor()
-5. `GlobalPrepSetupWizard.gs` - Added getSiteConfigForUI() and lightenColor()
-6. `SankofaSetupWizard.gs` - Added getSiteConfigForUI() and lightenColor()
-7. `AdelanteGrowthHighlighter.gs` - Added getSiteConfigForUI() and lightenColor()
+### Already Canonical
+6. **SetupWizardUI.html** (was already canonical, updated with template tokens)
 
-### Legacy Files (Kept for Backward Compatibility)
-The following Adelante-specific files remain but are no longer actively used:
-- `AdelanteManageStudentsUI.html` - Replaced by canonical ManageStudentsUI.html
-- `AdelanteManageGroupsUI.html` - Replaced by canonical ManageGroupsUI.html
-- `AdelanteGenerateReportsUI.html` - Replaced by canonical GenerateReportsUI.html
-- `AdelanteGrowthHighlighterSidebar.html` - Replaced by canonical GrowthHighlighterSidebar.html
+## SITE_CONFIG Branding Block
 
-**Note**: These files can be safely removed in a future cleanup phase.
+Added to `SiteConfig_TEMPLATE.gs`:
 
-## Not Unified (Intentional)
+```javascript
+branding: {
+  schoolName: "Your School Name",
+  shortName: "",
+  tagline: "Innovate. Educate. Empower.",
+  logoUrl: "",  // Google Drive file ID or public URL
+  primaryColor: "#B8E6DC",  // Main accent color for UI elements
+  headerGradientStart: "#4A90E2",  // Setup wizard header gradient start
+  headerGradientEnd: "#357ABD",  // Setup wizard header gradient end
+  accentColor: "#4A90A4"  // Secondary accent for sidebars and highlights
+}
+```
 
-### 1. LessonEntryForm Files
-LessonEntryForm files remain school-specific due to significant functional differences:
-- **Co-teaching support** (Sankofa) - Displays students from multiple groups in one session
-- **Mixed-grade handling** - Different schools have different grade mixing logic
-- **Custom field layouts** - Different data collection requirements per school
-- **Integration points** - Different backend integration logic
+### Helper Function
 
-Files that remain school-specific:
-- `AdelanteLessonEntryForm.html`
-- `SankofaLessonEntryForm.html`
-- `GlobalPrepLessonEntryForm.html`
-- `AllegiantLessonEntryForm.html`
+```javascript
+function getBranding() {
+  return SITE_CONFIG.branding || {
+    schoolName: "UFLI Master System",
+    shortName: "",
+    tagline: "Innovate. Educate. Empower.",
+    logoUrl: "",
+    primaryColor: "#B8E6DC",
+    headerGradientStart: "#4A90E2",
+    headerGradientEnd: "#357ABD",
+    accentColor: "#4A90A4"
+  };
+}
+```
 
-**Future Work**: A future phase could create a canonical LessonEntryForm with feature flags to handle co-teaching, mixed grades, etc.
+## Template Token Usage
 
-### 2. PreK UI Files
-PreK UI files remain intentionally separate as they are school-agnostic and use a different curriculum (Handwriting Without Tears):
-- `PreKPortal.html`
-- `PreKDashboard.html`
-- `PreKTutorForm.html`
-- `PreKIndex.html`
-- `PreKParentReport.html`
-- `PreKSetupWizard.html`
+### Colors
+```html
+<!-- Primary accent color (section headers, selected rows, buttons) -->
+<div style="background: <?= getBranding().primaryColor ?>;">
 
-These are maintained separately in `PreKMainCode.gs` and are not part of the school-specific setup wizards.
+<!-- Header gradients (setup wizard) -->
+<div style="background: linear-gradient(135deg, <?= getBranding().headerGradientStart ?> 0%, <?= getBranding().headerGradientEnd ?> 100%);">
 
-### 3. SetupWizardUI.html
-Already canonical! All schools reference `SetupWizardUI.html` (not school-specific versions).
-- File: `SetupWizardUI.html`
-- Used by: All schools
-- Note: `AdelanteSetupWizardUI.html` exists but appears to be legacy/unused
+<!-- Accent color (sidebar, highlights) -->
+<div style="color: <?= getBranding().accentColor ?>;">
+```
 
-## Configuration Requirements
+### Labels
+```html
+<!-- School name -->
+<h1><?= getBranding().schoolName ?> - Lesson Data Entry</h1>
 
-### Site Configuration Sheet
-To use custom branding in the unified UIs, schools must configure these values in their "Site Configuration" sheet:
+<!-- Tagline -->
+<div class="tagline"><?= getBranding().tagline ?></div>
+```
 
-| Row | Label | Type | Purpose | Example |
-|-----|-------|------|---------|---------|
-| 2 | School Name | Text | Organization name | "Adelante Preparatory Academy" |
-| 24 | Primary Color | Hex Color | Main brand color | "#00838F" |
-| 25 | Secondary Color | Hex Color | Accent brand color | "#FFB300" |
-| 26 | Logo File ID | Text | Google Drive file ID | "1ABC...XYZ" |
+### Logo
+```html
+<!-- Conditional logo display -->
+<? if (getBranding().logoUrl) { ?>
+  <img src="<?= getBranding().logoUrl ?>" alt="School Logo">
+<? } else { ?>
+  <img src="" style="display:none;">
+<? } ?>
+```
 
-### Default Values
-If no configuration is found, the system uses these defaults:
-- School Name: "UFLI Master System"
-- Primary Color: #4A90E2 (blue)
-- Secondary Color: #90EE90 (light green)
-- Logo File ID: (empty - logo hidden)
-- Accent Color: #B8E6DC (derived from primary)
+## Deleted School-Specific Files
 
-## Testing & QA
+The following files were removed as they are now replaced by the canonical LessonEntryForm.html:
+- ❌ SankofaLessonEntryForm.html
+- ❌ GlobalPrepLessonEntryForm.html
+- ❌ CHAWLessonEntryform.html
+- ❌ AllegiantLessonEntryForm.html
 
-### Manual Testing Checklist
-- [ ] Test ManageStudentsUI with custom colors
-- [ ] Test ManageStudentsUI with custom logo
-- [ ] Test ManageStudentsUI with no logo configured
-- [ ] Test ManageGroupsUI with custom colors
-- [ ] Test GenerateReportsUI with custom colors
-- [ ] Test GrowthHighlighterSidebar with custom colors
-- [ ] Verify all schools can open all dialogs
-- [ ] Verify logo loads correctly from Drive
-- [ ] Verify colors apply correctly to all UI elements
+**Note:** Functional differences (co-teaching, mixed-grade handling) should now be handled via feature flags in SITE_CONFIG rather than separate files.
 
-### Regression Testing
-- [ ] Verify existing Adelante deployment still works
-- [ ] Verify Sankofa deployment can use new UIs
-- [ ] Verify GlobalPrep deployment can use new UIs
-- [ ] Verify CCA deployment can use new UIs
-- [ ] Verify CHAW deployment can use new UIs
+## Adelante-Specific Files (Legacy)
 
-## Migration Notes
+The following Adelante files remain but are **no longer used** (canonical versions replace them):
+- AdelanteManageStudentsUI.html → ManageStudentsUI.html
+- AdelanteManageGroupsUI.html → ManageGroupsUI.html
+- AdelanteGenerateReportsUI.html → GenerateReportsUI.html
+- AdelanteGrowthHighlighterSidebar.html → GrowthHighlighterSidebar.html
+- AdelanteLessonEntryForm.html → LessonEntryForm.html
+- AdelanteSetupWizardUI.html → SetupWizardUI.html (canonical already existed)
+
+These can be safely deleted in a future cleanup phase.
+
+## PreK UI Files (Intentionally Separate)
+
+PreK UI files remain untouched as requested:
+- ✅ PreKPortal.html
+- ✅ PreKDashboard.html
+- ✅ PreKTutorForm.html
+- ✅ PreKIndex.html
+- ✅ PreKParentReport.html
+- ✅ PreKSetupWizard.html
+
+**Reason:** School-agnostic system with different curriculum (Handwriting Without Tears)
+
+## Setup Wizard Updates
+
+Setup wizards need to be updated to:
+1. Include `SiteConfig_TEMPLATE.gs` with the branding block
+2. Ensure `getBranding()` function is available
+3. Reference canonical file names when calling `HtmlService.createHtmlOutputFromFile()`
+
+Example:
+```javascript
+function manageStudents() {
+  const html = HtmlService.createTemplateFromFile('ManageStudentsUI');
+  // Template tokens will be evaluated automatically
+  const output = html.evaluate()
+    .setWidth(800)
+    .setHeight(600)
+    .setTitle('Manage Student Roster');
+  
+  SpreadsheetApp.getUi().showModalDialog(output, 'Manage Students');
+}
+```
+
+**Important:** Change from `createHtmlOutputFromFile()` to `createTemplateFromFile()` + `.evaluate()` to enable template token processing.
+
+## Color Mapping
+
+| Element | Old Hardcoded | New Token |
+|---------|---------------|-----------|
+| Section headers, selected rows | `#B8E6DC` | `<?= getBranding().primaryColor ?>` |
+| Setup wizard header gradient start | `#4A90E2` | `<?= getBranding().headerGradientStart ?>` |
+| Setup wizard header gradient end | `#357ABD` | `<?= getBranding().headerGradientEnd ?>` |
+| Sidebar accents, highlights | `#4A90A4` | `<?= getBranding().accentColor ?>` |
+
+## Migration Guide
 
 ### For Existing Deployments
-1. All setup wizards already reference canonical UI files by name (e.g., 'ManageStudentsUI')
-2. No code changes required - canonical files are drop-in replacements
-3. Schools using custom branding should configure Site Configuration sheet (Rows 24-26)
-4. Schools without branding configuration will see default colors/no logo
+
+1. **Add branding block to SITE_CONFIG**
+   ```javascript
+   branding: {
+     schoolName: "My School",
+     tagline: "Our Motto Here",
+     logoUrl: "https://...",
+     primaryColor: "#B8E6DC",
+     headerGradientStart: "#4A90E2",
+     headerGradientEnd: "#357ABD",
+     accentColor: "#4A90A4"
+   }
+   ```
+
+2. **Update UI launcher functions**
+   ```javascript
+   // Old
+   const html = HtmlService.createHtmlOutputFromFile('ManageStudentsUI');
+   
+   // New
+   const html = HtmlService.createTemplateFromFile('ManageStudentsUI').evaluate();
+   ```
+
+3. **Test all dialogs** to ensure branding renders correctly
 
 ### For New Deployments
-1. Run Setup Wizard to create Site Configuration sheet
-2. Configure branding in Step 7 of wizard (Primary Color, Secondary Color, Logo)
-3. All UI dialogs will automatically use configured branding
 
-## Benefits
+1. Copy `SiteConfig_TEMPLATE.gs` to your setup wizard
+2. Configure the `branding` block with your school's colors/logo
+3. All UI dialogs will automatically use your branding
 
-1. **Single Source of Truth**: One UI file per dialog type instead of 5+ copies
-2. **Consistent UX**: All schools get same UI improvements automatically
-3. **Easy Branding**: Schools customize via configuration, not code
-4. **Smaller Codebase**: Eliminated ~8KB of duplicated HTML
-5. **Easier Maintenance**: Bug fixes apply to all schools automatically
-6. **Future-Proof**: New schools can be added without creating new UI files
+## Testing Checklist
+
+- [ ] ManageStudentsUI displays with correct colors/logo
+- [ ] ManageGroupsUI displays with correct colors/logo
+- [ ] GenerateReportsUI displays with correct colors/logo
+- [ ] GrowthHighlighterSidebar displays with correct colors/logo
+- [ ] LessonEntryForm displays with correct school name/logo
+- [ ] SetupWizardUI displays with correct header gradient
+- [ ] Logo conditionally displays only when logoUrl is set
+- [ ] Tagline displays correctly in all applicable UIs
+- [ ] Colors match branding configuration
 
 ## Future Enhancements
 
-### Short Term
-1. Unify LessonEntryForm files with feature flags for co-teaching, mixed grades
-2. Remove legacy Adelante-specific UI files
-3. Add more branding options (font family, button radius, etc.)
+1. **Feature flags for LessonEntryForm variants**
+   - Add `features.coTeaching` flag for Sankofa-style co-teaching
+   - Add `features.mixedGradeDisplay` for different grade mixing UI patterns
 
-### Long Term
-1. Move UI files to a `/ui/` directory for better organization
-2. Create a UI component library for shared elements
-3. Add dark mode support
-4. Add accessibility improvements (ARIA labels, keyboard navigation)
-5. Create a branding preview tool in the setup wizard
+2. **Additional branding options**
+   - `fontFamily` - Custom font selection
+   - `buttonRadius` - Button border radius
+   - `headerLogoHeight` - Logo size control
+
+3. **Dark mode support**
+   - `darkMode` flag with alternate color scheme
 
 ## Related Documentation
+
+- See `SiteConfig_TEMPLATE.gs` for complete branding configuration
 - See `PHASE3_SETUP_GUIDE.md` for Site Configuration structure
-- See `SiteConfig_TEMPLATE.gs` for feature flags and configuration options
-- See `README.md` for overall architecture and deployment guide
+- See `README.md` for overall architecture
 
 ---
 
-**Completed**: February 2026  
+**Completed**: February 18, 2026  
+**Approach**: Server-side templating with `<?= ?>` tokens  
 **Author**: GitHub Copilot  
 **Assignee**: @ckelley-adira

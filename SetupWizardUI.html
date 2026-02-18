@@ -25,7 +25,7 @@
     }
     
     .wizard-header {
-      background: linear-gradient(135deg, #4A90E2 0%, #357ABD 100%);
+      background: linear-gradient(135deg, <?= getBranding().headerGradientStart ?> 0%, <?= getBranding().headerGradientEnd ?> 100%);
       color: white;
       padding: 30px;
       text-align: center;
@@ -87,7 +87,7 @@
     }
     
     .step.active .step-number {
-      background: #4A90E2;
+      background: <?= getBranding().headerGradientStart ?>;
     }
     
     .step.completed .step-number {
@@ -100,7 +100,7 @@
     }
     
     .step.active .step-label {
-      color: #4A90E2;
+      color: <?= getBranding().headerGradientStart ?>;
       font-weight: bold;
     }
     
@@ -167,7 +167,7 @@
     input[type="number"]:focus,
     textarea:focus {
       outline: none;
-      border-color: #4A90E2;
+      border-color: <?= getBranding().headerGradientStart ?>;
     }
     
     .checkbox-grid {
@@ -212,7 +212,7 @@
     }
     
     .data-table th {
-      background: #4A90E2;
+      background: <?= getBranding().headerGradientStart ?>;
       color: white;
       padding: 10px;
       text-align: left;
@@ -229,7 +229,7 @@
     }
     
     .import-area {
-      border: 2px dashed #4A90E2;
+      border: 2px dashed <?= getBranding().headerGradientStart ?>;
       border-radius: 8px;
       padding: 30px;
       text-align: center;
@@ -264,7 +264,7 @@
     }
     
     .recommendation.highlight {
-      color: #4A90E2;
+      color: <?= getBranding().headerGradientStart ?>;
       font-weight: 600;
     }
     
@@ -314,12 +314,12 @@
     }
     
     .btn-primary {
-      background: #4A90E2;
+      background: <?= getBranding().headerGradientStart ?>;
       color: white;
     }
     
     .btn-primary:hover {
-      background: #357ABD;
+      background: <?= getBranding().headerGradientEnd ?>;
     }
     
     .btn-success {
@@ -372,11 +372,11 @@
       padding: 20px;
       background: #f8f9fa;
       border-radius: 8px;
-      border-left: 4px solid #4A90E2;
+      border-left: 4px solid <?= getBranding().headerGradientStart ?>;
     }
     
     .summary-section h3 {
-      color: #4A90E2;
+      color: <?= getBranding().headerGradientStart ?>;
       margin-bottom: 12px;
       font-size: 18px;
     }
@@ -438,7 +438,7 @@
     
     .spinner {
       border: 3px solid #f3f3f3;
-      border-top: 3px solid #4A90E2;
+      border-top: 3px solid <?= getBranding().headerGradientStart ?>;
       border-radius: 50%;
       width: 40px;
       height: 40px;
@@ -456,7 +456,7 @@
       padding: 16px;
       background: #fff;
       border-radius: 6px;
-      border: 2px solid #4A90E2;
+      border: 2px solid <?= getBranding().headerGradientStart ?>;
     }
     
     .small-text {
@@ -607,7 +607,7 @@
         <div id="studentPreview" class="hidden" style="margin-top: 24px;">
           <label>Preview (first 5 students):</label>
           <div id="studentPreviewTable"></div>
-          <div id="studentCount" style="margin-top: 12px; font-weight: 600; color: #4A90E2;"></div>
+          <div id="studentCount" style="margin-top: 12px; font-weight: 600; color: <?= getBranding().headerGradientStart ?>;"></div>
         </div>
       </div>
       
@@ -659,7 +659,7 @@
         <div id="teacherPreview" class="hidden" style="margin-top: 24px;">
           <label>Preview:</label>
           <div id="teacherPreviewTable"></div>
-          <div id="teacherCount" style="margin-top: 12px; font-weight: 600; color: #4A90E2;"></div>
+          <div id="teacherCount" style="margin-top: 12px; font-weight: 600; color: <?= getBranding().headerGradientStart ?>;"></div>
         </div>
       </div>
       
@@ -1013,7 +1013,7 @@
       // Add Advanced Modules section
       if (advanced.length > 0) {
         const categoryHeader = document.createElement('div');
-        categoryHeader.style.cssText = 'font-weight: 600; font-size: 14px; margin-top: 16px; margin-bottom: 8px; color: #4A90E2;';
+        categoryHeader.style.cssText = 'font-weight: 600; font-size: 14px; margin-top: 16px; margin-bottom: 8px; color: <?= getBranding().headerGradientStart ?>;';
         categoryHeader.textContent = '🚀 Advanced Modules';
         container.appendChild(categoryHeader);
         

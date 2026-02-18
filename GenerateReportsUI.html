@@ -63,7 +63,7 @@
     }
     
     .section-header {
-      background: #B8E6DC;
+      background: <?= getBranding().primaryColor ?>;
       padding: 20px 28px;
     }
     
@@ -127,7 +127,7 @@
     
     .checkbox-item:hover {
       background: #f5f5f5;
-      border-color: #B8E6DC;
+      border-color: <?= getBranding().primaryColor ?>;
     }
     
     .checkbox-item input {
@@ -186,12 +186,12 @@
     }
     
     .form-group select:hover {
-      border-color: #B8E6DC;
+      border-color: <?= getBranding().primaryColor ?>;
     }
     
     .form-group select:focus {
       outline: none;
-      border-color: #B8E6DC;
+      border-color: <?= getBranding().primaryColor ?>;
       box-shadow: 0 0 0 3px rgba(184, 230, 220, 0.2);
     }
     
@@ -265,7 +265,7 @@
       width: 24px;
       height: 24px;
       border: 3px solid #e8e8e8;
-      border-top-color: #B8E6DC;
+      border-top-color: <?= getBranding().primaryColor ?>;
       border-radius: 50%;
       animation: spin 0.8s linear infinite;
       margin: 20px auto 0;
@@ -352,13 +352,13 @@
   <div class="container">
     <!-- Logo -->
     <div class="logo-header">
-      <img src="" alt="School Logo" style="display:none;" alt="The Indy Learning Team Logo">
+      <? if (getBranding().logoUrl) { ?><img src="<?= getBranding().logoUrl ?>"<? } else { ?><img src="" style="display:none;"<? } ?> alt="The Indy Learning Team Logo">
     </div>
     
     <!-- Page Header -->
     <div class="page-header">
       <h1>Report Generator</h1>
-      <div class="tagline">Innovate. Educate. Empower.</div>
+      <div class="tagline"><?= getBranding().tagline ?></div>
     </div>
     
     <!-- Main Section -->
@@ -424,51 +424,14 @@
   <script>
     let allOptions = {};
     let allFilterOptions = {};
-    let siteConfig = null;
 
     // --- Data Loading ---
     window.onload = function() {
-      loadSiteConfig();
       google.script.run
         .withSuccessHandler(onOptionsLoaded)
         .withFailureHandler(onFailure)
         .getReportOptions();
     };
-
-    function loadSiteConfig() {
-      google.script.run
-        .withSuccessHandler(applySiteConfig)
-        .withFailureHandler(function(error) {
-          console.error('Failed to load site config:', error);
-        })
-        .getSiteConfigForUI();
-    }
-
-    function applySiteConfig(config) {
-      siteConfig = config;
-      
-      // Apply accent color
-      const accentColor = config.accentColor || '#B8E6DC';
-      const style = document.createElement('style');
-      style.innerHTML = `
-        .section-header { background: ${accentColor} !important; }
-        .btn-primary { background: ${accentColor} !important; border-color: ${accentColor} !important; }
-        .btn-primary:hover { background: ${config.primaryColor || '#4A90E2'} !important; }
-      `;
-      document.head.appendChild(style);
-
-      // Update logo if available
-      if (config.logoFileId) {
-        const logoImg = document.querySelector('.logo-header img');
-        if (logoImg) {
-          logoImg.src = `https://drive.google.com/uc?export=view&id=${config.logoFileId}`;
-          logoImg.style.display = 'block';
-        }
-      } else {
-        const logoHeader = document.querySelector('.logo-header');
-        if (logoHeader) logoHeader.style.display = 'none';
-      }
-    }
 
     function onOptionsLoaded(data) {
       allOptions = data.options;
