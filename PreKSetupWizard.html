@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Site Setup Wizard - The Indy Learning Team Adira Reads PreK and Pre-School</title>
+    <base target="_top">
+
+    <style>
+        :root {
+            --primary: #1E3A5F;
+            --primary-light: #2E5A8F;
+            --accent: #E8B923;
+            --success: #22C55E;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            --background: #F8FAFC;
+            --card: #FFFFFF;
+            --text: #1E293B;
+            --text-muted: #64748B;
+            --border: #E2E8F0;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--background);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            padding: 1.5rem 2rem;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+
+        .header .subtitle {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            background: white;
+            padding: 1.5rem 2rem;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .progress-steps {
+            display: flex;
+            justify-content: space-between;
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .progress-steps::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 40px;
+            right: 40px;
+            height: 3px;
+            background: var(--border);
+            z-index: 0;
+        }
+
+        .progress-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+            cursor: pointer;
+        }
+
+        .step-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--border);
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .progress-step.active .step-number {
+            background: var(--accent);
+            color: var(--primary);
+        }
+
+        .progress-step.completed .step-number {
+            background: var(--success);
+            color: white;
+        }
+
+        .step-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            text-align: center;
+            max-width: 80px;
+        }
+
+        .progress-step.active .step-label {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        /* Container */
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Step Content */
+        .step-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .step-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Cards */
+        .card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: var(--shadow);
+            margin-bottom: 1.5rem;
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .card-subtitle {
+            color: var(--text-muted);
+            margin-bottom: 1.5rem;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        label .required {
+            color: var(--danger);
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            font-size: 1rem;
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            background: white;
+            color: var(--text);
+            transition: all 0.2s ease;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.1);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .input-hint {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        /* Dynamic Lists */
+        .dynamic-list {
+            border: 2px dashed var(--border);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .list-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem;
+            background: var(--background);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .list-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .list-item input, .list-item select {
+            flex: 1;
+            padding: 0.625rem 0.75rem;
+            font-size: 0.9rem;
+        }
+
+        .remove-btn {
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: var(--danger);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .remove-btn:hover {
+            background: #DC2626;
+            transform: scale(1.05);
+        }
+
+        .add-btn {
+            width: 100%;
+            padding: 0.875rem;
+            border: 2px dashed var(--primary);
+            background: transparent;
+            color: var(--primary);
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .add-btn:hover {
+            background: rgba(30, 58, 95, 0.05);
+        }
+
+        /* Bulk Add */
+        .bulk-add-section {
+            background: var(--background);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .bulk-add-section summary {
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--primary);
+            padding: 0.5rem;
+        }
+
+        .bulk-add-section textarea {
+            margin-top: 0.75rem;
+        }
+
+        /* Program Options */
+        .program-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .program-option {
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .program-option:hover {
+            border-color: var(--primary);
+        }
+
+        .program-option.selected {
+            border-color: var(--accent);
+            background: rgba(232, 185, 35, 0.1);
+        }
+
+        .program-option input {
+            display: none;
+        }
+
+        .program-option .icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .program-option .name {
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.25rem;
+        }
+
+        .program-option .desc {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* Schedule Grid */
+        .schedule-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .day-header {
+            text-align: center;
+            font-weight: 600;
+            font-size: 0.85rem;
+            padding: 0.5rem;
+            background: var(--primary);
+            color: white;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .day-slot {
+            text-align: center;
+            padding: 0.5rem;
+            background: var(--background);
+            border-radius: 0 0 8px 8px;
+        }
+
+        .day-slot input {
+            width: 100%;
+            text-align: center;
+            padding: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        /* Summary Section */
+        .summary-section {
+            background: var(--background);
+            border-radius: 12px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .summary-title {
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .summary-list {
+            list-style: none;
+        }
+
+        .summary-list li {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .summary-list li:last-child {
+            border-bottom: none;
+        }
+
+        .summary-list .label {
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .summary-list .value {
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        /* Navigation Buttons */
+        .nav-buttons {
+            display: flex;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-secondary {
+            background: var(--border);
+            color: var(--text);
+        }
+
+        .btn-secondary:hover {
+            background: #CBD5E1;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-light);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #16A34A;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.95);
+            z-index: 1000;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 1.125rem;
+            color: var(--text);
+            font-weight: 600;
+        }
+
+        /* Success Screen */
+        .success-screen {
+            text-align: center;
+            padding: 3rem;
+        }
+
+        .success-icon {
+            font-size: 5rem;
+            margin-bottom: 1rem;
+        }
+
+        .success-title {
+            font-size: 2rem;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .success-message {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            .card { padding: 1.25rem; }
+            .progress-steps { gap: 0.5rem; }
+            .step-label { display: none; }
+            .form-row { grid-template-columns: 1fr; }
+            .schedule-grid { grid-template-columns: repeat(3, 1fr); }
+            .nav-buttons { flex-direction: column; }
+            .btn { width: 100%; justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>Site Setup Wizard</h1>
+        <div class="subtitle">The Indy Learning Team Adira Reads PreK and PreSchool Program</div>
+    </header>
+
+    <div class="progress-container">
+        <div class="progress-steps">
+            <div class="progress-step active" data-step="1">
+                <div class="step-number">1</div>
+                <div class="step-label">Site Info</div>
+            </div>
+            <div class="progress-step" data-step="2">
+                <div class="step-number">2</div>
+                <div class="step-label">Programs</div>
+            </div>
+            <div class="progress-step" data-step="3">
+                <div class="step-number">3</div>
+                <div class="step-label">Groups</div>
+            </div>
+            <div class="progress-step" data-step="4">
+                <div class="step-number">4</div>
+                <div class="step-label">Students</div>
+            </div>
+            <div class="progress-step" data-step="5">
+                <div class="step-number">5</div>
+                <div class="step-label">Staff</div>
+            </div>
+            <div class="progress-step" data-step="6">
+                <div class="step-number">6</div>
+                <div class="step-label">Schedule</div>
+            </div>
+            <div class="progress-step" data-step="7">
+                <div class="step-number">7</div>
+                <div class="step-label">Review</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- Step 1: Site Information -->
+        <div class="step-content active" data-step="1">
+            <div class="card">
+                <h2 class="card-title">Site Information</h2>
+                <p class="card-subtitle">Enter the basic information for this program location.</p>
+
+                <div class="form-group">
+                    <label>Site Name <span class="required">*</span></label>
+                    <input type="text" id="site-name" placeholder="e.g., Your Program Name" required>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Branch/Location Code</label>
+                        <input type="text" id="site-code" placeholder="e.g., E10">
+                        <div class="input-hint">Optional identifier for this location</div>
+                    </div>
+                    <div class="form-group">
+                        <label>Contact Phone</label>
+                        <input type="tel" id="site-phone" placeholder="(317) 555-0100">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Site Address</label>
+                    <input type="text" id="site-address" placeholder="123 Main Street, Indianapolis, IN 46201">
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Site Coordinator Name</label>
+                        <input type="text" id="coordinator-name" placeholder="Full name">
+                    </div>
+                    <div class="form-group">
+                        <label>Coordinator Email</label>
+                        <input type="email" id="coordinator-email" placeholder="email@indypl.org">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Programs -->
+        <div class="step-content" data-step="2">
+            <div class="card">
+                <h2 class="card-title">Program Selection</h2>
+                <p class="card-subtitle">Select which programs this site will offer.</p>
+
+                <div class="program-options">
+                    <label class="program-option">
+                        <input type="checkbox" id="program-prek" value="Pre-K" checked>
+                        <div class="icon">🎓</div>
+                        <div class="name">Pre-K Program</div>
+                        <div class="desc">Full curriculum: Letter Form, Name, and Sound</div>
+                    </label>
+
+                    <label class="program-option selected">
+                        <input type="checkbox" id="program-preschool" value="Pre-School">
+                        <div class="icon">🌟</div>
+                        <div class="name">Pre-School Program</div>
+                        <div class="desc">Focus on Letter Sound recognition</div>
+                    </label>
+                </div>
+
+                <div class="form-group" style="margin-top: 2rem;">
+                    <label>Academic Year</label>
+                    <select id="academic-year">
+                        <option value="2025-2026">2025-2026</option>
+                        <option value="2026-2027">2026-2027</option>
+                        <option value="2024-2025">2024-2025</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Program Start Date</label>
+                    <input type="date" id="start-date">
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Groups -->
+        <div class="step-content" data-step="3">
+            <div class="card">
+                <h2 class="card-title">Learning Groups</h2>
+                <p class="card-subtitle">Define the groups that students will be organized into.</p>
+
+                <div class="form-group">
+                    <label>Number of Groups <span class="required">*</span></label>
+                    <select id="num-groups" onchange="updateGroupsList()">
+                        <option value="1">1 Group</option>
+                        <option value="2">2 Groups</option>
+                        <option value="3" selected>3 Groups</option>
+                        <option value="4">4 Groups</option>
+                        <option value="5">5 Groups</option>
+                        <option value="6">6 Groups</option>
+                        <option value="8">8 Groups</option>
+                        <option value="10">10 Groups</option>
+                    </select>
+                </div>
+
+                <label>Group Names</label>
+                <div class="dynamic-list" id="groups-list">
+                    <!-- Populated by JS -->
+                </div>
+
+                <div class="input-hint">Tip: Use consistent naming like "Group A, Group B" or "Morning 1, Afternoon 1"</div>
+            </div>
+        </div>
+
+        <!-- Step 4: Students -->
+        <div class="step-content" data-step="4">
+            <div class="card">
+                <h2 class="card-title">Student Roster</h2>
+                <p class="card-subtitle">Add all students who will participate in the program.</p>
+
+                <div class="dynamic-list" id="students-list">
+                    <!-- Populated by JS -->
+                </div>
+
+                <button type="button" class="add-btn" onclick="addStudent()">
+                    <span>+</span> Add Student
+                </button>
+
+                <details class="bulk-add-section">
+                    <summary>Bulk Add Students</summary>
+                    <p class="input-hint">Paste student names (one per line). You can assign groups afterward.</p>
+                    <textarea id="bulk-students" rows="6" placeholder="John Smith&#10;Jane Doe&#10;Alex Johnson"></textarea>
+                    <button type="button" class="btn btn-primary" style="margin-top: 0.75rem; padding: 0.75rem 1.5rem;" onclick="bulkAddStudents()">
+                        Import Students
+                    </button>
+                </details>
+            </div>
+        </div>
+
+        <!-- Step 5: Staff -->
+        <div class="step-content" data-step="5">
+            <div class="card">
+                <h2 class="card-title">Instructional Staff</h2>
+                <p class="card-subtitle">Add teachers and tutors who will conduct assessments.</p>
+
+                <div class="form-group">
+                    <label>Teachers</label>
+                    <div class="dynamic-list" id="teachers-list">
+                        <!-- Populated by JS -->
+                    </div>
+                    <button type="button" class="add-btn" onclick="addTeacher()">
+                        <span>+</span> Add Teacher
+                    </button>
+                </div>
+
+                <div class="form-group" style="margin-top: 1.5rem;">
+                    <label>Tutors / Volunteers</label>
+                    <div class="dynamic-list" id="tutors-list">
+                        <!-- Populated by JS -->
+                    </div>
+                    <button type="button" class="add-btn" onclick="addTutor()">
+                        <span>+</span> Add Tutor
+                    </button>
+                </div>
+
+                <details class="bulk-add-section">
+                    <summary>Bulk Add Staff</summary>
+                    <textarea id="bulk-tutors" rows="4" placeholder="Names (one per line)"></textarea>
+                    <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem;">
+                        <button type="button" class="btn btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.9rem;" onclick="bulkAddStaff('teachers')">Add as Teachers</button>
+                        <button type="button" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.9rem;" onclick="bulkAddStaff('tutors')">Add as Tutors</button>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <!-- Step 6: Schedule -->
+        <div class="step-content" data-step="6">
+            <div class="card">
+                <h2 class="card-title">Instructional Schedule</h2>
+                <p class="card-subtitle">Configure the weekly instruction schedule for this site.</p>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Sessions Per Week</label>
+                        <select id="sessions-per-week">
+                            <option value="1">1 session/week</option>
+                            <option value="2" selected>2 sessions/week</option>
+                            <option value="3">3 sessions/week</option>
+                            <option value="4">4 sessions/week</option>
+                            <option value="5">5 sessions/week</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Session Duration</label>
+                        <select id="session-duration">
+                            <option value="30">30 minutes</option>
+                            <option value="45" selected>45 minutes</option>
+                            <option value="60">60 minutes</option>
+                            <option value="90">90 minutes</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Weekly Instructional Minutes (calculated)</label>
+                    <input type="text" id="total-minutes" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label>Session Days & Times (Optional)</label>
+                    <div class="schedule-grid">
+                        <div>
+                            <div class="day-header">Mon</div>
+                            <div class="day-slot"><input type="time" id="time-mon"></div>
+                        </div>
+                        <div>
+                            <div class="day-header">Tue</div>
+                            <div class="day-slot"><input type="time" id="time-tue"></div>
+                        </div>
+                        <div>
+                            <div class="day-header">Wed</div>
+                            <div class="day-slot"><input type="time" id="time-wed"></div>
+                        </div>
+                        <div>
+                            <div class="day-header">Thu</div>
+                            <div class="day-slot"><input type="time" id="time-thu"></div>
+                        </div>
+                        <div>
+                            <div class="day-header">Fri</div>
+                            <div class="day-slot"><input type="time" id="time-fri"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Notes / Special Instructions</label>
+                    <textarea id="schedule-notes" placeholder="Any additional scheduling information..."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 7: Review -->
+        <div class="step-content" data-step="7">
+            <div class="card">
+                <h2 class="card-title">Review & Create Site</h2>
+                <p class="card-subtitle">Please review all information before creating the site configuration.</p>
+
+                <div class="summary-section">
+                    <div class="summary-title">📍 Site Information</div>
+                    <ul class="summary-list" id="summary-site"></ul>
+                </div>
+
+                <div class="summary-section">
+                    <div class="summary-title">📚 Programs</div>
+                    <ul class="summary-list" id="summary-programs"></ul>
+                </div>
+
+                <div class="summary-section">
+                    <div class="summary-title">👥 Groups & Students</div>
+                    <ul class="summary-list" id="summary-groups"></ul>
+                </div>
+
+                <div class="summary-section">
+                    <div class="summary-title">👨‍🏫 Staff</div>
+                    <ul class="summary-list" id="summary-staff"></ul>
+                </div>
+
+                <div class="summary-section">
+                    <div class="summary-title">📅 Schedule</div>
+                    <ul class="summary-list" id="summary-schedule"></ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Success Screen -->
+        <div class="step-content" data-step="success">
+            <div class="card success-screen">
+                <div class="success-icon">🎉</div>
+                <h2 class="success-title">Site Setup Complete!</h2>
+                <p class="success-message">Your new site has been configured successfully.</p>
+                <p id="success-details"></p>
+                <div style="margin-top: 2rem;">
+                    <button class="btn btn-primary" onclick="google.script.host.close()">Close Wizard</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="nav-buttons" id="nav-buttons">
+            <button type="button" class="btn btn-secondary" id="prev-btn" onclick="prevStep()" disabled>
+                <span>←</span> Previous
+            </button>
+            <button type="button" class="btn btn-primary" id="next-btn" onclick="nextStep()">
+                Next <span>→</span>
+            </button>
+            <button type="button" class="btn btn-success" id="submit-btn" onclick="submitWizard()" style="display: none;">
+                <span>✓</span> Create Site
+            </button>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text" id="loading-text">Creating site configuration...</div>
+    </div>
+
+    <script>
+        let currentStep = 1;
+        const totalSteps = 7;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeProgramOptions();
+            updateGroupsList();
+            addStudent();
+            addTeacher();
+            addTutor();
+            updateTotalMinutes();
+
+            // Set default date to today
+            document.getElementById('start-date').valueAsDate = new Date();
+
+            // Add listeners
+            document.getElementById('sessions-per-week').addEventListener('change', updateTotalMinutes);
+            document.getElementById('session-duration').addEventListener('change', updateTotalMinutes);
+        });
+
+        function initializeProgramOptions() {
+            document.querySelectorAll('.program-option').forEach(option => {
+                const checkbox = option.querySelector('input[type="checkbox"]');
+                if (checkbox.checked) {
+                    option.classList.add('selected');
+                }
+                option.addEventListener('click', () => {
+                    checkbox.checked = !checkbox.checked;
+                    option.classList.toggle('selected', checkbox.checked);
+                });
+            });
+        }
+
+        function updateTotalMinutes() {
+            const sessions = parseInt(document.getElementById('sessions-per-week').value);
+            const duration = parseInt(document.getElementById('session-duration').value);
+            const total = sessions * duration;
+            document.getElementById('total-minutes').value = `${total} minutes/week (${(total/60).toFixed(1)} hours)`;
+        }
+
+        function updateGroupsList() {
+            const num = parseInt(document.getElementById('num-groups').value);
+            const container = document.getElementById('groups-list');
+            container.innerHTML = '';
+
+            for (let i = 1; i <= num; i++) {
+                const item = document.createElement('div');
+                item.className = 'list-item';
+                item.innerHTML = `
+                    <span style="font-weight: 600; min-width: 70px;">Group ${i}:</span>
+                    <input type="text" class="group-name" value="Group ${String.fromCharCode(64 + i)}" placeholder="Group name">
+                `;
+                container.appendChild(item);
+            }
+        }
+
+        function addStudent() {
+            const container = document.getElementById('students-list');
+            const groups = getGroupNames();
+            const programs = getSelectedPrograms();
+
+            const item = document.createElement('div');
+            item.className = 'list-item';
+            item.innerHTML = `
+                <input type="text" class="student-name" placeholder="Student full name">
+                <select class="student-group" style="max-width: 120px;">
+                    ${groups.map(g => `<option value="${g}">${g}</option>`).join('')}
+                </select>
+                <select class="student-program" style="max-width: 110px;">
+                    ${programs.map(p => `<option value="${p}">${p}</option>`).join('')}
+                </select>
+                <button type="button" class="remove-btn" onclick="this.parentElement.remove()">×</button>
+            `;
+            container.appendChild(item);
+        }
+
+        function bulkAddStudents() {
+            const text = document.getElementById('bulk-students').value.trim();
+            if (!text) return;
+
+            const names = text.split('\n').map(n => n.trim()).filter(n => n);
+            names.forEach(name => {
+                const container = document.getElementById('students-list');
+                const groups = getGroupNames();
+                const programs = getSelectedPrograms();
+
+                const item = document.createElement('div');
+                item.className = 'list-item';
+                item.innerHTML = `
+                    <input type="text" class="student-name" value="${name}" placeholder="Student full name">
+                    <select class="student-group" style="max-width: 120px;">
+                        ${groups.map(g => `<option value="${g}">${g}</option>`).join('')}
+                    </select>
+                    <select class="student-program" style="max-width: 110px;">
+                        ${programs.map(p => `<option value="${p}">${p}</option>`).join('')}
+                    </select>
+                    <button type="button" class="remove-btn" onclick="this.parentElement.remove()">×</button>
+                `;
+                container.appendChild(item);
+            });
+
+            document.getElementById('bulk-students').value = '';
+        }
+
+        function addTeacher() {
+            const container = document.getElementById('teachers-list');
+            const item = document.createElement('div');
+            item.className = 'list-item';
+            item.innerHTML = `
+                <input type="text" class="teacher-name" placeholder="Teacher name">
+                <input type="email" class="teacher-email" placeholder="Email (optional)" style="max-width: 200px;">
+                <button type="button" class="remove-btn" onclick="this.parentElement.remove()">×</button>
+            `;
+            container.appendChild(item);
+        }
+
+        function addTutor() {
+            const container = document.getElementById('tutors-list');
+            const item = document.createElement('div');
+            item.className = 'list-item';
+            item.innerHTML = `
+                <input type="text" class="tutor-name" placeholder="Tutor name">
+                <button type="button" class="remove-btn" onclick="this.parentElement.remove()">×</button>
+            `;
+            container.appendChild(item);
+        }
+
+        function bulkAddStaff(type) {
+            const text = document.getElementById('bulk-tutors').value.trim();
+            if (!text) return;
+
+            const names = text.split('\n').map(n => n.trim()).filter(n => n);
+            names.forEach(name => {
+                if (type === 'teachers') {
+                    const container = document.getElementById('teachers-list');
+                    const item = document.createElement('div');
+                    item.className = 'list-item';
+                    item.innerHTML = `
+                        <input type="text" class="teacher-name" value="${name}" placeholder="Teacher name">
+                        <input type="email" class="teacher-email" placeholder="Email (optional)" style="max-width: 200px;">
+                        <button type="button" class="remove-btn" onclick="this.parentElement.remove()">×</button>
+                    `;
+                    container.appendChild(item);
+                } else {
+                    const container = document.getElementById('tutors-list');
+                    const item = document.createElement('div');
+                    item.className = 'list-item';
+                    item.innerHTML = `
+                        <input type="text" class="tutor-name" value="${name}" placeholder="Tutor name">
+                        <button type="button" class="remove-btn" onclick="this.parentElement.remove()">×</button>
+                    `;
+                    container.appendChild(item);
+                }
+            });
+
+            document.getElementById('bulk-tutors').value = '';
+        }
+
+        function getGroupNames() {
+            return Array.from(document.querySelectorAll('.group-name')).map(i => i.value || 'Group');
+        }
+
+        function getSelectedPrograms() {
+            const programs = [];
+            if (document.getElementById('program-prek').checked) programs.push('Pre-K');
+            if (document.getElementById('program-preschool').checked) programs.push('Pre-School');
+            return programs.length > 0 ? programs : ['Pre-K'];
+        }
+
+        function nextStep() {
+            if (!validateStep(currentStep)) return;
+
+            if (currentStep < totalSteps) {
+                setStep(currentStep + 1);
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 1) {
+                setStep(currentStep - 1);
+            }
+        }
+
+        function setStep(step) {
+            // Update progress indicators
+            document.querySelectorAll('.progress-step').forEach(el => {
+                const stepNum = parseInt(el.dataset.step);
+                el.classList.remove('active', 'completed');
+                if (stepNum < step) el.classList.add('completed');
+                if (stepNum === step) el.classList.add('active');
+            });
+
+            // Update content
+            document.querySelectorAll('.step-content').forEach(el => {
+                el.classList.remove('active');
+            });
+            document.querySelector(`.step-content[data-step="${step}"]`).classList.add('active');
+
+            // Update buttons
+            document.getElementById('prev-btn').disabled = (step === 1);
+            document.getElementById('next-btn').style.display = (step === totalSteps) ? 'none' : 'flex';
+            document.getElementById('submit-btn').style.display = (step === totalSteps) ? 'flex' : 'none';
+
+            // If review step, populate summary
+            if (step === totalSteps) {
+                populateSummary();
+            }
+
+            // Update student dropdowns when entering step 4
+            if (step === 4) {
+                refreshStudentDropdowns();
+            }
+
+            currentStep = step;
+        }
+
+        function validateStep(step) {
+            if (step === 1) {
+                const siteName = document.getElementById('site-name').value.trim();
+                if (!siteName) {
+                    alert('Please enter a site name.');
+                    document.getElementById('site-name').focus();
+                    return false;
+                }
+            }
+            if (step === 2) {
+                const programs = getSelectedPrograms();
+                if (programs.length === 0) {
+                    alert('Please select at least one program.');
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function refreshStudentDropdowns() {
+            const groups = getGroupNames();
+            const programs = getSelectedPrograms();
+
+            document.querySelectorAll('#students-list .student-group').forEach(select => {
+                const currentVal = select.value;
+                select.innerHTML = groups.map(g => `<option value="${g}">${g}</option>`).join('');
+                if (groups.includes(currentVal)) select.value = currentVal;
+            });
+
+            document.querySelectorAll('#students-list .student-program').forEach(select => {
+                const currentVal = select.value;
+                select.innerHTML = programs.map(p => `<option value="${p}">${p}</option>`).join('');
+                if (programs.includes(currentVal)) select.value = currentVal;
+            });
+        }
+
+        function populateSummary() {
+            // Site summary
+            document.getElementById('summary-site').innerHTML = `
+                <li><span class="label">Site Name</span><span class="value">${document.getElementById('site-name').value || 'Not specified'}</span></li>
+                <li><span class="label">Location Code</span><span class="value">${document.getElementById('site-code').value || '-'}</span></li>
+                <li><span class="label">Coordinator</span><span class="value">${document.getElementById('coordinator-name').value || '-'}</span></li>
+                <li><span class="label">Contact</span><span class="value">${document.getElementById('site-phone').value || '-'}</span></li>
+            `;
+
+            // Programs summary
+            const programs = getSelectedPrograms();
+            document.getElementById('summary-programs').innerHTML = `
+                <li><span class="label">Programs</span><span class="value">${programs.join(', ')}</span></li>
+                <li><span class="label">Academic Year</span><span class="value">${document.getElementById('academic-year').value}</span></li>
+                <li><span class="label">Start Date</span><span class="value">${document.getElementById('start-date').value || 'Not set'}</span></li>
+            `;
+
+            // Groups & Students summary
+            const groups = getGroupNames();
+            const students = Array.from(document.querySelectorAll('.student-name')).filter(i => i.value.trim()).length;
+            document.getElementById('summary-groups').innerHTML = `
+                <li><span class="label">Total Groups</span><span class="value">${groups.length}</span></li>
+                <li><span class="label">Group Names</span><span class="value">${groups.join(', ')}</span></li>
+                <li><span class="label">Total Students</span><span class="value">${students}</span></li>
+            `;
+
+            // Staff summary
+            const teachers = Array.from(document.querySelectorAll('.teacher-name')).filter(i => i.value.trim()).length;
+            const tutors = Array.from(document.querySelectorAll('.tutor-name')).filter(i => i.value.trim()).length;
+            document.getElementById('summary-staff').innerHTML = `
+                <li><span class="label">Teachers</span><span class="value">${teachers}</span></li>
+                <li><span class="label">Tutors</span><span class="value">${tutors}</span></li>
+                <li><span class="label">Total Staff</span><span class="value">${teachers + tutors}</span></li>
+            `;
+
+            // Schedule summary
+            const sessions = document.getElementById('sessions-per-week').value;
+            const duration = document.getElementById('session-duration').value;
+            document.getElementById('summary-schedule').innerHTML = `
+                <li><span class="label">Sessions/Week</span><span class="value">${sessions}</span></li>
+                <li><span class="label">Duration</span><span class="value">${duration} minutes</span></li>
+                <li><span class="label">Weekly Total</span><span class="value">${sessions * duration} minutes</span></li>
+            `;
+        }
+
+        function collectWizardData() {
+            return {
+                site: {
+                    name: document.getElementById('site-name').value.trim(),
+                    code: document.getElementById('site-code').value.trim(),
+                    address: document.getElementById('site-address').value.trim(),
+                    phone: document.getElementById('site-phone').value.trim(),
+                    coordinatorName: document.getElementById('coordinator-name').value.trim(),
+                    coordinatorEmail: document.getElementById('coordinator-email').value.trim()
+                },
+                programs: {
+                    selected: getSelectedPrograms(),
+                    academicYear: document.getElementById('academic-year').value,
+                    startDate: document.getElementById('start-date').value
+                },
+                groups: getGroupNames(),
+                students: Array.from(document.querySelectorAll('#students-list .list-item')).map(item => ({
+                    name: item.querySelector('.student-name').value.trim(),
+                    group: item.querySelector('.student-group').value,
+                    program: item.querySelector('.student-program').value
+                })).filter(s => s.name),
+                teachers: Array.from(document.querySelectorAll('.teacher-name'))
+                    .map(i => i.value.trim())
+                    .filter(n => n),
+                tutors: Array.from(document.querySelectorAll('.tutor-name'))
+                    .map(i => i.value.trim())
+                    .filter(n => n),
+                schedule: {
+                    sessionsPerWeek: parseInt(document.getElementById('sessions-per-week').value),
+                    sessionDuration: parseInt(document.getElementById('session-duration').value),
+                    times: {
+                        mon: document.getElementById('time-mon').value,
+                        tue: document.getElementById('time-tue').value,
+                        wed: document.getElementById('time-wed').value,
+                        thu: document.getElementById('time-thu').value,
+                        fri: document.getElementById('time-fri').value
+                    },
+                    notes: document.getElementById('schedule-notes').value.trim()
+                }
+            };
+        }
+
+        function submitWizard() {
+            const data = collectWizardData();
+
+            // Validation
+            if (data.students.length === 0) {
+                alert('Please add at least one student.');
+                return;
+            }
+
+            // Show loading
+            document.getElementById('loading-overlay').classList.add('active');
+
+            google.script.run
+                .withSuccessHandler(onSetupSuccess)
+                .withFailureHandler(onSetupError)
+                .setupNewSite(data);
+        }
+
+        function onSetupSuccess(result) {
+            document.getElementById('loading-overlay').classList.remove('active');
+
+            // Show success screen
+            document.querySelectorAll('.step-content').forEach(el => el.classList.remove('active'));
+            document.querySelector('.step-content[data-step="success"]').classList.add('active');
+            document.getElementById('nav-buttons').style.display = 'none';
+
+            // Mark all steps complete
+            document.querySelectorAll('.progress-step').forEach(el => el.classList.add('completed'));
+
+            document.getElementById('success-details').innerHTML = result.message || 'All sheets have been configured with your data.';
+        }
+
+        function onSetupError(error) {
+            document.getElementById('loading-overlay').classList.remove('active');
+            alert('Error during setup: ' + (error.message || error));
+        }
+    </script>
+</body>
+</html>
