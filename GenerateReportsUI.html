@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Calibri', 'Helvetica Neue', Arial, sans-serif;
+      background: #FAF9F7;
+      margin: 0;
+      padding: 40px 20px;
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 750px;
+      margin: 0 auto;
+    }
+    
+    .logo-header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding: 20px;
+    }
+    
+    .logo-header img {
+      max-width: 180px;
+      height: auto;
+      margin-bottom: 15px;
+    }
+    
+    .page-header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    
+    .page-header h1 {
+      font-size: 36px;
+      margin: 0 0 8px 0;
+      font-weight: 400;
+      color: #2c2c2c;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    
+    .page-header .tagline {
+      font-size: 16px;
+      color: #666;
+      font-style: italic;
+      font-weight: 300;
+      letter-spacing: 0.5px;
+    }
+    
+    .main-section {
+      background: white;
+      border-radius: 0;
+      box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+    
+    .section-header {
+      background: #B8E6DC;
+      padding: 20px 28px;
+    }
+    
+    .section-header h2 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 600;
+      color: #2c2c2c;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+    
+    .content {
+      padding: 28px;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    .report-section {
+      margin-bottom: 32px;
+    }
+    
+    .report-section:last-child {
+      margin-bottom: 0;
+    }
+    
+    .report-section h3 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #2c2c2c;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #B8E6DC;
+      margin: 0 0 16px 0;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    .report-section p {
+      font-size: 14px;
+      color: #666;
+      margin: 0 0 16px 0;
+      line-height: 1.5;
+    }
+
+    .checkbox-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      padding: 12px 14px;
+      background: #fafafa;
+      border: 2px solid #e8e8e8;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .checkbox-item:hover {
+      background: #f5f5f5;
+      border-color: #B8E6DC;
+    }
+    
+    .checkbox-item input {
+      margin-right: 12px;
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      accent-color: #4CAF50;
+    }
+    
+    .checkbox-item label {
+      font-size: 15px;
+      color: #2c2c2c;
+      margin: 0;
+      cursor: pointer;
+      letter-spacing: 0.2px;
+    }
+    
+    /* Filter Styles */
+    .filter-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 0;
+    }
+    
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .form-group label {
+      font-weight: 500;
+      color: #444;
+      margin-bottom: 8px;
+      font-size: 15px;
+      letter-spacing: 0.3px;
+    }
+    
+    .form-group select {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 4px;
+      font-family: 'Calibri', sans-serif;
+      font-size: 16px;
+      background: #fff;
+      transition: all 0.3s ease;
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath fill='%232c2c2c' d='M7 10L2 5h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 16px center;
+      padding-right: 45px;
+      color: #2c2c2c;
+    }
+    
+    .form-group select:hover {
+      border-color: #B8E6DC;
+    }
+    
+    .form-group select:focus {
+      outline: none;
+      border-color: #B8E6DC;
+      box-shadow: 0 0 0 3px rgba(184, 230, 220, 0.2);
+    }
+    
+    .actions {
+      padding: 24px 28px;
+      background: #fafafa;
+      border-top: 2px solid #e8e8e8;
+      display: flex;
+      justify-content: flex-end;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 14px 28px;
+      border: none;
+      border-radius: 4px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: 'Calibri', sans-serif;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+    }
+    
+    .btn-primary { 
+      background: #4CAF50; 
+      color: white; 
+      box-shadow: 0 4px 12px rgba(76, 175, 80, 0.25);
+    }
+    .btn-primary:hover:not(:disabled) { 
+      background: #45a049;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(76, 175, 80, 0.3);
+    }
+    
+    .btn-secondary { 
+      background: #6c757d; 
+      color: white; 
+      box-shadow: 0 4px 12px rgba(108, 117, 125, 0.25);
+    }
+    .btn-secondary:hover:not(:disabled) { 
+      background: #5a6268;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(108, 117, 125, 0.3);
+    }
+    
+    .btn:disabled { 
+      opacity: 0.5; 
+      cursor: not-allowed;
+      transform: none !important;
+    }
+    
+    .btn:active:not(:disabled) {
+      transform: translateY(0);
+    }
+    
+    #loader {
+      text-align: center;
+      padding: 60px 40px;
+      font-size: 16px;
+      color: #666;
+      font-weight: 400;
+      letter-spacing: 0.5px;
+    }
+    
+    #loader::after {
+      content: '';
+      display: block;
+      width: 24px;
+      height: 24px;
+      border: 3px solid #e8e8e8;
+      border-top-color: #B8E6DC;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 20px auto 0;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    #alert {
+      padding: 16px 20px;
+      border-radius: 4px;
+      margin: 0 0 20px 0;
+      font-size: 15px;
+      font-weight: 500;
+      display: none;
+      border-left: 5px solid;
+      letter-spacing: 0.3px;
+      animation: slideDown 0.3s ease-out;
+    }
+    
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .alert-danger { 
+      background: #FFE5E5; 
+      color: #c62828; 
+      border-color: #FF6B6B;
+    }
+    
+    .alert-success { 
+      background: #E8F5E9; 
+      color: #2e7d32; 
+      border-color: #4CAF50;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      .filter-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .checkbox-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    @media (max-width: 640px) {
+      body {
+        padding: 20px 15px;
+      }
+      
+      .logo-header img {
+        max-width: 160px;
+      }
+      
+      .page-header h1 {
+        font-size: 28px;
+        letter-spacing: 1.5px;
+      }
+      
+      .content {
+        padding: 24px 20px;
+      }
+      
+      .btn {
+        padding: 12px 20px;
+        font-size: 14px;
+      }
+    }
+
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Logo -->
+    <div class="logo-header">
+      <img src="" alt="School Logo" style="display:none;" alt="The Indy Learning Team Logo">
+    </div>
+    
+    <!-- Page Header -->
+    <div class="page-header">
+      <h1>Report Generator</h1>
+      <div class="tagline">Innovate. Educate. Empower.</div>
+    </div>
+    
+    <!-- Main Section -->
+    <div class="main-section">
+      <div class="section-header">
+        <h2>Configure Your Report</h2>
+      </div>
+      
+      <div class="content">
+        <div id="alert"></div>
+        <div id="loader">Loading report options</div>
+        
+        <div id="reportOptions" style="display: none;">
+        
+          <div class="report-section">
+            <h3>Filters</h3>
+            <p>
+              Select filters to narrow your report. Leave as "All" to include everyone.
+            </p>
+            <div class="filter-grid">
+              <div class="form-group">
+                <label for="filterGrade">Filter by Grade</label>
+                <select id="filterGrade">
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="filterGroup">Filter by Group</label>
+                <select id="filterGroup">
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="filterStudent">Filter by Student</label>
+                <select id="filterStudent">
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          <div class="report-section">
+            <h3>Student Information</h3>
+            <div class="checkbox-grid" id="studentOptions"></div>
+          </div>
+          
+          <div class="report-section">
+            <h3>Progress Metrics</h3>
+            <div class="checkbox-grid" id="progressOptions"></div>
+          </div>
+          
+          <div class="report-section">
+            <h3>Skill Section Mastery (%)</h3>
+            <div class="checkbox-grid" id="skillOptions"></div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="actions">
+        <button class="btn btn-secondary" onclick="google.script.host.close()">Cancel</button>
+        <button class="btn btn-primary" id="generateBtn" onclick="generateReport()">Generate Report</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let allOptions = {};
+    let allFilterOptions = {};
+    let siteConfig = null;
+
+    // --- Data Loading ---
+    window.onload = function() {
+      loadSiteConfig();
+      google.script.run
+        .withSuccessHandler(onOptionsLoaded)
+        .withFailureHandler(onFailure)
+        .getReportOptions();
+    };
+
+    function loadSiteConfig() {
+      google.script.run
+        .withSuccessHandler(applySiteConfig)
+        .withFailureHandler(function(error) {
+          console.error('Failed to load site config:', error);
+        })
+        .getSiteConfigForUI();
+    }
+
+    function applySiteConfig(config) {
+      siteConfig = config;
+      
+      // Apply accent color
+      const accentColor = config.accentColor || '#B8E6DC';
+      const style = document.createElement('style');
+      style.innerHTML = `
+        .section-header { background: ${accentColor} !important; }
+        .btn-primary { background: ${accentColor} !important; border-color: ${accentColor} !important; }
+        .btn-primary:hover { background: ${config.primaryColor || '#4A90E2'} !important; }
+      `;
+      document.head.appendChild(style);
+
+      // Update logo if available
+      if (config.logoFileId) {
+        const logoImg = document.querySelector('.logo-header img');
+        if (logoImg) {
+          logoImg.src = `https://drive.google.com/uc?export=view&id=${config.logoFileId}`;
+          logoImg.style.display = 'block';
+        }
+      } else {
+        const logoHeader = document.querySelector('.logo-header');
+        if (logoHeader) logoHeader.style.display = 'none';
+      }
+    }
+
+    function onOptionsLoaded(data) {
+      allOptions = data.options;
+      allFilterOptions = data.filterOptions;
+      
+      populateCheckboxes('studentOptions', allOptions.student);
+      populateCheckboxes('progressOptions', allOptions.progress);
+      populateCheckboxes('skillOptions', allOptions.skills);
+      
+      populateFilterDropdowns();
+      
+      document.getElementById('loader').style.display = 'none';
+      document.getElementById('reportOptions').style.display = 'block';
+    }
+
+    function populateCheckboxes(containerId, options) {
+      const container = document.getElementById(containerId);
+      if (!options || options.length === 0) {
+        container.parentElement.style.display = 'none';
+        return;
+      }
+      
+      options.forEach(opt => {
+        const item = document.createElement('div');
+        item.className = 'checkbox-item';
+        const checked = opt.default ? 'checked' : '';
+        item.innerHTML = `
+          <input type="checkbox" id="${opt.id}" data-id="${opt.id}" ${checked}>
+          <label for="${opt.id}">${opt.name}</label>
+        `;
+        item.querySelector('input')._data = opt;
+        container.appendChild(item);
+      });
+    }
+
+    function populateFilterDropdowns() {
+      populateSelect('filterGrade', allFilterOptions.grades, 'All Grades');
+      populateSelect('filterGroup', allFilterOptions.groups, 'All Groups');
+      populateSelect('filterStudent', allFilterOptions.students, 'All Students');
+    }
+    
+    function populateSelect(elementId, options, allText) {
+      const select = document.getElementById(elementId);
+      select.innerHTML = '';
+      
+      const allOption = document.createElement('option');
+      allOption.value = 'ALL';
+      allOption.text = allText;
+      select.appendChild(allOption);
+      
+      options.forEach(opt => {
+        const option = document.createElement('option');
+        if (typeof opt === 'string') {
+          option.value = opt;
+          option.text = opt;
+        } else {
+          option.value = opt.value;
+          option.text = opt.label;
+        }
+        select.appendChild(option);
+      });
+    }
+
+    function onFailure(error) {
+      document.getElementById('loader').style.display = 'none';
+      showAlert(error.message, 'danger');
+    }
+
+    // --- Generate Action ---
+    function generateReport() {
+      setLoading(true);
+      showAlert('Building your report... This may take a few moments.', 'success', true);
+      
+      const selectedColumns = [];
+      const checkboxes = document.querySelectorAll('#reportOptions input[type="checkbox"]:checked');
+      
+      if (checkboxes.length === 0) {
+        showAlert('Please select at least one column to include in the report.', 'danger');
+        setLoading(false);
+        return;
+      }
+      
+      checkboxes.forEach(cb => {
+        selectedColumns.push(cb._data);
+      });
+
+      const filters = {
+        grade: document.getElementById('filterGrade').value,
+        group: document.getElementById('filterGroup').value,
+        student: document.getElementById('filterStudent').value
+      };
+
+      google.script.run
+        .withSuccessHandler(onReportSuccess)
+        .withFailureHandler(onReportFailure)
+        .buildReport(selectedColumns, filters);
+    }
+    
+    function onReportSuccess(response) {
+      if (response.success) {
+        showAlert(response.message, 'success');
+        setTimeout(() => {
+          google.script.host.close();
+        }, 2000);
+      } else {
+        onReportFailure(new Error(response.message));
+      }
+    }
+
+    function onReportFailure(error) {
+      setLoading(false);
+      showAlert(error.message, 'danger');
+    }
+    
+    // --- UI Helpers ---
+    function setLoading(isLoading) {
+      document.getElementById('generateBtn').disabled = isLoading;
+      document.getElementById('generateBtn').innerText = isLoading ? 'Generating...' : 'Generate Report';
+    }
+    
+    function showAlert(message, type, noAutoHide) {
+      const alertBox = document.getElementById('alert');
+      alertBox.className = `alert alert-${type}`;
+      alertBox.innerText = message;
+      alertBox.style.display = 'block';
+
+      if (!noAutoHide) {
+        setTimeout(() => {
+          if (alertBox.innerText === message) {
+            alertBox.style.display = 'none';
+          }
+        }, 5000);
+      }
+    }
+  </script>
+</body>
+</html>
