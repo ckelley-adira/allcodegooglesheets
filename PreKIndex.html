@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Student Assessment Tracker</title>
+    <base target="_top">
+
+    <style>
+        /* CSS Variables - Indianapolis Library Branding */
+        :root {
+            --primary-color: #1E3A5F; --primary-light: #2E5A8F; --accent-color: #E8B923;
+            --success-color: #22C55E; --warning-color: #F59E0B;
+            --danger-color: #EF4444; --secondary-color: #64748B; --background: #F8FAFC;
+            --card-background: #FFFFFF; --text-primary: #1E293B; --text-secondary: #64748B;
+            --border-color: #E2E8F0; --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+            --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12); --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: var(--background); color: var(--text-primary); min-height: 100vh; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; padding-bottom: env(safe-area-inset-bottom); }
+        .header { background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-light) 100%); color: white; padding: 1.25rem 1.5rem 1.25rem; box-shadow: var(--shadow-md); position: sticky; top: 0; z-index: 100; }
+        .header-content { display: flex; align-items: center; justify-content: space-between; max-width: 1024px; margin: 0 auto; }
+        .header-brand { display: flex; align-items: center; gap: 0.75rem; }
+        .header-logo { font-size: 1.75rem; }
+        .header h1 { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 0.125rem; }
+        .header .subtitle { font-size: 0.8rem; opacity: 0.9; font-weight: 400; }
+        .header-badge { background: var(--accent-color); color: var(--primary-color); padding: 0.35rem 0.75rem; border-radius: 50px; font-size: 0.7rem; font-weight: 600; white-space: nowrap; }
+        .container { max-width: 1024px; margin: 0 auto; padding: 1.5rem; }
+        .card { background: var(--card-background); border-radius: 16px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: var(--shadow-sm); transition: var(--transition); }
+        .card.active { box-shadow: var(--shadow-md); }
+        .selection-card { position: relative; overflow: hidden; }
+        .selection-card::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--primary-color); transform: translateX(-100%); transition: var(--transition); }
+        .selection-card.has-value::before { transform: translateX(0); }
+        .label { display: flex; align-items: center; font-size: 0.875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); margin-bottom: 0.75rem; }
+        .label .step-number { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--accent-color); color: var(--primary-color); font-size: 0.75rem; font-weight: 700; margin-right: 0.5rem; }
+        .select-wrapper { position: relative; }
+        .select-wrapper::after { content: '▼'; position: absolute; right: 1.25rem; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-secondary); font-size: 0.75rem; }
+        select { width: 100%; padding: 1rem 3rem 1rem 1rem; font-size: 1.125rem; font-weight: 500; border: 2px solid var(--border-color); border-radius: 12px; background: white; color: var(--text-primary); appearance: none; -webkit-appearance: none; cursor: pointer; transition: var(--transition); min-height: 56px; }
+        select:focus { outline: none; border-color: var(--primary-color); box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.1); }
+        select:disabled { opacity: 0.5; cursor: not-allowed; background: var(--background); }
+        option.sequence-option { white-space: normal; } /* Allow wrapping */
+        #assessment-area { margin-top: 1rem; animation: fadeIn 0.3s ease-in-out; }
+        .lesson-group { background: var(--card-background); border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; border: 2px solid var(--border-color); transition: var(--transition); }
+        .lesson-group:active { transform: scale(0.98); }
+        .lesson-name { font-size: 1rem; font-weight: 600; color: var(--text-primary); margin-bottom: 1rem; line-height: 1.4; display: flex; align-items: center; gap: 0.5rem; }
+        .lesson-icon { font-size: 1.1rem; }
+        .status-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+        .status-btn { padding: 1rem 0.5rem; min-height: 60px; font-size: 0.9rem; font-weight: 600; border: 2px solid var(--border-color); border-radius: 12px; background: white; color: var(--text-secondary); cursor: pointer; transition: var(--transition); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        .status-btn:active { transform: scale(0.95); }
+        .status-btn .icon { font-size: 1.25rem; margin-bottom: 0.25rem; }
+        .status-btn .text { font-size: 0.8rem; line-height: 1.2; }
+        .status-btn.active-y { background: linear-gradient(135deg, #52c41a, #73d13d); border-color: var(--success-color); color: white; box-shadow: 0 4px 12px rgba(52, 199, 89, 0.3); }
+        .status-btn.active-n { background: linear-gradient(135deg, #ff4d4f, #ff7875); border-color: var(--danger-color); color: white; box-shadow: 0 4px 12px rgba(255, 59, 48, 0.3); }
+        .status-btn.active-a { background: linear-gradient(135deg, #faad14, #ffc53d); border-color: var(--warning-color); color: white; box-shadow: 0 4px 12px rgba(255, 149, 0, 0.3); }
+        .save-button-container { position: sticky; bottom: 1.5rem; padding: 0 1.5rem; z-index: 50; display: none; }
+        .save-button-container.visible { display: block; }
+        .save-button { width: 100%; padding: 1.25rem; min-height: 64px; font-size: 1.125rem; font-weight: 700; border: none; border-radius: 16px; background: linear-gradient(135deg, var(--success-color), #00C851); color: white; cursor: pointer; transition: var(--transition); box-shadow: 0 8px 24px rgba(52, 199, 89, 0.3); display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+        .save-button:active { transform: scale(0.95); }
+        .save-button:disabled { background: var(--border-color); cursor: not-allowed; box-shadow: none; }
+        .status-message { padding: 1rem 1.5rem; border-radius: 12px; margin: 1rem 0; display: flex; align-items: center; animation: slideIn 0.3s ease-out; font-weight: 500; }
+        @keyframes slideIn { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .status-message.success { background: linear-gradient(135deg, rgba(52, 199, 89, 0.1), rgba(52, 199, 89, 0.2)); color: var(--success-color); border-left: 4px solid var(--success-color); }
+        .status-message.error { background: linear-gradient(135deg, rgba(255, 59, 48, 0.1), rgba(255, 59, 48, 0.2)); color: var(--danger-color); border-left: 4px solid var(--danger-color); }
+        .loader { display: none; text-align: center; padding: 2rem; }
+        .loader.visible { display: block; }
+        .spinner { width: 48px; height: 48px; border: 4px solid var(--border-color); border-top-color: var(--primary-color); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loader-text { color: var(--text-secondary); font-size: 1rem; }
+        .empty-state { text-align: center; padding: 3rem 1.5rem; color: var(--text-secondary); }
+        .empty-state .icon { font-size: 4rem; opacity: 0.3; margin-bottom: 1rem; }
+        @media (max-width: 768px) { .header h1 { font-size: 1.5rem; } .container { padding: 1rem; } .card { padding: 1.25rem; } .save-button-container { bottom: 1rem; padding: 0 1rem; } }
+        @media (min-width: 1024px) { .container { padding: 2rem; } .assessment-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; } }
+        .visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+        *:focus-visible { outline: 3px solid var(--primary-color); outline-offset: 2px; }
+        /* Portal Navigation */
+        .portal-nav { background: var(--primary-light); padding: 0.5rem 1rem; display: flex; justify-content: center; gap: 0.25rem; flex-wrap: wrap; }
+        .portal-nav a { color: rgba(255,255,255,0.7); text-decoration: none; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 500; transition: var(--transition); cursor: pointer; }
+        .portal-nav a:hover { background: rgba(255,255,255,0.1); color: white; }
+        .portal-nav a.active { background: rgba(255,255,255,0.2); color: white; font-weight: 600; }
+        .portal-nav .nav-home { color: var(--accent-color); }
+        .portal-nav .nav-home:hover { background: rgba(232,185,35,0.2); }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-content">
+            <div class="header-brand">
+                <span class="header-logo">📚</span>
+                <div>
+                    <h1>Student Assessment Tracker</h1>
+                    <div class="subtitle">MZA PreK Program</div>
+                </div>
+            </div>
+            <div class="header-badge">Teacher Tracker</div>
+        </div>
+    </header>
+    <nav class="portal-nav">
+        <a onclick="navigateToPortal('')" class="nav-home">Home Page</a>
+        <a class="active">Teacher</a>
+        <a onclick="navigateToPortal('tutor')">Tutor</a>
+        <a onclick="navigateToPortal('dashboard')">Dashboard</a>
+    </nav>
+
+    <div class="container">
+        <section aria-label="Assessment Setup">
+            <div class="card selection-card" id="group-card">
+                <label for="group-select" class="label"><span class="step-number">1</span> Select Group</label>
+                <div class="select-wrapper">
+                    <select id="group-select" aria-describedby="group-desc"> 
+                        <option value="">Choose a group...</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="card selection-card" id="student-card">
+                <label for="student-select" class="label"><span class="step-number">2</span> Select Student</label>
+                <div class="select-wrapper">
+                    <select id="student-select" disabled aria-describedby="student-desc">
+                        <option value="">Select group first...</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="card selection-card" id="sequence-card">
+                <label for="sequence-select" class="label"><span class="step-number">3</span> Select Sequence</label>
+                <div class="select-wrapper">
+                    <select id="sequence-select" disabled aria-describedby="sequence-desc">
+                        <option value="">Select student first...</option>
+                    </select>
+                </div>
+            </div>
+        </section>
+
+        <div id="loader" class="loader">
+            <div class="spinner"></div>
+            <div id="loader-text" class="loader-text">Loading...</div>
+        </div>
+
+        <div id="status-container"></div>
+        <div id="assessment-area"></div>
+    </div>
+
+    <div id="save-button-container" class="save-button-container">
+        <button type="button" id="save-button" class="save-button" onclick="saveData()" disabled>
+            <span class="icon">💾</span> <span>Save Assessment</span>
+        </button>
+    </div>
+
+    <script>
+        // --- Portal Navigation ---
+        function navigateToPortal(page) {
+            google.script.run.withSuccessHandler(function(url) {
+                window.top.location.href = page ? url + '?page=' + page : url;
+            }).getWebAppUrl();
+        }
+
+        // --- Global State ---
+        let studentList = []; // <-- *** FIX: This was missing in your version ***
+        let currentStudent = null;
+        let currentGroup = '';
+        const placeholderHTML = `<div class="empty-state"><div class="icon">📝</div><div>Select a sequence to begin assessing.</div></div>`;
+
+
+        // --- Initialization ---
+        document.addEventListener("DOMContentLoaded", () => {
+            document.getElementById('assessment-area').innerHTML = placeholderHTML;
+            // --- CORRECTED: Add event listeners ---
+            document.getElementById("group-select").addEventListener("change", loadStudents);
+            document.getElementById("student-select").addEventListener("change", loadSequencesForGroup);
+            document.getElementById("sequence-select").addEventListener("change", loadFilteredLessons);
+            // --- END CORRECTION ---
+
+            loadGroups();
+            addKeyboardSupport();
+        });
+
+        // --- Dropdown Event Handlers (Called by event listeners) ---
+        function loadGroups() {
+            showLoader("Loading groups...");
+            google.script.run
+                .withSuccessHandler((groups) => {
+                    hideLoader();
+                    populateGroups(groups);
+                })
+                .withFailureHandler(showError)
+                .getGroups(); // Calls Code.gs -> getGroups()
+        }
+
+        function loadStudents() {
+            const groupVal = document.getElementById("group-select").value; // Get value from select
+            const studentSelect = document.getElementById("student-select");
+            const sequenceSelect = document.getElementById("sequence-select");
+            
+            currentGroup = groupVal;
+            updateCardState('group-card', !!groupVal);
+            
+            // Reset downstream elements
+            studentSelect.disabled = true; // Disable while loading
+            studentSelect.innerHTML = '<option value="">Select group first...</option>';
+            currentStudent = null;
+            sequenceSelect.disabled = true;
+            sequenceSelect.innerHTML = '<option value="">Select student first...</option>';
+            clearAssessmentArea();
+            updateCardState('student-card', false);
+            updateCardState('sequence-card', false);
+
+            if (groupVal) {
+                showLoader("Loading students...");
+                google.script.run
+                    .withSuccessHandler((students) => {
+                        hideLoader();
+                        populateStudents(students);
+                        // Only enable if students were found
+                        if (students && students.length > 0) {
+                             studentSelect.disabled = false;
+                        }
+                    })
+                    .withFailureHandler(showError)
+                     // --- *** CORE FIX *** ---
+                    .getStudentsByGroup(groupVal); // Calls Code.gs -> getStudentsByGroup()
+            }
+        }
+        
+        function loadSequencesForGroup() {
+            const studentVal = document.getElementById("student-select").value;
+            const sequenceSelect = document.getElementById("sequence-select");
+            
+            updateCardState('student-card', !!studentVal);
+            
+            // Reset downstream
+            sequenceSelect.disabled = true; // Disable while loading
+            sequenceSelect.innerHTML = '<option value="">Select student first...</option>';
+            clearAssessmentArea();
+            updateCardState('sequence-card', false);
+            currentStudent = null; // Reset current student
+
+            if (studentVal) {
+                // Find the student object from the globally stored list
+                currentStudent = studentList.find(s => s.name === studentVal); 
+                if (!currentStudent) {
+                    showError("Could not find student data (program info). Please reload.");
+                    return;
+                }
+                
+                showLoader("Loading sequences...");
+                google.script.run
+                    .withSuccessHandler((sequences) => {
+                        hideLoader();
+                        populateSequences(sequences);
+                        // Only enable if sequences were found
+                        if (sequences && sequences.length > 0) {
+                            sequenceSelect.disabled = false;
+                        }
+                    })
+                    .withFailureHandler(showError)
+                    // --- *** CORE FIX *** ---
+                    .getSequences(currentGroup); // Calls Code.gs -> getSequences(currentGroup)
+            }
+        }
+        
+        function loadFilteredLessons() {
+            const sequenceVal = document.getElementById("sequence-select").value;
+            updateCardState('sequence-card', !!sequenceVal);
+            
+            clearAssessmentArea(); // Clear assessment area immediately
+            
+            if (sequenceVal) {
+                if (!currentStudent || !currentGroup) {
+                    showError("Error: Student or Group is missing. Please re-select.");
+                    return;
+                }
+                showLoader("Loading assessment...");
+                google.script.run
+                    .withSuccessHandler(buildForm)
+                    .withFailureHandler(showError)
+                    .getFilteredAssessmentData(currentStudent.name, currentStudent.program, currentGroup, sequenceVal);
+            } else {
+                 document.getElementById("assessment-area").innerHTML = placeholderHTML; // Show placeholder if they re-select "Choose..."
+            }
+        }
+
+
+        // --- Data Population Functions ---
+        function populateGroups(groups) {
+            const select = document.getElementById("group-select");
+            select.innerHTML = '<option value="">Choose a group...</option>';
+            if(Array.isArray(groups)) {
+                groups.forEach(g => {
+                    const opt = document.createElement('option');
+                    opt.value = g;
+                    opt.textContent = g;
+                    select.appendChild(opt);
+                });
+            }
+        }
+
+        function populateStudents(students) {
+            studentList = Array.isArray(students) ? students : []; // --- *** CORE FIX *** --- Store the list
+            const select = document.getElementById("student-select");
+            select.innerHTML = '<option value="">Choose a student...</option>';
+            
+            if (studentList.length > 0) {
+                studentList.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.name; // Value is just the name
+                    opt.textContent = s.name; // Text is just the name
+                    select.appendChild(opt);
+                });
+                select.disabled = false; // Enable the dropdown
+            } else {
+                 select.innerHTML = '<option value="">No students found</option>';
+                 select.disabled = true; // Keep disabled
+            }
+        }
+
+        function populateSequences(sequences) {
+            const select = document.getElementById("sequence-select");
+            select.innerHTML = '<option value="">Choose a sequence...</option>';
+             if (Array.isArray(sequences) && sequences.length > 0) {
+                sequences.forEach(seq => {
+                    const opt = document.createElement('option');
+                    opt.value = seq.sequenceName;
+                    opt.textContent = `${seq.sequenceName}: ${seq.letters || 'N/A'}`;
+                    opt.className = 'sequence-option';
+                    select.appendChild(opt);
+                });
+                select.disabled = false; // Enable the dropdown
+            } else {
+                select.innerHTML = '<option value="">No sequences found</option>';
+                select.disabled = true; // Keep disabled
+            }
+        }
+
+        function clearAssessmentArea() {
+            document.getElementById("assessment-area").innerHTML = placeholderHTML;
+            document.getElementById("save-button-container").classList.remove("visible");
+            document.getElementById("save-button").disabled = true;
+        }
+
+        // --- UI Building Functions ---
+        function buildForm(data) {
+            hideLoader();
+            const { lessons, currentData } = data; 
+            const assessmentArea = document.getElementById("assessment-area");
+            assessmentArea.innerHTML = ''; 
+
+            if (!lessons || lessons.length === 0) {
+                 assessmentArea.innerHTML = `<div class="empty-state"><div class="icon">🤷‍♀️</div><div>No assessable lessons found for this sequence.</div></div>`;
+                 document.getElementById("save-button-container").classList.remove("visible");
+                 document.getElementById("save-button").disabled = true;
+                 return;
+            }
+
+            const grid = document.createElement('div'); 
+            grid.className = 'assessment-grid';
+            lessons.forEach(name => { 
+                grid.appendChild(createButtonGroup(name, name, currentData[name])); 
+            });
+            assessmentArea.appendChild(grid);
+
+            document.getElementById("save-button-container").classList.add("visible");
+            document.getElementById("save-button").disabled = false;
+        }
+
+        function createButtonGroup(fullName, labelText, currentVal) {
+            const div = document.createElement('div'); 
+            div.className = 'lesson-group'; 
+            div.setAttribute('data-lesson', fullName);
+            
+            const label = document.createElement('div'); 
+            label.className = 'lesson-name'; 
+            let icon = '📝';
+            if (fullName.includes('Form')) icon = '✏️'; 
+            else if (fullName.includes('Name')) icon = '🔤'; 
+            else if (fullName.includes('Sound')) icon = '🔊';
+            label.innerHTML = `<span class="lesson-icon">${icon}</span> <span>${labelText}</span>`; 
+            div.appendChild(label);
+            
+            const buttons = document.createElement('div'); 
+            buttons.className = 'status-buttons'; 
+            buttons.setAttribute('role', 'radiogroup');
+            buttons.appendChild(createButton('Y', 'Yes', fullName, currentVal)); 
+            buttons.appendChild(createButton('N', 'No', fullName, currentVal)); 
+            buttons.appendChild(createButton('A', 'N/A', fullName, currentVal));
+            div.appendChild(buttons); 
+            return div;
+        }
+        
+        function createButton(val, txt, lName, currentVal) {
+            const btn = document.createElement('button'); 
+            btn.type = 'button'; 
+            btn.className = 'status-btn'; 
+            btn.value = val;
+            btn.setAttribute('aria-label', `${txt} for ${lName}`); 
+            btn.setAttribute('role', 'radio'); 
+            btn.setAttribute('aria-checked', 'false');
+            
+            let icon = ''; 
+            if (val === 'Y') icon = '✅'; 
+            else if (val === 'N') icon = '❌'; 
+            else if (val === 'A') icon = '➖';
+            btn.innerHTML = `<span class="icon">${icon}</span> <span class="text">${txt}</span>`;
+            
+            if (val === currentVal) { 
+                btn.classList.add('active-' + val.toLowerCase()); 
+                btn.setAttribute('aria-checked', 'true'); 
+            }
+            btn.onclick = function() { toggleButtonSelection(this); }; 
+            return btn;
+        }
+        
+        function toggleButtonSelection(btnEl) {
+            const val = btnEl.value;
+            const parent = btnEl.parentElement;
+            const btns = parent.querySelectorAll('button');
+            const activeCls = 'active-' + val.toLowerCase();
+            
+            if (btnEl.classList.contains(activeCls)) { 
+                btnEl.classList.remove(activeCls); 
+                btnEl.setAttribute('aria-checked', 'false'); 
+            } else { 
+                btns.forEach(b => {
+                    b.className = 'status-btn';
+                    b.setAttribute('aria-checked', 'false');
+                }); 
+                btnEl.classList.add(activeCls); 
+                btnEl.setAttribute('aria-checked', 'true'); 
+            }
+            
+            if (window.navigator && window.navigator.vibrate) {
+                window.navigator.vibrate(10);
+            }
+        }
+
+        // --- Data Saving Function ---
+        function saveData() {
+            if (!currentStudent) {
+                showError("No student selected.");
+                return;
+            } 
+            
+            showLoader("Saving data..."); 
+            document.getElementById("save-button").disabled = true; 
+            
+            const data = {}; 
+            document.querySelectorAll('.lesson-group').forEach(g => {
+                const lN = g.getAttribute('data-lesson');
+                const aB = g.querySelector('.status-buttons button[class*="active-"]'); 
+                data[lN] = aB ? aB.value : '';
+            }); 
+            
+            const dTS = {
+                studentName: currentStudent.name,
+                program: currentStudent.program,
+                assessments: data
+            }; 
+            
+            google.script.run
+                .withSuccessHandler(showSuccess)
+                .withFailureHandler(showError)
+                .saveAssessmentData(dTS);
+        }
+
+        // --- Utility Functions ---
+        function updateCardState(id, hasVal) {
+            const c = document.getElementById(id);
+            if (c) {
+                hasVal ? c.classList.add('has-value') : c.classList.remove('has-value');
+            }
+        }
+        
+        function showLoader(msg) {
+            const l = document.getElementById("loader");
+            const t = document.getElementById("loader-text");
+            if (l && t) {
+                t.textContent = msg;
+                l.classList.add("visible");
+            }
+            clearStatus();
+        }
+        
+        function hideLoader() {
+            const l = document.getElementById("loader");
+            if (l) l.classList.remove("visible");
+        }
+
+        function showError(err) {
+            hideLoader();
+            const message = (err instanceof Error) ? err.message : String(err);
+            const statusDiv = document.getElementById("status-container");
+            if (statusDiv) {
+                statusDiv.innerHTML = `<div class="status-message error">⚠️ Error: ${message}</div>`;
+            }
+            
+            // Re-enable controls
+            const saveBtn = document.getElementById("save-button");
+            const groupSelect = document.getElementById("group-select");
+            const studentSelect = document.getElementById("student-select");
+            const sequenceSelect = document.getElementById("sequence-select");
+            
+            if (saveBtn) saveBtn.disabled = false;
+            if (groupSelect && studentSelect) studentSelect.disabled = !groupSelect.value;
+            if (studentSelect && sequenceSelect) sequenceSelect.disabled = !studentSelect.value;
+        }
+
+        function showSuccess(msg) {
+            hideLoader();
+            showStatus(`✅ ${msg}`, 'success');
+            document.getElementById("save-button").disabled = false;
+            loadFilteredLessons(); // Reloads assessment
+        }
+        
+        function showStatus(msg, type = 'info') {
+            const c = document.getElementById('status-container');
+            if (!c) return;
+            c.innerHTML = `<div class="status-message ${type}">${msg}</div>`;
+            setTimeout(clearStatus, 5000);
+        }
+        
+        function clearStatus() {
+            const c = document.getElementById('status-container');
+            if (c) c.innerHTML = '';
+        }
+
+        // --- Keyboard Support ---
+        function addKeyboardSupport() {
+            document.addEventListener('keydown', (e) => {
+                if (document.activeElement && document.activeElement.classList.contains('status-btn')) {
+                    const p = document.activeElement.closest('.lesson-group');
+                    if (!p) return;
+                    
+                    let t = null;
+                    switch(e.key.toLowerCase()) {
+                        case 'y': case '1': t = p.querySelector('.status-btn[value="Y"]'); break;
+                        case 'n': case '2': t = p.querySelector('.status-btn[value="N"]'); break;
+                        case 'a': case '3': t = p.querySelector('.status-btn[value="A"]'); break;
+                        case 'arrowright': t = document.activeElement.nextElementSibling || p.querySelector('.status-btn:first-child'); break;
+                        case 'arrowleft': t = document.activeElement.previousElementSibling || p.querySelector('.status-btn:last-child'); break;
+                    }
+                    
+                    if (t) { e.preventDefault(); t.click(); t.focus(); }
+                }
+                
+                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                    e.preventDefault();
+                    const sB = document.getElementById('save-button');
+                    if (sB && !sB.disabled && document.getElementById('save-button-container').classList.contains('visible')) {
+                        sB.click();
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
