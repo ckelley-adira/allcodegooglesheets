@@ -2,6 +2,8 @@
 // UFLI MASTER SYSTEM - SYSTEM SHEETS (PHASE 2)
 // Sheet Generation, Progress Tracking, Sync, and Pacing Engine
 // ═══════════════════════════════════════════════════════════════════════════
+// Core calculation functions are imported from SharedEngine.gs
+//
 // Version: 5.2 - WEIGHTED REVIEW LESSONS
 // Last Updated: January 2026
 //
@@ -206,10 +208,23 @@ const COLORS = {
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════════════════
-// CALCULATION HELPER UTILITIES (Reduce code duplication)
+// CONFIGURATION FUNCTION FOR SHAREDENGINE.GS
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
+ * Returns Adelante-specific configuration for SharedEngine.gs
+ * @returns {Object} Configuration object with all necessary constants
+ */
+function getAdelanteConfig() {
+  return {
+    SHEET_NAMES_V2: SHEET_NAMES_V2,
+    SHEET_NAMES_PREK: SHEET_NAMES_PREK,
+    LAYOUT: LAYOUT,
+    PREK_CONFIG: PREK_CONFIG,
+    GRADE_METRICS: SHARED_GRADE_METRICS
+  };
+}
+
  * Gets the column index for a lesson number
  * @param {number} lessonNum - Lesson number (1-128)
  * @returns {number} Array index (0-based)
@@ -1581,6 +1596,10 @@ if (groupName.startsWith("SC Classroom")) {
     }
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STATS UPDATE WRAPPER (Uses SharedEngine.gs)
+// ═══════════════════════════════════════════════════════════════════════════
 
 function updateStatsForNewStudents() {
   const functionName = 'updateStatsForNewStudents';

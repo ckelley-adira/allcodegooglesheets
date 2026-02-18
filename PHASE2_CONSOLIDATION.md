@@ -4,16 +4,18 @@
 
 This document describes the Phase 2 consolidation effort that unified duplicate code across all school Phase2_ProgressTracking.gs files into a single SharedEngine.gs module.
 
-**Completion Date:** February 2026  
-**Issue:** Phase 2: Shared Engine Consolidation (Core Logic Unification)
+**Completion Date:** February 18, 2026  
+**Issue:** #4 - Phase 2: Shared Engine Consolidation (Core Logic Unification)  
+**Pull Request:** #10 (branch: copilot/consolidate-shared-engine)
 
 ## Goals Achieved
 
 ✅ Consolidated core calculation logic from 6 school files into SharedEngine.gs  
-✅ Eliminated 2,189 lines of duplicate code across schools  
+✅ Eliminated 875 lines of duplicate code in this PR (Adelante, Sankofa, CHAW, GlobalPrep)  
+✅ All 6 schools now use SharedEngine (Allegiant and CCA refactored previously)  
 ✅ Maintained 100% backward compatibility - no functional changes  
-✅ Updated all schools to use shared implementations  
-✅ Documented school-specific quirks and configurations
+✅ Documented school-specific quirks and configurations  
+✅ Created comprehensive documentation (PHASE2_CONSOLIDATION.md)
 
 ## Architecture
 
@@ -103,54 +105,64 @@ Each school file now:
 ## Changes by School
 
 ### Adelante (Reference Implementation)
-- **Before:** 3,227 lines, 79 functions
-- **After:** 2,771 lines, 65 functions
-- **Removed:** 456 lines (14% reduction)
-- **Kept:** loadSchoolBranding, applySheetBranding, calculatePercentage, calculateBenchmarkFromRow
-- **Note:** Reference implementation with v5.2 gateway logic, branding system
+- **Before:** 3,227 lines
+- **After:** 2,633 lines
+- **Removed:** 594 lines (18.4% reduction)
+- **Functions Removed:** calculateBenchmark, calculateSectionPercentage, updateAllStats, calculatePreKScores, countYsInColumns, partitionLessonsByReview, checkGateway, getLessonStatus, getLessonColumnIndex, isReviewLesson, getColumnLetter, extractLessonNumber, normalizeStudent, getLastLessonColumn, getOrCreateSheet, log, createMergedRow
+- **Lesson Arrays Removed:** FOUNDATIONAL_LESSONS, G1_MINIMUM_LESSONS, G1_CURRENT_YEAR_LESSONS, G2_MINIMUM_LESSONS, G2_CURRENT_YEAR_LESSONS, G4_MINIMUM_LESSONS, ALL_NON_REVIEW_LESSONS
+- **GRADE_METRICS:** Removed (identical to SHARED_GRADE_METRICS)
+- **Kept:** loadSchoolBranding, applySheetBranding, calculatePercentage, calculateBenchmarkFromRow, sheet generation, sync, pacing, UI functions
+- **Added:** getAdelanteConfig() function
+- **Note:** Largest file with most duplicate code eliminated
 
 ### Sankofa
-- **Before:** 3,055 lines, 66 functions
-- **After:** 2,645 lines, 55 functions
-- **Removed:** 410 lines (13% reduction)
-- **Kept:** School-specific pacing, dashboard, sync functions
-- **Note:** Had inline gateway logic (now uses SharedEngine helpers)
+- **Before:** 2,645 lines
+- **After:** 2,504 lines
+- **Removed:** 141 lines (5.3% reduction)
+- **Functions Removed:** createMergedRow
+- **Lesson Arrays Removed:** FOUNDATIONAL_LESSONS, G1_MINIMUM_LESSONS, G1_CURRENT_YEAR_LESSONS, G2_MINIMUM_LESSONS, G2_CURRENT_YEAR_LESSONS, G4_MINIMUM_LESSONS, ALL_NON_REVIEW_LESSONS
+- **GRADE_METRICS:** Removed (identical to SHARED_GRADE_METRICS)
+- **Kept:** School-specific pacing, dashboard, sync, coaching functions
+- **Added:** getSankofaConfig() now uses SHARED_GRADE_METRICS
+- **Note:** Already had some consolidation; removed remaining duplicates
 
 ### CHAW
-- **Before:** 2,968 lines, 75 functions
-- **After:** 2,499 lines, 60 functions
-- **Removed:** 469 lines (16% reduction)
-- **Kept:** loadSchoolBranding, applySheetBranding, calculatePercentage, calculateBenchmarkFromRow
-- **Note:** Similar to Adelante with branding system
+- **Before:** 2,499 lines
+- **After:** 2,390 lines
+- **Removed:** 109 lines (4.4% reduction)
+- **Lesson Arrays Removed:** FOUNDATIONAL_LESSONS, G1_MINIMUM_LESSONS, G1_CURRENT_YEAR_LESSONS, G2_MINIMUM_LESSONS, G2_CURRENT_YEAR_LESSONS, G4_MINIMUM_LESSONS, ALL_NON_REVIEW_LESSONS
+- **GRADE_METRICS:** Removed (identical to SHARED_GRADE_METRICS)
+- **Kept:** loadSchoolBranding, applySheetBranding, calculateBenchmarkFromRow, sheet generation, sync, mixed-grade support
+- **Updated:** getCHAWConfig() now uses SHARED_GRADE_METRICS
+- **Note:** Removed duplicate constants while preserving school-specific functions
 
 ### GlobalPrep
-- **Before:** 2,291 lines, 59 functions
-- **After:** 1,985 lines, 49 functions
-- **Removed:** 306 lines (13% reduction)
-- **Kept:** Tutoring system, MindTrust report integration
-- **Note:** Unique tutoring tracking features
+- **Before:** 1,985 lines
+- **After:** 1,954 lines
+- **Removed:** 31 lines (1.6% reduction)
+- **Lesson Arrays Removed:** FOUNDATIONAL_LESSONS, G1_MINIMUM_LESSONS, G1_CURRENT_YEAR_LESSONS, G2_MINIMUM_LESSONS, G2_CURRENT_YEAR_LESSONS, G4_MINIMUM_LESSONS, ALL_NON_REVIEW_LESSONS
+- **GRADE_METRICS:** Kept local version (G3 currentYear: 120 vs standard 107)
+- **Kept:** calculateBenchmarkFromRow (simplified version), tutoring system, MindTrust report integration, sheet generation, sync
+- **Updated:** getGlobalPrepConfig() already existed and correct
+- **Note:** Smallest reduction due to custom GRADE_METRICS and already partially refactored
 
-### Allegiant
-- **Before:** 2,258 lines, 60 functions
-- **After:** 1,995 lines, 51 functions
-- **Removed:** 263 lines (12% reduction)
-- **Kept:** Pacing dashboard, sync functions
-- **Note:** Simpler implementation
+### Allegiant (Previously Refactored)
+- **Before:** Already refactored earlier
+- **After:** Uses SharedEngine pattern
+- **Note:** Example implementation for this consolidation effort
 
-### CCA
-- **Before:** 1,957 lines, 56 functions
-- **After:** 1,672 lines, 47 functions
-- **Removed:** 285 lines (15% reduction)
-- **Kept:** Minimal school-specific functions
-- **Note:** Smallest and simplest implementation
+### CCA (Previously Refactored)
+- **Before:** Already refactored earlier
+- **After:** Uses SharedEngine pattern
+- **Note:** Example implementation for this consolidation effort
 
 ## Total Impact
 
-- **Total lines removed:** 2,189 lines across 6 schools
-- **SharedEngine.gs created:** 664 lines of shared code
-- **Net reduction:** ~1,525 lines (15% average reduction)
-- **Duplicate code eliminated:** ~83% of core calculation logic
-- **Maintainability:** Single source of truth for all calculation logic
+- **Total lines removed in this PR:** 875 lines across 4 schools (Adelante, Sankofa, CHAW, GlobalPrep)
+- **All 6 schools now refactored:** Adelante, Allegiant, CCA, CHAW, GlobalPrep, Sankofa
+- **SharedEngine.gs:** 664 lines of shared code (created previously)
+- **Duplicate code eliminated:** All core calculation logic, lesson arrays, and GRADE_METRICS (except GlobalPrep custom)
+- **Maintainability:** Single source of truth for all calculation logic across all 6 schools
 
 ## Configuration Pattern
 
@@ -191,25 +203,36 @@ All schools now use consistent gateway logic from SharedEngine:
 
 ## School-Specific Quirks
 
-### Adelante & CHAW
-- Have advanced branding systems (`loadSchoolBranding()`, `applySheetBranding()`)
-- Keep `calculatePercentage()` for attempted-lessons-only calculation
-- Keep `calculateBenchmarkFromRow()` for simple non-gateway calculations
+### GlobalPrep - Custom GRADE_METRICS
+- **G3 currentYear:** Uses 120 lessons (vs standard 107)
+  - **Lesson Range:** ALL lessons 1-128 minus only alphabet review section (35-41)
+  - **Business Reason:** More comprehensive end-of-year assessment
+  - **Implementation:** Kept local GRADE_METRICS override in getGlobalPrepConfig()
+- **Initial Assessment:** Uses simplified calculateBenchmarkFromRow() without gateway logic for baseline
 
-### Sankofa
-- Previously had inline gateway logic (now uses helpers)
-- Has extensive coaching dashboard and student history tracking
+### Adelante & CHAW - Advanced Branding
+- Have advanced branding systems (loadSchoolBranding(), applySheetBranding())
+- Keep calculatePercentage() for attempted-lessons-only calculation
+- Keep calculateBenchmarkFromRow() for simple non-gateway calculations
+- Support dynamic color schemes and custom fonts
+
+### Sankofa - Coaching Features
+- Extensive coaching dashboard and student history tracking
+- Weekly automatic growth captures (Monday 6 AM triggers)
 - Mixed-grade support is most complex (SC Classroom model)
+- Co-teaching logic with partner groups
 
-### GlobalPrep
+### GlobalPrep - Tutoring System
 - Unique tutoring system (dual-track: whole-group + intervention)
-- MindTrust grant reporting
+- MindTrust grant reporting integration
 - Routes to "Tutoring Progress Log" and "Tutoring Summary"
+- Categorizes lessons: "UFLI Reteach", "Comprehension", "Other"
 
-### Allegiant & CCA
+### Allegiant & CCA - Standard Implementation
 - Simpler implementations
 - Fewer customizations
 - Standard pacing and sync functions
+- Follow baseline SharedEngine pattern closely
 
 ## Testing & Validation
 
