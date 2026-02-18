@@ -179,6 +179,7 @@ const CONFIG_LAYOUT = {
   SITE_CONFIG: {
     HEADER_ROW: 1,
     SCHOOL_NAME_ROW: 2,
+    GRADE_RANGE_MODEL_ROW: 3,
     GRADES_HEADER_ROW: 4,
     GRADES_START_ROW: 5,
     GRADE_MIXING_HEADER_ROW: 16,
@@ -318,7 +319,8 @@ function onOpen() {
   }
   
   // 2. Configured State (Full Menu)
-  ui.createMenu('Adira Reads Progress Report')
+  // Build base menu with core items (always present)
+  var baseMenu = ui.createMenu('Adira Reads Progress Report')
     // === PRIMARY ACTIONS (Daily Use) ===
     .addItem('📊 View School Summary', 'goToSchoolSummary')
     .addItem('📈 Generate Reports', 'generateReports')
@@ -339,33 +341,22 @@ function onOpen() {
       .addSeparator()
       .addItem('✅ Enable Nightly Full Sync', 'setupNightlySyncTrigger')
       .addItem('❌ Disable Nightly Full Sync', 'removeNightlySyncTrigger')
-      .addItem('ℹ️ Check Sync Status', 'showSyncStatus'))
+      .addItem('ℹ️ Check Sync Status', 'showSyncStatus'));
 
-    // === TUTORING (Optional Module) ===
-    .addSubMenu(ui.createMenu('📚 Tutoring')
-      .addItem('📋 View Tutoring Summary', 'goToTutoringSummary')
-      .addItem('📝 View Tutoring Log', 'goToTutoringLog')
-      .addSeparator()
-      .addItem('🔄 Sync Tutoring Data', 'syncTutoringProgress'))
-    
-    // === ADMIN & MAINTENANCE (Consolidated) ===
-    .addSubMenu(ui.createMenu('🔐 Admin Tools')
-        .addItem('📂 Open Import Dialog...', 'showImportDialog')
-        .addSeparator()
-        .addItem('✅ Validate Import Data', 'validateImportData')
-        .addItem('▶️ Process Import to UFLI MAP', 'processImportData')
-    .addSeparator()
-        .addItem('🗑️ Clear Import Staging', 'clearImportStaging')
-        .addItem('📋 View Import Exceptions', 'goToExceptionsSheet'))
-    .addSeparator()
-      // Unenrollment
-      .addItem('📦 Manual Archive Student', 'manualArchiveStudent')
-      .addItem('📄 View Archive', 'goToArchiveSheet')
-      .addSeparator()
-      // Repairs (Only the essential ones)
+  // === FEATURE MODULES (Phase 7: Dynamic menu items from feature flags) ===
+  // Uses ModuleLoader.buildFeatureMenu() to add menus only for enabled features
+  // (Coaching Dashboard, Tutoring, Grant Reports, Growth Highlighter, Admin Import, etc.)
+  if (typeof buildFeatureMenu === 'function') {
+    buildFeatureMenu(ui, baseMenu);
+  }
+
+  baseMenu.addSeparator()
+
+    // === MAINTENANCE ===
+    .addSubMenu(ui.createMenu('🔧 System Tools')
       .addItem('🔧 Repair All Formulas', 'repairAllFormulas')
       .addItem('⚠️ Fix Missing Teachers', 'fixMissingTeachers')
-      .addItem('🎨 Repair Formatting', 'repairUFLIMapFormatting')
+      .addItem('🎨 Repair Formatting', 'repairUFLIMapFormatting'))
     
     .addSeparator()
     
@@ -442,6 +433,7 @@ function getWizardData() {
   if (!configSheet) {
     return {
       schoolName: "",
+      gradeRangeModel: "custom",
       gradesServed: [],
       students: [],
       teachers: [],
@@ -466,6 +458,7 @@ function getWizardData() {
 
   return {
     schoolName: configSheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.SCHOOL_NAME_ROW, CONFIG_LAYOUT.COLS.VALUE).getValue() || "",
+    gradeRangeModel: configSheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.GRADE_RANGE_MODEL_ROW, CONFIG_LAYOUT.COLS.VALUE).getValue() || "custom",
     gradesServed: getExistingGrades(configSheet),
     students: getExistingStudents(),
     teachers: getExistingTeachers(),
@@ -923,7 +916,10 @@ function createConfigurationSheet(ss, data) {
   
   sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.SCHOOL_NAME_ROW, CONFIG_LAYOUT.COLS.LABEL).setValue("School Name:");
   sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.SCHOOL_NAME_ROW, CONFIG_LAYOUT.COLS.VALUE).setValue(data.schoolName);
-  
+
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.GRADE_RANGE_MODEL_ROW, CONFIG_LAYOUT.COLS.LABEL).setValue("Grade Range Model:");
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.GRADE_RANGE_MODEL_ROW, CONFIG_LAYOUT.COLS.VALUE).setValue(data.gradeRangeModel || "custom");
+
   sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.GRADES_HEADER_ROW, CONFIG_LAYOUT.COLS.LABEL).setValue("Grades Served:");
   sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.GRADES_HEADER_ROW, CONFIG_LAYOUT.COLS.LABEL).setFontWeight("bold");
   

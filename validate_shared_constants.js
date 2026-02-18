@@ -122,9 +122,82 @@ console.log('══════════════════════�
 console.log(`Total schools validated: ${SCHOOLS.length}`);
 console.log(`Total references to shared constants: ${totalReferences}`);
 
+// 3. Validate Phase 7 unified template files exist
+console.log('\n3. Checking Phase 7 unified template files...\n');
+
+const PHASE7_FILES = [
+  'UnifiedConfig.gs',
+  'UnifiedPhase2_ProgressTracking.gs'
+];
+
+for (const file of PHASE7_FILES) {
+  const filePath = path.join(REPO_ROOT, file);
+  if (fs.existsSync(filePath)) {
+    const content = fs.readFileSync(filePath, 'utf8');
+    console.log(`   ✅ ${file} exists (${(content.length / 1024).toFixed(1)} KB)`);
+    
+    // Check for key function definitions
+    if (file === 'UnifiedConfig.gs') {
+      if (content.includes('function getUnifiedConfig()')) {
+        console.log(`      ✅ getUnifiedConfig() defined`);
+      } else {
+        console.error(`      ❌ getUnifiedConfig() NOT defined`);
+        allValid = false;
+      }
+      if (content.includes('GRADE_RANGE_MODELS')) {
+        console.log(`      ✅ GRADE_RANGE_MODELS defined`);
+      } else {
+        console.error(`      ❌ GRADE_RANGE_MODELS NOT defined`);
+        allValid = false;
+      }
+    }
+    
+    if (file === 'UnifiedPhase2_ProgressTracking.gs') {
+      if (content.includes('function generateSystemSheets(')) {
+        console.log(`      ✅ generateSystemSheets() defined`);
+      } else {
+        console.error(`      ❌ generateSystemSheets() NOT defined`);
+        allValid = false;
+      }
+      if (content.includes('function recalculateAllStatsNow(')) {
+        console.log(`      ✅ recalculateAllStatsNow() defined`);
+      } else {
+        console.error(`      ❌ recalculateAllStatsNow() NOT defined`);
+        allValid = false;
+      }
+    }
+  } else {
+    console.error(`   ❌ ${file} NOT found`);
+    allValid = false;
+  }
+}
+
+// 4. Validate SiteConfig_TEMPLATE.gs has Phase 7 settings
+console.log('\n4. Checking SiteConfig_TEMPLATE.gs for Phase 7 settings...\n');
+
+const siteConfigPath = path.join(REPO_ROOT, 'SiteConfig_TEMPLATE.gs');
+if (fs.existsSync(siteConfigPath)) {
+  const siteConfigContent = fs.readFileSync(siteConfigPath, 'utf8');
+  
+  const phase7Settings = ['gradeRangeModel', 'gradesServed', 'layout:', 'headerRowCount', 'dataStartRow'];
+  for (const setting of phase7Settings) {
+    if (siteConfigContent.includes(setting)) {
+      console.log(`   ✅ ${setting} found in SiteConfig_TEMPLATE.gs`);
+    } else {
+      console.error(`   ❌ ${setting} NOT found in SiteConfig_TEMPLATE.gs`);
+      allValid = false;
+    }
+  }
+} else {
+  console.error('   ❌ SiteConfig_TEMPLATE.gs NOT found');
+  allValid = false;
+}
+
+console.log('\n═══════════════════════════════════════════════════════════════');
+
 if (allValid) {
   console.log('\n✅ ALL VALIDATIONS PASSED');
-  console.log('SharedConstants integration is correct and ready for deployment.\n');
+  console.log('SharedConstants integration and Phase 7 unified template are correct.\n');
   process.exit(0);
 } else {
   console.log('\n❌ VALIDATION FAILED');

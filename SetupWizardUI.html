@@ -540,8 +540,23 @@
         <h2 class="step-title">Grade Levels Served</h2>
         <p class="step-description">
           Select all grade levels that receive UFLI intervention at your school.
+          Choose a preset model or select individual grades.
         </p>
         
+        <div class="form-group">
+          <label for="gradeRangeModel">Grade Range Model</label>
+          <select id="gradeRangeModel" onchange="applyGradeRangeModel()">
+            <option value="custom">Custom — Select individual grades</option>
+            <option value="prek_only">Pre-K Only — Handwriting Without Tears</option>
+            <option value="k5">K–5 Elementary</option>
+            <option value="k8">K–8 Full Range</option>
+            <option value="prek_8">Pre-K through 8 — Dual Curriculum</option>
+          </select>
+          <div class="small-text">
+            Choose a preset to auto-select grades, or use Custom to pick individually.
+          </div>
+        </div>
+
         <div class="form-group">
           <label>Select Grade Levels *</label>
           <div class="checkbox-grid" id="gradesCheckboxes">
@@ -550,6 +565,7 @@
         
         <div class="alert alert-info">
           <strong>💡 Tip:</strong> Only select grades that are currently active in your intervention program.
+          Pre-K uses Handwriting Without Tears; all other grades use the UFLI curriculum.
         </div>
       </div>
       
@@ -842,6 +858,7 @@
     const stepOrder = [1, 2, 3, 4, 5, 6, 7, 8, 9]; // 9 is the confirmation step
     const wizardData = {
       schoolName: '',
+      gradeRangeModel: 'custom',
       gradesServed: [],
       students: [],
       teachers: [],
@@ -1074,12 +1091,52 @@
       }
     }
     
+    // Grade Range Model presets (Phase 7)
+    const GRADE_RANGE_MODEL_PRESETS = {
+      prek_only:  ['PreK'],
+      k5:         ['KG', 'G1', 'G2', 'G3', 'G4', 'G5'],
+      k8:         ['KG', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8'],
+      prek_8:     ['PreK', 'KG', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8'],
+      custom:     []
+    };
+
+    /**
+     * Applies a grade range model preset — checks/unchecks grade checkboxes
+     * to match the selected model.
+     */
+    function applyGradeRangeModel() {
+      const modelId = document.getElementById('gradeRangeModel').value;
+      wizardData.gradeRangeModel = modelId;
+
+      if (modelId === 'custom') return; // Don't change checkboxes for custom
+
+      const preset = GRADE_RANGE_MODEL_PRESETS[modelId] || [];
+
+      // Update all grade checkboxes
+      GRADE_OPTIONS.forEach(grade => {
+        const checkbox = document.getElementById('grade_' + grade.value);
+        if (checkbox) {
+          checkbox.checked = preset.includes(grade.value);
+        }
+      });
+
+      updateGradesServed();
+    }
+
     function loadExistingData() {
       google.script.run
         .withSuccessHandler(function(data) {
           if (data.schoolName) {
             document.getElementById('schoolName').value = data.schoolName;
             wizardData.schoolName = data.schoolName;
+          }
+
+          if (data.gradeRangeModel) {
+            wizardData.gradeRangeModel = data.gradeRangeModel;
+            const modelSelect = document.getElementById('gradeRangeModel');
+            if (modelSelect) {
+              modelSelect.value = data.gradeRangeModel;
+            }
           }
           
           if (data.gradesServed && data.gradesServed.length > 0) {
@@ -1635,6 +1692,8 @@ function normalizeGrade(grade) {
       
       html += '<div class="summary-section">';
       html += '<h3>Grade Levels</h3>';
+      const modelLabel = document.getElementById('gradeRangeModel').selectedOptions[0].textContent;
+      html += `<div class="summary-item"><span class="summary-label">Grade Range Model:</span><span class="summary-value">${modelLabel}</span></div>`;
       html += `<div class="summary-item"><span class="summary-label">Grades Served:</span><span class="summary-value">${wizardData.gradesServed.map(getGradeLabel).join(', ')}</span></div>`;
       html += '</div>';
       
