@@ -330,6 +330,8 @@ const GRADE_METRICS = {
 
 /**
  * School-specific normalizeStudent that normalizes all student fields
+ * (Adelante-specific override: extends SharedEngine version to normalize
+ * all fields - name, grade, teacher, group - instead of just name)
  * @param {Object} student - Student object
  * @returns {Object} Student with normalized fields
  */
