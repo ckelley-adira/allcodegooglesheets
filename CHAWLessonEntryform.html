@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+      /* ═══════════════════════════════════════════════════════════ */
+      /* TILT DESIGN SYSTEM - Lesson Entry Form                      */
+      /* ═══════════════════════════════════════════════════════════ */
+      
+      :root {
+        --tilt-cream: #FAF9F6;
+        --tilt-mint: #98D4BB;
+        --tilt-mint-dark: #7BC4A6;
+        --tilt-coral: #F28B82;
+        --tilt-coral-dark: #E67373;
+        --tilt-text: #2D3748;
+        --tilt-text-light: #718096;
+        --tilt-success: #48BB78;
+        --tilt-warning: #ECC94B;
+        --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+        --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+        --shadow-lg: 0 10px 15px rgba(0,0,0,0.1);
+        --radius-sm: 6px;
+        --radius-md: 10px;
+        --radius-lg: 16px;
+      }
+      
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      
+      body {
+        font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        background: var(--tilt-cream);
+        color: var(--tilt-text);
+        line-height: 1.6;
+        padding: 20px;
+      }
+      
+      .container {
+        max-width: 800px;
+        margin: 0 auto;
+      }
+      
+      /* Header */
+      .header {
+        text-align: center;
+        margin-bottom: 30px;
+        padding: 20px;
+      }
+      
+      .header img {
+        max-width: 200px;
+        margin-bottom: 10px;
+      }
+      
+      .header h1 {
+        color: var(--tilt-text);
+        font-size: 24px;
+        font-weight: 600;
+      }
+      
+      .header .tagline {
+        color: var(--tilt-text-light);
+        font-size: 14px;
+        font-style: italic;
+      }
+      
+      /* Alert Messages */
+      #alert {
+        padding: 12px 16px;
+        border-radius: var(--radius-md);
+        margin-bottom: 20px;
+        display: none;
+      }
+      
+      #alert.success {
+        background: #C6F6D5;
+        color: #22543D;
+        border: 1px solid #9AE6B4;
+        display: block;
+      }
+      
+      #alert.error {
+        background: #FED7D7;
+        color: #742A2A;
+        border: 1px solid #FEB2B2;
+        display: block;
+      }
+      
+      /* Form Sections */
+      .form-section {
+        background: white;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+        margin-bottom: 20px;
+        overflow: hidden;
+      }
+      
+      .section-header {
+        background: var(--tilt-mint);
+        padding: 16px 20px;
+      }
+      
+      .section-header h2 {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--tilt-text);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      
+      .step-number {
+        background: white;
+        color: var(--tilt-text);
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 14px;
+      }
+      
+      .section-content {
+        padding: 20px;
+      }
+      
+      /* Form Controls */
+      .form-group {
+        margin-bottom: 16px;
+      }
+      
+      .form-group:last-child {
+        margin-bottom: 0;
+      }
+      
+      .form-group label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 8px;
+        color: var(--tilt-text);
+      }
+      
+      select, input[type="text"], input[type="date"] {
+        width: 100%;
+        padding: 12px 16px;
+        border: 2px solid #E2E8F0;
+        border-radius: var(--radius-md);
+        font-size: 15px;
+        color: var(--tilt-text);
+        background: white;
+        transition: border-color 0.2s, box-shadow 0.2s;
+        -webkit-appearance: none;
+        appearance: none;
+      }
+      
+      select {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23718096' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 16px center;
+        padding-right: 40px;
+      }
+      
+      select:focus, input:focus {
+        outline: none;
+        border-color: var(--tilt-mint-dark);
+        box-shadow: 0 0 0 3px rgba(152, 212, 187, 0.3);
+      }
+      
+      select:disabled {
+        background-color: #F7FAFC;
+        color: var(--tilt-text-light);
+        cursor: not-allowed;
+      }
+      
+      /* Student Status Table */
+      .student-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      
+      .student-table th {
+        text-align: left;
+        padding: 12px 16px;
+        background: #F7FAFC;
+        border-bottom: 2px solid #E2E8F0;
+        font-weight: 600;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: var(--tilt-text-light);
+      }
+      
+      .student-table th:last-child {
+        text-align: center;
+        width: 180px;
+      }
+      
+      .student-table td {
+        padding: 12px 16px;
+        border-bottom: 1px solid #E2E8F0;
+        vertical-align: middle;
+      }
+      
+      .student-table tr:last-child td {
+        border-bottom: none;
+      }
+      
+      .student-table tr:hover {
+        background: #F7FAFC;
+      }
+      
+      .student-name {
+        font-weight: 500;
+      }
+      
+      /* Status Radio Buttons */
+      .status-buttons {
+        display: flex;
+        gap: 6px;
+        justify-content: center;
+      }
+      
+      .status-btn {
+        width: 38px;
+        height: 38px;
+        border: 2px solid #E2E8F0;
+        border-radius: var(--radius-sm);
+        background: white;
+        cursor: pointer;
+        font-weight: 700;
+        font-size: 14px;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .status-btn:hover {
+        transform: scale(1.05);
+      }
+      
+      .status-btn.yes {
+        color: #48BB78;
+      }
+      
+      .status-btn.yes.selected {
+        background: #C6F6D5;
+        border-color: #48BB78;
+      }
+      
+      .status-btn.no {
+        color: #F56565;
+      }
+      
+      .status-btn.no.selected {
+        background: #FED7D7;
+        border-color: #F56565;
+      }
+      
+      .status-btn.absent {
+        color: #ED8936;
+      }
+      
+      .status-btn.absent.selected {
+        background: #FEEBC8;
+        border-color: #ED8936;
+      }
+      
+      .status-btn.unenrolled {
+        color: #805AD5;
+      }
+      
+      .status-btn.unenrolled.selected {
+        background: #E9D8FD;
+        border-color: #805AD5;
+      }
+      
+      /* Hidden input for form submission */
+      .status-input {
+        display: none;
+      }
+      
+      /* Submit Button */
+      .submit-section {
+        text-align: center;
+        padding: 20px;
+      }
+      
+      .submit-btn {
+        background: var(--tilt-coral);
+        color: white;
+        border: none;
+        padding: 16px 48px;
+        font-size: 16px;
+        font-weight: 600;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        transition: all 0.2s;
+        box-shadow: var(--shadow-md);
+      }
+      
+      .submit-btn:hover:not(:disabled) {
+        background: var(--tilt-coral-dark);
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+      }
+      
+      .submit-btn:disabled {
+        background: #CBD5E0;
+        cursor: not-allowed;
+        transform: none;
+      }
+      
+      /* Bulk Actions */
+      .bulk-actions {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+      }
+      
+      .bulk-btn {
+        padding: 8px 16px;
+        border: 2px solid #E2E8F0;
+        border-radius: var(--radius-sm);
+        background: white;
+        cursor: pointer;
+        font-size: 13px;
+        font-weight: 500;
+        transition: all 0.2s;
+      }
+      
+      .bulk-btn:hover {
+        background: #F7FAFC;
+      }
+      
+      .bulk-btn.all-yes:hover {
+        background: #C6F6D5;
+        border-color: #48BB78;
+      }
+      
+      .bulk-btn.all-no:hover {
+        background: #FED7D7;
+        border-color: #F56565;
+      }
+      
+      .bulk-btn.all-absent:hover {
+        background: #FEEBC8;
+        border-color: #ED8936;
+      }
+      
+      /* Status Legend */
+      .status-legend {
+        display: flex;
+        gap: 16px;
+        flex-wrap: wrap;
+        padding: 12px 16px;
+        background: #F7FAFC;
+        border-radius: var(--radius-sm);
+        margin-bottom: 16px;
+        font-size: 13px;
+      }
+      
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      
+      .legend-badge {
+        width: 24px;
+        height: 24px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 12px;
+      }
+      
+      .legend-badge.yes {
+        background: #C6F6D5;
+        color: #48BB78;
+      }
+      
+      .legend-badge.no {
+        background: #FED7D7;
+        color: #F56565;
+      }
+      
+      .legend-badge.absent {
+        background: #FEEBC8;
+        color: #ED8936;
+      }
+      
+      .legend-badge.unenrolled {
+        background: #E9D8FD;
+        color: #805AD5;
+      }
+      
+      /* Loader */
+      .loader {
+        text-align: center;
+        padding: 40px;
+        color: var(--tilt-text-light);
+      }
+      
+      .loader.hidden {
+        display: none;
+      }
+      
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #E2E8F0;
+        border-top-color: var(--tilt-mint);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 16px;
+      }
+      
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      
+      /* Hidden utility */
+      .hidden {
+        display: none !important;
+      }
+      
+      /* Empty state */
+      .empty-state {
+        text-align: center;
+        padding: 40px;
+        color: var(--tilt-text-light);
+      }
+      
+      /* Responsive */
+      @media (max-width: 600px) {
+        body {
+          padding: 10px;
+        }
+        
+        .section-content {
+          padding: 16px;
+        }
+        
+        .student-table th, 
+        .student-table td {
+          padding: 10px 12px;
+        }
+        
+        .status-btn {
+          width: 32px;
+          height: 32px;
+          font-size: 12px;
+        }
+        
+        .status-legend {
+          gap: 10px;
+          font-size: 11px;
+        }
+        
+        .legend-badge {
+          width: 20px;
+          height: 20px;
+          font-size: 10px;
+        }
+      }
+    </style>
+  </head>
+  
+  <body>
+    <div class="container">
+      <!-- Header -->
+      <div class="header">
+        <h1>Christel House Academy West Lesson Data Entry</h1>
+        <div class="tagline">Innovate. Educate. Empower.</div>
+      </div>
+      
+      <!-- Alert Messages -->
+      <div id="alert"></div>
+      
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- STEP 1: Select Grade/Sheet -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <div class="form-section">
+        <div class="section-header">
+          <h2><span class="step-number">1</span> Select Grade</h2>
+        </div>
+        <div class="section-content">
+          <div class="form-group">
+            <select id="grade-select" onchange="onGradeSelected()">
+              <option value="">Loading...</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- STEP 2: Select Group -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <div class="form-section">
+        <div class="section-header">
+          <h2><span class="step-number">2</span> Select Your Group</h2>
+        </div>
+        <div class="section-content">
+          <div class="form-group">
+            <select id="group-select" onchange="onGroupSelected()" disabled>
+              <option value="">-- Select a Grade First --</option>
+            </select>
+            <input type="hidden" id="teacher-name" />
+          </div>
+        </div>
+      </div>
+      
+      <!-- Loader -->
+      <div id="loader" class="loader hidden">
+        <div class="spinner"></div>
+        <div>Loading group data...</div>
+      </div>
+      
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- STEP 3: Select Lesson -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <div id="lesson-section" class="form-section hidden">
+        <div class="section-header">
+          <h2><span class="step-number">3</span> Select the Lesson</h2>
+        </div>
+        <div class="section-content">
+          <div class="form-group">
+            <label for="lesson-select">Choose UFLI Lesson:</label>
+            <select id="lesson-select" onchange="onLessonSelected()">
+            <option value="">-- Select a Lesson --</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- STEP 4: Mark Student Status -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <div id="student-section" class="form-section hidden">
+        <div class="section-header">
+          <h2><span class="step-number">4</span> Mark Student Status</h2>
+        </div>
+        <div class="section-content">
+          <!-- Status Legend -->
+          <div class="status-legend">
+            <div class="legend-item">
+              <span class="legend-badge yes">Y</span>
+              <span>Yes/Passed</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-badge no">N</span>
+              <span>No/Did Not Pass</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-badge absent">A</span>
+              <span>Absent</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-badge unenrolled">U</span>
+              <span>Unenrolled</span>
+            </div>
+          </div>
+          
+          <!-- Bulk Actions -->
+          <div class="bulk-actions">
+            <button type="button" class="bulk-btn all-yes" onclick="setAllStatus('Y')">✓ All Yes</button>
+            <button type="button" class="bulk-btn all-no" onclick="setAllStatus('N')">✗ All No</button>
+            <button type="button" class="bulk-btn all-absent" onclick="setAllStatus('A')">○ All Absent</button>
+            <button type="button" class="bulk-btn" onclick="clearAllStatus()">Clear All</button>
+          </div>
+          
+          <!-- Student Table -->
+          <table class="student-table">
+            <thead>
+              <tr>
+                <th>Student Name</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="student-list">
+              <!-- Students will be populated here -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <!-- Submit Button -->
+      <!-- ═══════════════════════════════════════════════════════════ -->
+      <div class="submit-section">
+        <button type="button" class="submit-btn" onclick="submitLessonData()" disabled id="submit-btn">
+          Submit Lesson Data
+        </button>
+      </div>
+    </div>
+    
+    <script>
+      // ═══════════════════════════════════════════════════════════
+      // STATE MANAGEMENT
+      // ═══════════════════════════════════════════════════════════
+      
+      let allGroups = [];           // All groups from all sheets
+      let groupsBySheet = {};       // Groups organized by sheet name
+      let currentStudents = [];     // Students in selected group
+      let currentLessons = [];      // Lessons for selected group
+      
+      // ═══════════════════════════════════════════════════════════
+      // INITIALIZATION
+      // ═══════════════════════════════════════════════════════════
+      
+      document.addEventListener('DOMContentLoaded', function() {
+        loadGradesAndGroups();
+      });
+      
+      function loadGradesAndGroups() {
+        google.script.run
+          .withSuccessHandler(function(result) {
+            if (result.error) {
+              showAlert(result.error, 'error');
+              return;
+            }
+            
+            allGroups = result.groups || [];
+            groupsBySheet = result.groupsBySheet || {};
+            
+            populateGradeDropdown(Object.keys(groupsBySheet));
+          })
+          .withFailureHandler(function(error) {
+            showAlert('Failed to load groups: ' + error.message, 'error');
+          })
+          .getGroupsAndSheets_MixedGrade();
+      }
+      
+      // ═══════════════════════════════════════════════════════════
+      // GRADE SELECTION (Step 1)
+      // ═══════════════════════════════════════════════════════════
+      
+      function populateGradeDropdown(sheetNames) {
+        const gradeSelect = document.getElementById('grade-select');
+        gradeSelect.innerHTML = '<option value="">-- Select Grade Level --</option>';
+        
+        // Grade order for sorting
+        const GRADE_ORDER = {
+          'PreK': 0, 'KG': 1, 'G1': 2, 'G2': 3, 'G3': 4, 
+          'G4': 5, 'G5': 6, 'G6': 7, 'G7': 8, 'G8': 9
+        };
+        
+        // Sort sheet names by the first grade mentioned
+        const sortedSheetNames = sheetNames.slice().sort((a, b) => {
+          // Extract first grade from sheet name (e.g., "KG and G1 Groups" -> "KG")
+          const gradeA = a.match(/PreK|KG|G[1-8]/);
+          const gradeB = b.match(/PreK|KG|G[1-8]/);
+          const orderA = gradeA ? (GRADE_ORDER[gradeA[0]] ?? 99) : 99;
+          const orderB = gradeB ? (GRADE_ORDER[gradeB[0]] ?? 99) : 99;
+          return orderA - orderB;
+        });
+        
+        sortedSheetNames.forEach(function(sheetName) {
+          const option = document.createElement('option');
+          option.value = sheetName;
+          // Display friendly name (e.g., "KG and G1 Groups" -> "KG & G1")
+          option.textContent = sheetName.replace(' Groups', '').replace(' and ', ' & ').replace(' to ', '-');
+          gradeSelect.appendChild(option);
+        });
+      }
+
+      
+      function onGradeSelected() {
+        const gradeSelect = document.getElementById('grade-select');
+        const groupSelect = document.getElementById('group-select');
+        const sheetName = gradeSelect.value;
+        
+        // Reset downstream
+        resetGroupSelection();
+        
+        if (!sheetName) {
+          groupSelect.disabled = true;
+          groupSelect.innerHTML = '<option value="">-- Select a Grade First --</option>';
+          return;
+        }
+        
+  // Populate groups for selected sheet (sorted by grade then number)
+        const groups = groupsBySheet[sheetName] || [];
+        
+        // Grade order for sorting
+        const GRADE_ORDER = {
+          'PreK': 0, 'KG': 1, 'G1': 2, 'G2': 3, 'G3': 4, 
+          'G4': 5, 'G5': 6, 'G6': 7, 'G7': 8, 'G8': 9
+        };
+        
+        // Sort groups by grade first, then by group number
+        const sortedGroups = groups.slice().sort((a, b) => {
+          // Extract grade (e.g., "KG Group 1 - T. Smith" -> "KG")
+          const gradeA = a.match(/^(PreK|KG|G[1-8])/);
+          const gradeB = b.match(/^(PreK|KG|G[1-8])/);
+          const orderA = gradeA ? (GRADE_ORDER[gradeA[1]] ?? 99) : 99;
+          const orderB = gradeB ? (GRADE_ORDER[gradeB[1]] ?? 99) : 99;
+          
+          if (orderA !== orderB) return orderA - orderB;
+          
+          // Same grade - sort by group number
+          const numA = a.match(/Group\s*(\d+)/);
+          const numB = b.match(/Group\s*(\d+)/);
+          const numberA = numA ? parseInt(numA[1]) : 0;
+          const numberB = numB ? parseInt(numB[1]) : 0;
+          
+          return numberA - numberB;
+        });
+        
+        groupSelect.innerHTML = '<option value="">-- Select a Group --</option>';
+        sortedGroups.forEach(function(groupName) {
+
+          const option = document.createElement('option');
+          option.value = groupName;
+          option.textContent = groupName;
+          groupSelect.appendChild(option);
+        });
+        
+        groupSelect.disabled = false;
+      }
+      
+      // ═══════════════════════════════════════════════════════════
+      // GROUP SELECTION (Step 2)
+      // ═══════════════════════════════════════════════════════════
+      
+      function resetGroupSelection() {
+        document.getElementById('lesson-section').classList.add('hidden');
+        document.getElementById('student-section').classList.add('hidden');
+        document.getElementById('submit-btn').disabled = true;
+        document.getElementById('student-list').innerHTML = '';
+        document.getElementById('lesson-select').innerHTML = '<option value="">-- Select a Lesson --</option>';
+        currentStudents = [];
+        currentLessons = [];
+      }
+      
+      function onGroupSelected() {
+        const groupSelect = document.getElementById('group-select');
+        const groupName = groupSelect.value;
+        
+        resetGroupSelection();
+        
+        if (!groupName) {
+          return;
+        }
+        
+        // Show loader
+        document.getElementById('loader').classList.remove('hidden');
+        
+        // Load lessons and students for this group
+        google.script.run
+          .withSuccessHandler(function(result) {
+            document.getElementById('loader').classList.add('hidden');
+            
+            if (result.error) {
+              showAlert(result.error, 'error');
+              return;
+            }
+            
+            currentLessons = result.lessons || [];
+            currentStudents = result.students || [];
+            
+            // Extract teacher name from group name (e.g., "Group 1 - T. Jones" -> "T. Jones")
+            const teacherMatch = groupName.match(/[-–]\s*(.+)$/);
+            if (teacherMatch) {
+              document.getElementById('teacher-name').value = teacherMatch[1].trim();
+            }
+            
+            populateLessons(currentLessons);
+            populateStudents(currentStudents, {});
+            
+            document.getElementById('lesson-section').classList.remove('hidden');
+            document.getElementById('student-section').classList.remove('hidden');
+            document.getElementById('submit-btn').disabled = false;
+          })
+          .withFailureHandler(function(error) {
+            document.getElementById('loader').classList.add('hidden');
+            showAlert('Failed to load group data: ' + error.message, 'error');
+          })
+          .getLessonsAndStudentsForGroup(groupName);
+      }
+      
+      // ═══════════════════════════════════════════════════════════
+      // LESSON SELECTION (Step 3)
+      // ═══════════════════════════════════════════════════════════
+      
+            // ═══════════════════════════════════════════════════════════
+      // LESSON SELECTION (Step 3) - Load existing data when lesson changes
+      // ═══════════════════════════════════════════════════════════
+      
+      function populateLessons(lessons) {
+        const lessonSelect = document.getElementById('lesson-select');
+        lessonSelect.innerHTML = '<option value="">-- Select a Lesson --</option>';
+        
+        lessons.forEach(function(lesson) {
+          const option = document.createElement('option');
+          option.value = lesson.name;
+          option.textContent = lesson.name;
+          lessonSelect.appendChild(option);
+        });
+      }
+      
+      function onLessonSelected() {
+        const lessonName = document.getElementById('lesson-select').value;
+        const groupName = document.getElementById('group-select').value;
+        const gradeSheet = document.getElementById('grade-select').value;
+        
+        if (!lessonName || !groupName) {
+          // No lesson selected, show students without pre-population
+          populateStudents(currentStudents, {});
+          return;
+        }
+        
+        // Show loading state in student list
+        const studentList = document.getElementById('student-list');
+        studentList.innerHTML = '<tr><td colspan="2" class="empty-state">Loading existing data...</td></tr>';
+        
+        // Fetch existing Y/N/A/U data for this lesson
+        google.script.run
+          .withSuccessHandler(function(existingData) {
+            populateStudents(currentStudents, existingData || {});
+          })
+          .withFailureHandler(function(error) {
+            console.log('Could not load existing data:', error);
+            populateStudents(currentStudents, {}); // Render without pre-population on error
+          })
+          .getExistingLessonData(gradeSheet, groupName, lessonName);
+      }
+      
+      // ═══════════════════════════════════════════════════════════
+      // STUDENT STATUS (Step 4) - Now accepts existingData parameter
+      // ═══════════════════════════════════════════════════════════
+      
+      function populateStudents(students, existingData) {
+        existingData = existingData || {};
+        const studentList = document.getElementById('student-list');
+        studentList.innerHTML = '';
+        
+        if (students.length === 0) {
+          studentList.innerHTML = '<tr><td colspan="2" class="empty-state">No students found in this group.</td></tr>';
+          return;
+        }
+        
+        // Add header if there's existing data
+        const hasExistingData = Object.keys(existingData).length > 0;
+        if (hasExistingData) {
+          const headerRow = document.createElement('tr');
+          headerRow.innerHTML = '<td colspan="2" style="background:#E6FFFA; color:#234E52; padding:12px 16px; font-weight:500;">📝 Editing existing lesson data</td>';
+          studentList.appendChild(headerRow);
+        }
+        
+        students.forEach(function(student, index) {
+          const currentValue = existingData[student] || '';
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td class="student-name">${escapeHtml(student)}</td>
+            <td>
+              <div class="status-buttons">
+                <button type="button" class="status-btn yes ${currentValue === 'Y' ? 'selected' : ''}" onclick="setStatus(${index}, 'Y', this)" title="Yes - Passed">Y</button>
+                <button type="button" class="status-btn no ${currentValue === 'N' ? 'selected' : ''}" onclick="setStatus(${index}, 'N', this)" title="No - Did not pass">N</button>
+                <button type="button" class="status-btn absent ${currentValue === 'A' ? 'selected' : ''}" onclick="setStatus(${index}, 'A', this)" title="Absent">A</button>
+                <button type="button" class="status-btn unenrolled ${currentValue === 'U' ? 'selected' : ''}" onclick="setStatus(${index}, 'U', this)" title="Unenrolled">U</button>
+              </div>
+              <input type="hidden" class="status-input" id="status-${index}" value="${currentValue}">
+            </td>
+          `;
+          studentList.appendChild(row);
+        });
+      }
+      
+      function setStatus(index, status, button) {
+        // Update hidden input
+        document.getElementById('status-' + index).value = status;
+        
+        // Update button styling
+        const row = button.closest('tr');
+        const buttons = row.querySelectorAll('.status-btn');
+        buttons.forEach(btn => btn.classList.remove('selected'));
+        button.classList.add('selected');
+      }
+      
+      function setAllStatus(status) {
+        const statusInputs = document.querySelectorAll('.status-input');
+        statusInputs.forEach(function(input, index) {
+          input.value = status;
+          
+          // Update button styling
+          const row = input.closest('tr');
+          const buttons = row.querySelectorAll('.status-btn');
+          buttons.forEach(btn => btn.classList.remove('selected'));
+          
+          const targetClass = status === 'Y' ? 'yes' : (status === 'N' ? 'no' : (status === 'A' ? 'absent' : 'unenrolled'));
+          row.querySelector('.status-btn.' + targetClass).classList.add('selected');
+        });
+      }
+      
+      function clearAllStatus() {
+        const statusInputs = document.querySelectorAll('.status-input');
+        statusInputs.forEach(function(input) {
+          input.value = '';
+          const row = input.closest('tr');
+          row.querySelectorAll('.status-btn').forEach(btn => btn.classList.remove('selected'));
+        });
+      }
+      
+      // ═══════════════════════════════════════════════════════════
+      // FORM SUBMISSION
+      // ═══════════════════════════════════════════════════════════
+      
+      function submitLessonData() {
+        const gradeSheet = document.getElementById('grade-select').value;
+        const groupName = document.getElementById('group-select').value;
+        const lessonName = document.getElementById('lesson-select').value;
+        const teacherName = document.getElementById('teacher-name').value;
+        
+        // Validation
+        if (!groupName) {
+          showAlert('Please select a group.', 'error');
+          return;
+        }
+        
+        if (!lessonName) {
+          showAlert('Please select a lesson.', 'error');
+          return;
+        }
+        
+        // Collect student statuses
+        const studentStatuses = [];
+        const unenrolledStudents = [];
+        let hasAnyStatus = false;
+        
+        currentStudents.forEach(function(student, index) {
+          const status = document.getElementById('status-' + index).value;
+          if (status) {
+            hasAnyStatus = true;
+            studentStatuses.push({
+              name: student,
+              status: status
+            });
+            
+            // Track unenrolled separately for the exception log
+            if (status === 'U') {
+              unenrolledStudents.push(student);
+            }
+          }
+        });
+        
+        if (!hasAnyStatus) {
+          showAlert('Please mark at least one student status.', 'error');
+          return;
+        }
+        
+        // Disable submit button
+        const submitBtn = document.getElementById('submit-btn');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving...';
+        
+        // Prepare form data
+        const formData = {
+          gradeSheet: gradeSheet,
+          groupName: groupName,
+          lessonName: lessonName,
+          teacherName: teacherName || 'Unknown',
+          studentStatuses: studentStatuses,
+          unenrolledStudents: unenrolledStudents
+        };
+        
+        // Submit
+        google.script.run
+          .withSuccessHandler(function(result) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit Lesson Data';
+            
+            if (result.success) {
+              let message = result.message || 'Lesson data saved successfully!';
+              
+              // Add note if any students were marked as unenrolled
+              if (unenrolledStudents.length > 0) {
+                message += ` (${unenrolledStudents.length} student(s) flagged as unenrolled)`;
+              }
+              
+              showAlert(message, 'success');
+              
+              // Clear student statuses for next entry
+              clearAllStatus();
+            } else {
+              showAlert(result.message || 'Failed to save data.', 'error');
+            }
+          })
+          .withFailureHandler(function(error) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit Lesson Data';
+            showAlert('Error: ' + error.message, 'error');
+          })
+          .saveLessonData(formData);
+      }
+      
+      // ═══════════════════════════════════════════════════════════
+      // UTILITY FUNCTIONS
+      // ═══════════════════════════════════════════════════════════
+      
+      function showAlert(message, type) {
+        const alert = document.getElementById('alert');
+        alert.textContent = message;
+        alert.className = type;
+        
+        // Auto-hide success messages
+        if (type === 'success') {
+          setTimeout(function() {
+            alert.className = '';
+            alert.textContent = '';
+          }, 5000);
+        }
+      }
+      
+      function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+      }
+    </script>
+  </body>
+</html>
