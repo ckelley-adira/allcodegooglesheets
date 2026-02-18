@@ -27,6 +27,21 @@ const SITE_CONFIG = {
   systemVersion: "4.0",
   
   // ═══════════════════════════════════════════════════════════════════════════
+  // BRANDING
+  // Visual identity and styling for all UI components
+  // ═══════════════════════════════════════════════════════════════════════════
+  branding: {
+    schoolName: "Your School Name",
+    shortName: "",
+    tagline: "Innovate. Educate. Empower.",
+    logoUrl: "",  // Google Drive file ID or public URL
+    primaryColor: "#B8E6DC",  // Main accent color for UI elements
+    headerGradientStart: "#4A90E2",  // Setup wizard header gradient start
+    headerGradientEnd: "#357ABD",  // Setup wizard header gradient end
+    accentColor: "#4A90A4"  // Secondary accent for sidebars and highlights
+  },
+  
+  // ═══════════════════════════════════════════════════════════════════════════
   // FEATURE FLAGS
   // Set to true to enable, false to disable
   // ═══════════════════════════════════════════════════════════════════════════
@@ -223,6 +238,24 @@ const UNENROLLMENT_CONFIG = {
  */
 function isFeatureEnabled(featureName) {
   return SITE_CONFIG.features[featureName] === true;
+}
+
+/**
+ * Gets branding configuration for UI templates
+ * Used by HTML files with <?= getBranding().property ?> tokens
+ * @returns {Object} Branding configuration
+ */
+function getBranding() {
+  return SITE_CONFIG.branding || {
+    schoolName: "UFLI Master System",
+    shortName: "",
+    tagline: "Innovate. Educate. Empower.",
+    logoUrl: "",
+    primaryColor: "#B8E6DC",
+    headerGradientStart: "#4A90E2",
+    headerGradientEnd: "#357ABD",
+    accentColor: "#4A90A4"
+  };
 }
 
 /**

@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Calibri', 'Helvetica Neue', Arial, sans-serif;
+      background: #FAF9F7;
+      margin: 0;
+      padding: 40px 20px;
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 650px;
+      margin: 0 auto;
+    }
+    
+    .logo-header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding: 20px;
+    }
+    
+    .logo-header img {
+      max-width: 180px;
+      height: auto;
+      margin-bottom: 15px;
+    }
+    
+    .page-header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    
+    .page-header h1 {
+      font-size: 36px;
+      margin: 0 0 8px 0;
+      font-weight: 400;
+      color: #2c2c2c;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    
+    .page-header .tagline {
+      font-size: 16px;
+      color: #666;
+      font-style: italic;
+      font-weight: 300;
+      letter-spacing: 0.5px;
+    }
+    
+    .main-section {
+      background: white;
+      border-radius: 0;
+      box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+    
+    .section-header {
+      background: <?= getBranding().primaryColor ?>;
+      padding: 20px 28px;
+    }
+    
+    .section-header h2 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 600;
+      color: #2c2c2c;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+    
+    .content {
+      padding: 28px;
+    }
+
+    .group-list {
+      border: 2px solid #e8e8e8;
+      border-radius: 4px;
+      overflow: hidden;
+      background: #fafafa;
+    }
+
+    .group-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      align-items: center;
+      padding: 18px 20px;
+      border-bottom: 1px solid #e8e8e8;
+      font-size: 16px;
+      background: white;
+    }
+    
+    .group-row:last-child {
+      border-bottom: none;
+    }
+
+    .group-row-header {
+      background: #f5f5f5;
+      font-weight: 600;
+      font-size: 13px;
+      color: #2c2c2c;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      padding: 16px 20px;
+    }
+    
+    .group-row label {
+      font-weight: 500;
+      color: #2c2c2c;
+      letter-spacing: 0.2px;
+    }
+
+    .group-row .student-count {
+      color: #666;
+      letter-spacing: 0.2px;
+    }
+    
+    .group-row input {
+      width: 90px;
+      padding: 10px 14px;
+      border: 2px solid #e0e0e0;
+      border-radius: 4px;
+      font-family: 'Calibri', sans-serif;
+      font-size: 16px;
+      text-align: center;
+      color: #2c2c2c;
+      transition: all 0.3s ease;
+    }
+    
+    .group-row input:hover {
+      border-color: <?= getBranding().primaryColor ?>;
+    }
+    
+    .group-row input:focus {
+      outline: none;
+      border-color: <?= getBranding().primaryColor ?>;
+      box-shadow: 0 0 0 3px rgba(184, 230, 220, 0.2);
+    }
+    
+    .actions {
+      padding: 24px 28px;
+      background: #fafafa;
+      border-top: 2px solid #e8e8e8;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 14px 28px;
+      border: none;
+      border-radius: 4px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: 'Calibri', sans-serif;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+    }
+    
+    .btn-primary { 
+      background: #4CAF50; 
+      color: white; 
+      box-shadow: 0 4px 12px rgba(76, 175, 80, 0.25);
+    }
+    .btn-primary:hover:not(:disabled) { 
+      background: #45a049;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(76, 175, 80, 0.3);
+    }
+    
+    .btn-secondary { 
+      background: #6c757d; 
+      color: white; 
+      box-shadow: 0 4px 12px rgba(108, 117, 125, 0.25);
+    }
+    .btn-secondary:hover:not(:disabled) { 
+      background: #5a6268;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(108, 117, 125, 0.3);
+    }
+    
+    .btn:disabled { 
+      opacity: 0.5; 
+      cursor: not-allowed;
+      transform: none !important;
+    }
+    
+    .btn:active:not(:disabled) {
+      transform: translateY(0);
+    }
+    
+    #loader {
+      text-align: center;
+      padding: 60px 40px;
+      font-size: 16px;
+      color: #666;
+      font-weight: 400;
+      letter-spacing: 0.5px;
+    }
+    
+    #loader::after {
+      content: '';
+      display: block;
+      width: 24px;
+      height: 24px;
+      border: 3px solid #e8e8e8;
+      border-top-color: <?= getBranding().primaryColor ?>;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 20px auto 0;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    #alert {
+      padding: 16px 20px;
+      border-radius: 4px;
+      margin: 0 0 20px 0;
+      font-size: 15px;
+      font-weight: 500;
+      display: none;
+      border-left: 5px solid;
+      letter-spacing: 0.3px;
+      animation: slideDown 0.3s ease-out;
+    }
+    
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .alert-danger { 
+      background: #FFE5E5; 
+      color: #c62828; 
+      border-color: #FF6B6B;
+    }
+    
+    .alert-success { 
+      background: #E8F5E9; 
+      color: #2e7d32; 
+      border-color: #4CAF50;
+    }
+    
+    .alert-warning { 
+      background: #FFF3CD; 
+      color: #856404; 
+      border-color: #FFA726;
+    }
+    
+    /* Responsive */
+    @media (max-width: 640px) {
+      body {
+        padding: 20px 15px;
+      }
+      
+      .logo-header img {
+        max-width: 160px;
+      }
+      
+      .page-header h1 {
+        font-size: 28px;
+        letter-spacing: 1.5px;
+      }
+      
+      .content {
+        padding: 24px 20px;
+      }
+      
+      .group-row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        padding: 16px;
+      }
+      
+      .group-row input {
+        width: 100%;
+      }
+      
+      .actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
+      }
+      
+      .btn {
+        width: 100%;
+        padding: 12px 20px;
+        font-size: 14px;
+      }
+    }
+
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Logo -->
+    <div class="logo-header">
+      <? if (getBranding().logoUrl) { ?><img src="<?= getBranding().logoUrl ?>"<? } else { ?><img src="" style="display:none;"<? } ?> alt="The Indy Learning Team Logo">
+    </div>
+    
+    <!-- Page Header -->
+    <div class="page-header">
+      <h1>Manage Groups</h1>
+      <div class="tagline"><?= getBranding().tagline ?></div>
+    </div>
+    
+    <!-- Main Section -->
+    <div class="main-section">
+      <div class="section-header">
+        <h2>Group Configuration</h2>
+      </div>
+      
+      <div class="content">
+        <div id="alert"></div>
+        <div id="loader">Loading group data</div>
+        
+        <div class="group-list" id="groupList" style="display: none;">
+          <div class="group-row group-row-header">
+            <div>Grade Level</div>
+            <div>Students</div>
+            <div># of Groups</div>
+          </div>
+          <div id="groupRows">
+          </div>
+        </div>
+      </div>
+      
+      <div class="actions">
+        <div>
+          <button class="btn btn-secondary" onclick="google.script.host.close()">Cancel</button>
+        </div>
+        <div>
+          <button class="btn btn-primary" id="saveBtn" onclick="saveChanges()">Save & Rebuild Sheets</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let groupData = [];
+
+    // --- Data Loading ---
+    window.onload = function() {
+      showAlert('Loading current grade and group configuration...', 'success', true);
+      google.script.run
+        .withSuccessHandler(onDataLoaded)
+        .withFailureHandler(onFailure)
+        .getGroupsData();
+    };
+
+    function onDataLoaded(data) {
+      groupData = data;
+      const groupRows = document.getElementById('groupRows');
+      groupRows.innerHTML = '';
+
+      if (data.length === 0) {
+        showAlert('No grades are configured for this site. Please run the Setup Wizard.', 'danger');
+        return;
+      }
+      
+      data.forEach(grade => {
+        const row = document.createElement('div');
+        row.className = 'group-row';
+        row.innerHTML = `
+          <label for="grade_${grade.grade}">${grade.label}</label>
+          <span class="student-count">${grade.studentCount} students</span>
+          <input type="number" min="0" id="grade_${grade.grade}" value="${grade.groupCount}" />
+        `;
+        groupRows.appendChild(row);
+      });
+      
+      document.getElementById('loader').style.display = 'none';
+      document.getElementById('groupList').style.display = 'block';
+      showAlert('Warning: Changing group counts and saving will rebuild all grade-level group sheets. Student group assignments may be cleared if their group no longer exists.', 'warning');
+    }
+
+    function onFailure(error) {
+      document.getElementById('loader').style.display = 'none';
+      showAlert(error.message, 'danger');
+    }
+
+    // --- Save Actions ---
+    function saveChanges() {
+      setLoading(true);
+      showAlert('Saving new configuration and rebuilding sheets... This may take a moment.', 'success', true);
+      
+      const newGroupConfig = groupData.map(grade => {
+        const count = document.getElementById(`grade_${grade.grade}`).value;
+        return {
+          grade: grade.grade,
+          count: parseInt(count) || 0
+        };
+      });
+
+      google.script.run
+        .withSuccessHandler(onSaveSuccess)
+        .withFailureHandler(onSaveFailure)
+        .saveGroups(newGroupConfig);
+    }
+    
+    function onSaveSuccess(response) {
+      if (response.success) {
+        showAlert(response.message, 'success');
+        setTimeout(() => {
+          google.script.host.close();
+        }, 2000);
+      } else {
+        onSaveFailure(new Error(response.message));
+      }
+    }
+
+    function onSaveFailure(error) {
+      setLoading(false);
+      showAlert(error.message, 'danger');
+    }
+    
+    // --- UI Helpers ---
+    function setLoading(isLoading) {
+      document.getElementById('saveBtn').disabled = isLoading;
+      document.getElementById('saveBtn').innerText = isLoading ? 'Saving...' : 'Save & Rebuild Sheets';
+    }
+    
+    function showAlert(message, type, noAutoHide) {
+      const alertBox = document.getElementById('alert');
+      alertBox.className = `alert alert-${type}`;
+      alertBox.innerText = message;
+      alertBox.style.display = 'block';
+
+      if (!noAutoHide) {
+        setTimeout(() => {
+          if (alertBox.innerText === message) {
+            alertBox.style.display = 'none';
+          }
+        }, 5000);
+      }
+    }
+  </script>
+</body>
+</html>

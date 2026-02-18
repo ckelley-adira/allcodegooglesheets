@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: 'Google Sans', Roboto, Arial, sans-serif;
+    }
+    
+    body {
+      margin: 0;
+      padding: 0;
+      background: #f8f9fa;
+      color: #202124;
+      font-size: 13px;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, <?= getBranding().accentColor ?> 0%, <?= getBranding().accentColor ?> 100%);
+      color: white;
+      padding: 20px 16px;
+      text-align: center;
+    }
+    
+    .header h1 {
+      margin: 0 0 4px 0;
+      font-size: 18px;
+      font-weight: 500;
+    }
+    
+    .header p {
+      margin: 0;
+      opacity: 0.9;
+      font-size: 12px;
+    }
+    
+    .section {
+      background: white;
+      margin: 12px;
+      padding: 16px;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .section-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: <?= getBranding().accentColor ?>;
+      margin: 0 0 12px 0;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #e8eaed;
+    }
+    
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    
+    .info-item {
+      background: #f8f9fa;
+      padding: 10px;
+      border-radius: 6px;
+      text-align: center;
+    }
+    
+    .info-value {
+      font-size: 20px;
+      font-weight: 500;
+      color: <?= getBranding().accentColor ?>;
+    }
+    
+    .info-label {
+      font-size: 11px;
+      color: #5f6368;
+      margin-top: 2px;
+    }
+    
+    .checkbox-group {
+      margin-bottom: 12px;
+    }
+    
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      padding: 8px 0;
+    }
+    
+    .checkbox-item input {
+      margin-right: 10px;
+      width: 16px;
+      height: 16px;
+      accent-color: <?= getBranding().accentColor ?>;
+    }
+    
+    .checkbox-item label {
+      cursor: pointer;
+    }
+    
+    .form-group {
+      margin-bottom: 12px;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 500;
+      color: #3c4043;
+    }
+    
+    .form-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    
+    .form-row .form-group {
+      flex: 1;
+      margin-bottom: 0;
+    }
+    
+    input[type="number"], input[type="color"] {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid #dadce0;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    
+    input[type="color"] {
+      height: 36px;
+      padding: 2px;
+      cursor: pointer;
+    }
+    
+    .btn {
+      width: 100%;
+      padding: 12px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 8px;
+    }
+    
+    .btn-primary {
+      background: <?= getBranding().accentColor ?>;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: <?= getBranding().accentColor ?>;
+    }
+    
+    .btn-primary:disabled {
+      background: #9aa0a6;
+      cursor: not-allowed;
+    }
+    
+    .btn-secondary {
+      background: white;
+      color: <?= getBranding().accentColor ?>;
+      border: 1px solid <?= getBranding().accentColor ?>;
+    }
+    
+    .btn-secondary:hover {
+      background: #f0f7f9;
+    }
+    
+    .btn-export {
+      background: #34a853;
+      color: white;
+    }
+    
+    .btn-export:hover {
+      background: #2d9249;
+    }
+    
+    .results-panel {
+      display: none;
+    }
+    
+    .results-panel.show {
+      display: block;
+    }
+    
+    .results-summary {
+      background: #e8f5e9;
+      border-left: 4px solid #4caf50;
+      padding: 12px;
+      border-radius: 0 6px 6px 0;
+      margin-bottom: 12px;
+    }
+    
+    .results-summary.warning {
+      background: #fff3e0;
+      border-left-color: #ff9800;
+    }
+    
+    .results-summary h3 {
+      margin: 0 0 4px 0;
+      font-size: 14px;
+      color: #1b5e20;
+    }
+    
+    .results-summary.warning h3 {
+      color: #e65100;
+    }
+    
+    .results-summary p {
+      margin: 0;
+      font-size: 12px;
+      color: #33691e;
+    }
+    
+    .results-summary.warning p {
+      color: #bf360c;
+    }
+    
+    .student-list {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #e8eaed;
+      border-radius: 6px;
+    }
+    
+    .student-item {
+      padding: 10px 12px;
+      border-bottom: 1px solid #f1f3f4;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+    }
+    
+    .student-item:last-child {
+      border-bottom: none;
+    }
+    
+    .student-item:hover {
+      background: #f8f9fa;
+    }
+    
+    .student-name {
+      font-weight: 500;
+      color: #202124;
+    }
+    
+    .student-details {
+      font-size: 11px;
+      color: #5f6368;
+      margin-top: 2px;
+    }
+    
+    .student-growth {
+      text-align: right;
+    }
+    
+    .growth-badge {
+      display: inline-block;
+      background: #e8f5e9;
+      color: #2e7d32;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+    
+    .growth-areas {
+      font-size: 10px;
+      color: #5f6368;
+      margin-top: 4px;
+      max-width: 140px;
+      text-align: right;
+    }
+    
+    .loading {
+      display: none;
+      text-align: center;
+      padding: 20px;
+    }
+    
+    .loading.show {
+      display: block;
+    }
+    
+    .spinner {
+      width: 30px;
+      height: 30px;
+      border: 3px solid #e8eaed;
+      border-top-color: <?= getBranding().accentColor ?>;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 10px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .footer {
+      text-align: center;
+      padding: 12px;
+      color: #9aa0a6;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🔍 Growth Highlighter</h1>
+    <p>Find students with unexpected growth</p>
+  </div>
+  
+  <!-- Sheet Info Section -->
+  <div class="section">
+    <h2 class="section-title">📊 Current Sheet</h2>
+    <div id="sheetInfo">
+      <div class="loading show">
+        <div class="spinner"></div>
+        <div>Loading sheet info...</div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Options Section -->
+  <div class="section">
+    <h2 class="section-title">⚙️ Options</h2>
+    
+    <p style="font-size: 12px; color: #5f6368; margin: 0 0 12px 0;">
+      Checking students in <strong>"Unenrolled or Finished Sequence"</strong> group
+    </p>
+    
+    <div class="form-row">
+      <div class="form-group">
+        <label>Min Growth %</label>
+        <input type="number" id="minGrowth" value="0" min="0" max="100" step="1">
+      </div>
+      <div class="form-group">
+        <label>Highlight Color</label>
+        <input type="color" id="highlightColor" value="#FFF59D">
+      </div>
+    </div>
+  </div>
+  
+  <!-- Actions Section -->
+  <div class="section">
+    <button class="btn btn-primary" id="runBtn" onclick="runHighlighter()">
+      ✨ Highlight Students with Growth
+    </button>
+    <button class="btn btn-secondary" onclick="clearHighlights()">
+      🧹 Clear All Highlights
+    </button>
+  </div>
+  
+  <!-- Loading -->
+  <div class="loading" id="loadingPanel">
+    <div class="spinner"></div>
+    <div>Processing students...</div>
+  </div>
+  
+  <!-- Results Section -->
+  <div class="section results-panel" id="resultsPanel">
+    <h2 class="section-title">📋 Results</h2>
+    
+    <div id="resultsSummary" class="results-summary">
+      <h3>Scan Complete</h3>
+      <p id="summaryText"></p>
+    </div>
+    
+    <div id="studentListContainer" style="display: none;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <span style="font-weight: 500; color: #3c4043;">Highlighted Students</span>
+        <button class="btn btn-export" style="width: auto; padding: 6px 12px; margin: 0; font-size: 12px;" onclick="exportResults()">
+          📥 Export
+        </button>
+      </div>
+      <div class="student-list" id="studentList"></div>
+    </div>
+  </div>
+  
+  <div class="footer">
+    TILT • The Indy Learning Team
+  </div>
+
+  <script>
+    let lastResults = [];
+    
+    // Load sheet info on startup
+    document.addEventListener('DOMContentLoaded', function() {
+      loadSheetInfo();
+    });
+    
+    function loadSheetInfo() {
+      google.script.run
+        .withSuccessHandler(displaySheetInfo)
+        .withFailureHandler(showError)
+        .ghGetSheetInfo();
+    }
+    
+    function displaySheetInfo(info) {
+      const html = `
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="info-value">${info.totalRows}</div>
+            <div class="info-label">Total Students</div>
+          </div>
+          <div class="info-item">
+            <div class="info-value">${info.agColumnCount}</div>
+            <div class="info-label">AG% Columns</div>
+          </div>
+        </div>
+        <div class="info-item" style="margin-top: 8px;">
+          <div class="info-value">${info.targetGroupCount}</div>
+          <div class="info-label">Unenrolled or Finished Sequence</div>
+        </div>
+      `;
+      document.getElementById('sheetInfo').innerHTML = html;
+    }
+    
+    function runHighlighter() {
+      const options = {
+        minGrowth: parseFloat(document.getElementById('minGrowth').value) || 0,
+        color: document.getElementById('highlightColor').value
+      };
+      
+      document.getElementById('runBtn').disabled = true;
+      document.getElementById('loadingPanel').classList.add('show');
+      document.getElementById('resultsPanel').classList.remove('show');
+      
+      google.script.run
+        .withSuccessHandler(displayResults)
+        .withFailureHandler(showError)
+        .ghRunHighlighter(options);
+    }
+    
+    function displayResults(response) {
+      document.getElementById('runBtn').disabled = false;
+      document.getElementById('loadingPanel').classList.remove('show');
+      document.getElementById('resultsPanel').classList.add('show');
+      
+      if (!response.success) {
+        document.getElementById('resultsSummary').className = 'results-summary warning';
+        document.getElementById('resultsSummary').innerHTML = `
+          <h3>⚠️ Notice</h3>
+          <p>${response.message}</p>
+        `;
+        document.getElementById('studentListContainer').style.display = 'none';
+        return;
+      }
+      
+      const results = response.results;
+      lastResults = results.highlighted;
+      
+      const hasResults = results.highlighted.length > 0;
+      
+      document.getElementById('resultsSummary').className = hasResults ? 'results-summary' : 'results-summary warning';
+      document.getElementById('resultsSummary').innerHTML = `
+        <h3>${hasResults ? '✅ Students Found' : '👍 All Clear'}</h3>
+        <p>${response.message}</p>
+      `;
+      
+      if (hasResults) {
+        document.getElementById('studentListContainer').style.display = 'block';
+        
+        let listHtml = '';
+        results.highlighted.forEach(student => {
+          const growthAreas = student.growthAreas.map(a => a.name).slice(0, 3);
+          const moreCount = student.growthAreas.length - 3;
+          let areasText = growthAreas.join(', ');
+          if (moreCount > 0) areasText += ` +${moreCount} more`;
+          
+          listHtml += `
+            <div class="student-item">
+              <div>
+                <div class="student-name">${student.name}</div>
+                <div class="student-details">Row ${student.row} • ${student.grade} • ${student.teacher}</div>
+                <div class="student-details">${student.group}</div>
+              </div>
+              <div class="student-growth">
+                <div class="growth-badge">+${student.maxGrowth.toFixed(1)}% max</div>
+                <div class="growth-areas">${areasText}</div>
+              </div>
+            </div>
+          `;
+        });
+        
+        document.getElementById('studentList').innerHTML = listHtml;
+      } else {
+        document.getElementById('studentListContainer').style.display = 'none';
+      }
+      
+      // Refresh sheet info
+      loadSheetInfo();
+    }
+    
+    function clearHighlights() {
+      document.getElementById('loadingPanel').classList.add('show');
+      
+      google.script.run
+        .withSuccessHandler(function(response) {
+          document.getElementById('loadingPanel').classList.remove('show');
+          document.getElementById('resultsPanel').classList.add('show');
+          document.getElementById('resultsSummary').className = 'results-summary';
+          document.getElementById('resultsSummary').innerHTML = `
+            <h3>🧹 Cleared</h3>
+            <p>${response.message}</p>
+          `;
+          document.getElementById('studentListContainer').style.display = 'none';
+        })
+        .withFailureHandler(showError)
+        .ghClearAllHighlights();
+    }
+    
+    function exportResults() {
+      if (lastResults.length === 0) {
+        alert('No results to export.');
+        return;
+      }
+      
+      document.getElementById('loadingPanel').classList.add('show');
+      
+      google.script.run
+        .withSuccessHandler(function(response) {
+          document.getElementById('loadingPanel').classList.remove('show');
+          alert(response.message);
+        })
+        .withFailureHandler(showError)
+        .ghExportResults(lastResults);
+    }
+    
+    function showError(error) {
+      document.getElementById('runBtn').disabled = false;
+      document.getElementById('loadingPanel').classList.remove('show');
+      alert('Error: ' + error.message);
+    }
+  </script>
+</body>
+</html>

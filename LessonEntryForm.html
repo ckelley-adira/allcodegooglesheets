@@ -481,8 +481,8 @@
     <div class="container">
       <!-- Header -->
       <div class="header">
-        <h1>Sankofa School of Success</h1>
-        <div class="tagline">Innovate. Educate. Empower.</div>
+        <h1><?= getBranding().schoolName ?> - Lesson Data Entry</h1>
+        <div class="tagline"><?= getBranding().tagline ?></div>
       </div>
       
       <!-- Alert Messages -->
@@ -614,11 +614,6 @@
       let groupsBySheet = {};       // Groups organized by sheet name
       let currentStudents = [];     // Students in selected group
       let currentLessons = [];      // Lessons for selected group
-
-      // Co-teaching state
-      let isCoTeachingSession = false;  // True if current group is co-teaching
-      let currentPartnerGroup = null;   // Partner group name (if co-teaching)
-      let currentPrimaryGroup = null;   // Primary group name (if co-teaching)
       
       // ═══════════════════════════════════════════════════════════
       // INITIALIZATION
@@ -747,10 +742,6 @@
         document.getElementById('lesson-select').innerHTML = '<option value="">-- Select a Lesson --</option>';
         currentStudents = [];
         currentLessons = [];
-        // Reset co-teaching state
-        isCoTeachingSession = false;
-        currentPartnerGroup = null;
-        currentPrimaryGroup = null;
       }
       
       function onGroupSelected() {
@@ -778,22 +769,13 @@
             
             currentLessons = result.lessons || [];
             currentStudents = result.students || [];
-
-            // Check for co-teaching data
-            isCoTeachingSession = result.isCoTeaching || false;
-            currentPartnerGroup = result.partnerGroup || null;
-            currentPrimaryGroup = result.primaryGroup || groupName;
-
-            if (isCoTeachingSession) {
-              console.log('Co-teaching session detected: ' + currentPrimaryGroup + ' + ' + currentPartnerGroup);
-            }
-
+            
             // Extract teacher name from group name (e.g., "Group 1 - T. Jones" -> "T. Jones")
             const teacherMatch = groupName.match(/[-–]\s*(.+)$/);
             if (teacherMatch) {
               document.getElementById('teacher-name').value = teacherMatch[1].trim();
             }
-
+            
             populateLessons(currentLessons);
             populateStudents(currentStudents, {});
             
@@ -863,24 +845,12 @@
         existingData = existingData || {};
         const studentList = document.getElementById('student-list');
         studentList.innerHTML = '';
-
+        
         if (students.length === 0) {
           studentList.innerHTML = '<tr><td colspan="2" class="empty-state">No students found in this group.</td></tr>';
           return;
         }
-
-        // Add co-teaching header if applicable
-        if (isCoTeachingSession && currentPartnerGroup) {
-          const coTeachingRow = document.createElement('tr');
-          coTeachingRow.innerHTML = `
-            <td colspan="2" style="background:#FEF3C7; color:#92400E; padding:12px 16px; font-weight:500; border-left:4px solid #F59E0B;">
-              👥 <strong>Co-Teaching Mode:</strong> ${escapeHtml(currentPrimaryGroup)} + ${escapeHtml(currentPartnerGroup)}
-              <br><small style="font-weight:normal;">Students from both groups are shown below. Results will be saved to each student's original group.</small>
-            </td>
-          `;
-          studentList.appendChild(coTeachingRow);
-        }
-
+        
         // Add header if there's existing data
         const hasExistingData = Object.keys(existingData).length > 0;
         if (hasExistingData) {
@@ -888,40 +858,12 @@
           headerRow.innerHTML = '<td colspan="2" style="background:#E6FFFA; color:#234E52; padding:12px 16px; font-weight:500;">📝 Editing existing lesson data</td>';
           studentList.appendChild(headerRow);
         }
-
-        // Group students by source group for co-teaching display
-        let lastSourceGroup = null;
-
+        
         students.forEach(function(student, index) {
-          // Handle both string names and objects with {name, sourceGroup}
-          const studentName = typeof student === 'string' ? student : (student.name || student);
-          const sourceGroup = typeof student === 'object' ? (student.sourceGroup || null) : null;
-
-          // Add source group subheader if it changed (for co-teaching)
-          if (isCoTeachingSession && sourceGroup && sourceGroup !== lastSourceGroup) {
-            const subheaderRow = document.createElement('tr');
-            subheaderRow.innerHTML = `
-              <td colspan="2" style="background:#F3F4F6; color:#374151; padding:8px 16px; font-weight:600; font-size:0.9em;">
-                📋 ${escapeHtml(sourceGroup)}
-              </td>
-            `;
-            studentList.appendChild(subheaderRow);
-            lastSourceGroup = sourceGroup;
-          }
-
-          const currentValue = existingData[studentName] || '';
+          const currentValue = existingData[student] || '';
           const row = document.createElement('tr');
-
-          // Build source group badge for co-teaching
-          const sourceGroupBadge = (isCoTeachingSession && sourceGroup)
-            ? `<span class="source-group-badge" style="display:inline-block; background:#E5E7EB; color:#4B5563; font-size:0.75em; padding:2px 6px; border-radius:4px; margin-left:8px;">${escapeHtml(getShortGroupName(sourceGroup))}</span>`
-            : '';
-
           row.innerHTML = `
-            <td class="student-name">
-              ${escapeHtml(studentName)}${sourceGroupBadge}
-              <input type="hidden" class="source-group-input" id="source-group-${index}" value="${escapeHtml(sourceGroup || '')}">
-            </td>
+            <td class="student-name">${escapeHtml(student)}</td>
             <td>
               <div class="status-buttons">
                 <button type="button" class="status-btn yes ${currentValue === 'Y' ? 'selected' : ''}" onclick="setStatus(${index}, 'Y', this)" title="Yes - Passed">Y</button>
@@ -934,14 +876,6 @@
           `;
           studentList.appendChild(row);
         });
-      }
-
-      // Helper to get short group name for badge display
-      function getShortGroupName(groupName) {
-        if (!groupName) return '';
-        // Extract "Group N" or teacher name from full group name
-        const match = groupName.match(/^(Group\s*\d+|[^-]+)/i);
-        return match ? match[1].trim() : groupName.substring(0, 15);
       }
       
       function setStatus(index, status, button) {
@@ -1004,26 +938,19 @@
         const studentStatuses = [];
         const unenrolledStudents = [];
         let hasAnyStatus = false;
-
+        
         currentStudents.forEach(function(student, index) {
           const status = document.getElementById('status-' + index).value;
           if (status) {
             hasAnyStatus = true;
-
-            // Get student name and source group (for co-teaching support)
-            const studentName = typeof student === 'string' ? student : (student.name || student);
-            const sourceGroupInput = document.getElementById('source-group-' + index);
-            const sourceGroup = sourceGroupInput ? sourceGroupInput.value : '';
-
             studentStatuses.push({
-              name: studentName,
-              status: status,
-              sourceGroup: sourceGroup || groupName  // Default to selected group if not co-teaching
+              name: student,
+              status: status
             });
-
+            
             // Track unenrolled separately for the exception log
             if (status === 'U') {
-              unenrolledStudents.push(studentName);
+              unenrolledStudents.push(student);
             }
           }
         });
@@ -1045,11 +972,7 @@
           lessonName: lessonName,
           teacherName: teacherName || 'Unknown',
           studentStatuses: studentStatuses,
-          unenrolledStudents: unenrolledStudents,
-          // Co-teaching metadata
-          isCoTeaching: isCoTeachingSession,
-          partnerGroup: currentPartnerGroup,
-          primaryGroup: currentPrimaryGroup
+          unenrolledStudents: unenrolledStudents
         };
         
         // Submit

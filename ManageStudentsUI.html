@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Calibri', 'Helvetica Neue', Arial, sans-serif;
+      background: #FAF9F7;
+      margin: 0;
+      padding: 40px 20px;
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    
+    .logo-header {
+      text-align: center;
+      margin-bottom: 30px;
+      padding: 20px;
+    }
+    
+    .logo-header img {
+      max-width: 200px;
+      height: auto;
+      margin-bottom: 15px;
+    }
+    
+    .page-header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    
+    .page-header h1 {
+      font-size: 36px;
+      margin: 0 0 8px 0;
+      font-weight: 400;
+      color: #2c2c2c;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    
+    .page-header .tagline {
+      font-size: 16px;
+      color: #666;
+      font-style: italic;
+      font-weight: 300;
+      letter-spacing: 0.5px;
+    }
+    
+    .main-section {
+      background: white;
+      border-radius: 0;
+      box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+    
+    .section-header {
+      background: <?= getBranding().primaryColor ?>;
+      padding: 20px 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .section-header h2 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 600;
+      color: #2c2c2c;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+    
+    .table-container {
+      max-height: 500px;
+      overflow-y: auto;
+      border-bottom: 2px solid #e8e8e8;
+    }
+    
+    .student-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 16px;
+    }
+    
+    .student-table th {
+      background: #f5f5f5;
+      padding: 16px 20px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 13px;
+      color: #2c2c2c;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      position: sticky;
+      top: 0;
+      border-bottom: 1px solid #e8e8e8;
+    }
+    
+    .student-table td {
+      padding: 18px 20px;
+      border-bottom: 1px solid #e8e8e8;
+      color: #2c2c2c;
+      letter-spacing: 0.2px;
+    }
+    
+    .student-table tbody tr {
+      cursor: pointer;
+      transition: background 0.2s;
+      background: white;
+    }
+    
+    .student-table tbody tr:hover {
+      background: #fafafa;
+    }
+    
+    .student-table tbody tr.selected {
+      background: <?= getBranding().primaryColor ?>;
+    }
+    
+    .actions {
+      padding: 24px 28px;
+      background: #fafafa;
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+    
+    .btn {
+      padding: 14px 28px;
+      border: none;
+      border-radius: 4px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: 'Calibri', sans-serif;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+    }
+    
+    .btn-primary { 
+      background: #4CAF50; 
+      color: white; 
+      box-shadow: 0 4px 12px rgba(76, 175, 80, 0.25);
+    }
+    .btn-primary:hover:not(:disabled) { 
+      background: #45a049;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(76, 175, 80, 0.3);
+    }
+    
+    .btn-secondary { 
+      background: #6c757d; 
+      color: white; 
+      box-shadow: 0 4px 12px rgba(108, 117, 125, 0.25);
+    }
+    .btn-secondary:hover:not(:disabled) { 
+      background: #5a6268;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(108, 117, 125, 0.3);
+    }
+    
+    .btn-danger { 
+      background: #FF6B6B; 
+      color: white; 
+      box-shadow: 0 4px 12px rgba(255, 107, 107, 0.25);
+    }
+    .btn-danger:hover:not(:disabled) { 
+      background: #ff5252;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(255, 107, 107, 0.3);
+    }
+    
+    .btn:disabled { 
+      opacity: 0.5; 
+      cursor: not-allowed;
+      transform: none !important;
+    }
+    
+    .btn:active:not(:disabled) {
+      transform: translateY(0);
+    }
+    
+    #loader {
+      text-align: center;
+      padding: 60px 40px;
+      font-size: 16px;
+      color: #666;
+      font-weight: 400;
+      letter-spacing: 0.5px;
+    }
+    
+    #loader::after {
+      content: '';
+      display: block;
+      width: 24px;
+      height: 24px;
+      border: 3px solid #e8e8e8;
+      border-top-color: <?= getBranding().primaryColor ?>;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 20px auto 0;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Modal Styles */
+    #modalBackdrop {
+      display: none;
+      position: fixed;
+      top: 0; 
+      left: 0;
+      width: 100%; 
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 100;
+      justify-content: center;
+      align-items: center;
+    }
+    
+    #modal {
+      background: white;
+      border-radius: 0;
+      width: 480px;
+      max-width: 90%;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      animation: modalSlideIn 0.3s ease-out;
+    }
+    
+    @keyframes modalSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .modal-header {
+      background: <?= getBranding().primaryColor ?>;
+      padding: 20px 24px;
+      border-bottom: none;
+    }
+    
+    .modal-header h2 {
+      font-size: 20px;
+      margin: 0;
+      font-weight: 600;
+      color: #2c2c2c;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+    
+    .modal-content {
+      padding: 28px 24px;
+    }
+    
+    .form-group {
+      margin-bottom: 20px;
+    }
+    
+    .form-group label {
+      display: block;
+      font-weight: 500;
+      color: #444;
+      margin-bottom: 8px;
+      font-size: 15px;
+      letter-spacing: 0.3px;
+    }
+    
+    .form-group input {
+      width: 100%;
+      padding: 12px 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 4px;
+      font-family: 'Calibri', sans-serif;
+      font-size: 16px;
+      transition: all 0.3s ease;
+      color: #2c2c2c;
+    }
+    
+    .form-group input:hover {
+      border-color: <?= getBranding().primaryColor ?>;
+    }
+    
+    .form-group input:focus {
+      outline: none;
+      border-color: <?= getBranding().primaryColor ?>;
+      box-shadow: 0 0 0 3px rgba(184, 230, 220, 0.2);
+    }
+    
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      padding: 20px 24px;
+      border-top: 2px solid #e8e8e8;
+      background: #fafafa;
+    }
+    
+    #alert {
+      padding: 16px 20px;
+      border-radius: 4px;
+      margin: 0 0 20px 0;
+      font-size: 15px;
+      font-weight: 500;
+      display: none;
+      border-left: 5px solid;
+      letter-spacing: 0.3px;
+    }
+    
+    .alert-danger { 
+      background: #FFE5E5; 
+      color: #c62828; 
+      border-color: #FF6B6B;
+    }
+    
+    .alert-success { 
+      background: #E8F5E9; 
+      color: #2e7d32; 
+      border-color: #4CAF50;
+    }
+    
+    /* Responsive */
+    @media (max-width: 640px) {
+      body {
+        padding: 20px 15px;
+      }
+      
+      .logo-header img {
+        max-width: 180px;
+      }
+      
+      .page-header h1 {
+        font-size: 28px;
+        letter-spacing: 1.5px;
+      }
+      
+      .student-table {
+        font-size: 14px;
+      }
+      
+      .student-table th,
+      .student-table td {
+        padding: 14px 16px;
+      }
+      
+      .btn {
+        padding: 12px 20px;
+        font-size: 14px;
+      }
+      
+      .actions {
+        flex-wrap: wrap;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Logo -->
+    <div class="logo-header">
+      <? if (getBranding().logoUrl) { ?><img src="<?= getBranding().logoUrl ?>"<? } else { ?><img src="" style="display:none;"<? } ?> alt="The Indy Learning Team Logo">
+    </div>
+    
+    <!-- Page Header -->
+    <div class="page-header">
+      <h1>Student Roster</h1>
+      <div class="tagline"><?= getBranding().tagline ?></div>
+    </div>
+    
+    <!-- Main Section -->
+    <div class="main-section">
+      <div class="section-header">
+        <h2>All Students</h2>
+        <button class="btn btn-primary" id="addBtn" onclick="openModal(null)">+ Add Student</button>
+      </div>
+      
+      <div class="table-container">
+        <div id="loader">Loading students</div>
+        <table class="student-table" id="studentTable" style="display: none;">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Grade</th>
+              <th>Teacher</th>
+              <th>Group</th>
+            </tr>
+          </thead>
+          <tbody id="studentTableBody">
+          </tbody>
+        </table>
+      </div>
+      
+      <div class="actions">
+        <button class="btn btn-secondary" id="editBtn" onclick="editSelected()" disabled>Edit Selected</button>
+        <button class="btn btn-danger" id="deleteBtn" onclick="deleteSelected()" disabled>Delete Selected</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div id="modalBackdrop" style="display: none;">
+    <div id="modal">
+      <div class="modal-header">
+        <h2 id="modalTitle">Add New Student</h2>
+      </div>
+      <div class="modal-content">
+        <div id="alert"></div>
+        
+        <input type="hidden" id="rowIndex" />
+        <input type="hidden" id="originalName" />
+        
+        <div class="form-group">
+          <label for="name">Student Name *</label>
+          <input type="text" id="name" placeholder="Enter student name" />
+        </div>
+        <div class="form-group">
+          <label for="grade">Grade *</label>
+          <input type="text" id="grade" placeholder="e.g., K, 1, 2" />
+        </div>
+        <div class="form-group">
+          <label for="teacher">Teacher *</label>
+          <input type="text" id="teacher" placeholder="Enter teacher name" />
+        </div>
+        <div class="form-group">
+          <label for="group">Group (Optional)</label>
+          <input type="text" id="group" placeholder="Enter group name" />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" id="saveBtn" onclick="saveStudent()">Save Student</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let studentData = [];
+    let selectedStudent = null;
+
+    // --- Data Loading ---
+    
+    window.onload = function() {
+      loadStudents();
+    };
+
+    function loadStudents() {
+      document.getElementById('loader').style.display = 'block';
+      document.getElementById('studentTable').style.display = 'none';
+      google.script.run
+        .withSuccessHandler(onStudentsLoaded)
+        .withFailureHandler(onFailure)
+        .getStudentRosterData();
+    }
+    
+    function onStudentsLoaded(data) {
+      studentData = data;
+      const tableBody = document.getElementById('studentTableBody');
+      tableBody.innerHTML = '';
+      
+      data.forEach(student => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${student.name}</td>
+          <td>${student.grade}</td>
+          <td>${student.teacher}</td>
+          <td>${student.group || ''}</td>
+        `;
+        row.onclick = () => selectRow(row, student);
+        tableBody.appendChild(row);
+      });
+      
+      document.getElementById('loader').style.display = 'none';
+      document.getElementById('studentTable').style.display = 'table';
+      clearSelection();
+    }
+
+    function onFailure(error) {
+      document.getElementById('loader').innerText = 'Error: ' + error.message;
+    }
+
+    // --- Row Selection ---
+    
+    function selectRow(rowElement, student) {
+      // Clear previous selection
+      document.querySelectorAll('#studentTableBody tr').forEach(row => {
+        row.classList.remove('selected');
+      });
+      
+      // Add new selection
+      rowElement.classList.add('selected');
+      selectedStudent = student;
+      
+      // Enable buttons
+      document.getElementById('editBtn').disabled = false;
+      document.getElementById('deleteBtn').disabled = false;
+    }
+    
+    function clearSelection() {
+      selectedStudent = null;
+      document.querySelectorAll('#studentTableBody tr').forEach(row => {
+        row.classList.remove('selected');
+      });
+      document.getElementById('editBtn').disabled = true;
+      document.getElementById('deleteBtn').disabled = true;
+    }
+
+    // --- Modal Handling ---
+    
+    function openModal(student) {
+      clearAlerts();
+      if (student) {
+        // Edit mode
+        document.getElementById('modalTitle').innerText = 'Edit Student';
+        document.getElementById('rowIndex').value = student.rowIndex;
+        document.getElementById('originalName').value = student.name;
+        document.getElementById('name').value = student.name;
+        document.getElementById('grade').value = student.grade;
+        document.getElementById('teacher').value = student.teacher;
+        document.getElementById('group').value = student.group || '';
+      } else {
+        // Add mode
+        document.getElementById('modalTitle').innerText = 'Add New Student';
+        document.getElementById('rowIndex').value = '';
+        document.getElementById('originalName').value = '';
+        document.getElementById('name').value = '';
+        document.getElementById('grade').value = '';
+        document.getElementById('teacher').value = '';
+        document.getElementById('group').value = '';
+      }
+      document.getElementById('modalBackdrop').style.display = 'flex';
+    }
+    
+    function closeModal() {
+      document.getElementById('modalBackdrop').style.display = 'none';
+    }
+
+    // --- CRUD Actions ---
+    
+    function editSelected() {
+      if (selectedStudent) {
+        openModal(selectedStudent);
+      }
+    }
+    
+    function saveStudent() {
+      const student = {
+        rowIndex: document.getElementById('rowIndex').value ? parseInt(document.getElementById('rowIndex').value) : null,
+        originalName: document.getElementById('originalName').value,
+        name: document.getElementById('name').value.trim(),
+        grade: document.getElementById('grade').value.trim(),
+        teacher: document.getElementById('teacher').value.trim(),
+        group: document.getElementById('group').value.trim()
+      };
+      
+      // Validation
+      if (!student.name || !student.grade || !student.teacher) {
+        showAlert('Name, Grade, and Teacher are required.', 'danger', 'alert');
+        return;
+      }
+      
+      setModalLoading(true);
+      
+      google.script.run
+        .withSuccessHandler(onSaveSuccess)
+        .withFailureHandler(onSaveFailure)
+        .saveStudent(student);
+    }
+    
+    function onSaveSuccess(response) {
+      setModalLoading(false);
+      closeModal();
+      loadStudents();
+    }
+    
+    function onSaveFailure(error) {
+      setModalLoading(false);
+      showAlert(error.message, 'danger', 'alert');
+    }
+    
+    function deleteSelected() {
+      if (!selectedStudent) return;
+      
+      if (confirm(`Are you sure you want to delete ${selectedStudent.name}? This student will be removed from all sheets.`)) {
+        document.getElementById('deleteBtn').disabled = true;
+        document.getElementById('deleteBtn').innerText = 'Deleting...';
+        
+        google.script.run
+          .withSuccessHandler(onDeleteSuccess)
+          .withFailureHandler(onDeleteFailure)
+          .deleteStudent(selectedStudent);
+      }
+    }
+    
+    function onDeleteSuccess(response) {
+      document.getElementById('deleteBtn').innerText = 'Delete Selected';
+      loadStudents();
+    }
+    
+    function onDeleteFailure(error) {
+      alert('Error: ' + error.message);
+      document.getElementById('deleteBtn').disabled = false;
+      document.getElementById('deleteBtn').innerText = 'Delete Selected';
+    }
+    
+    // --- UI Helpers ---
+    
+    function setModalLoading(isLoading) {
+      document.getElementById('saveBtn').disabled = isLoading;
+      document.getElementById('saveBtn').innerText = isLoading ? 'Saving...' : 'Save Student';
+    }
+    
+    function showAlert(message, type, elementId) {
+      const alertBox = document.getElementById(elementId);
+      alertBox.className = `alert alert-${type}`;
+      alertBox.innerText = message;
+      alertBox.style.display = 'block';
+    }
+    
+    function clearAlerts() {
+      document.getElementById('alert').style.display = 'none';
+    }
+
+  </script>
+</body>
+</html>
