@@ -177,8 +177,11 @@ const SHEET_LAYOUT_OPTIONS = [
  */
 const CONFIG_LAYOUT = {
   SITE_CONFIG: {
+    HEADER_ROW: 1,
     SCHOOL_NAME_ROW: 2,
+    GRADES_HEADER_ROW: 4,
     GRADES_START_ROW: 5,
+    GRADE_MIXING_HEADER_ROW: 16,
     GRADE_MIXING_ROW: 17,
     COMBINATIONS_ROW: 18,
     VERSION_ROW: 20,
@@ -205,6 +208,9 @@ const CONFIG_LAYOUT = {
     VALUE: 2
   }
 };
+
+// Shorthand for roster layout (backwards compatibility)
+const LAYOUT = CONFIG_LAYOUT.ROSTER;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // UTILITY FUNCTIONS - SHARED HELPERS
@@ -379,7 +385,7 @@ function isSystemConfigured() {
   
   if (!configSheet) return false;
   
-  const schoolName = configSheet.getRange(2, 2).getValue();
+  const schoolName = configSheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.SCHOOL_NAME_ROW, CONFIG_LAYOUT.COLS.VALUE).getValue();
   return schoolName && schoolName.toString().trim() !== "";
 }
 
@@ -912,36 +918,36 @@ function createConfigurationSheet(ss, data) {
     sheet.clear();
   }
   
-  sheet.getRange(1, 1, 1, 2).setValues([["Adira Reads Progress Report Configuration", ""]]);
-  sheet.getRange(1, 1, 1, 2).setBackground(COLORS.HEADER_BG).setFontColor(COLORS.HEADER_FG).setFontWeight("bold");
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.HEADER_ROW, CONFIG_LAYOUT.COLS.LABEL, 1, 2).setValues([["Adira Reads Progress Report Configuration", ""]]);
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.HEADER_ROW, CONFIG_LAYOUT.COLS.LABEL, 1, 2).setBackground(COLORS.HEADER_BG).setFontColor(COLORS.HEADER_FG).setFontWeight("bold");
   
-  sheet.getRange(2, 1).setValue("School Name:");
-  sheet.getRange(2, 2).setValue(data.schoolName);
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.SCHOOL_NAME_ROW, CONFIG_LAYOUT.COLS.LABEL).setValue("School Name:");
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.SCHOOL_NAME_ROW, CONFIG_LAYOUT.COLS.VALUE).setValue(data.schoolName);
   
-  sheet.getRange(4, 1).setValue("Grades Served:");
-  sheet.getRange(4, 1).setFontWeight("bold");
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.GRADES_HEADER_ROW, CONFIG_LAYOUT.COLS.LABEL).setValue("Grades Served:");
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.GRADES_HEADER_ROW, CONFIG_LAYOUT.COLS.LABEL).setFontWeight("bold");
   
   GRADE_OPTIONS.forEach((grade, index) => {
-    sheet.getRange(5 + index, 1).setValue(grade.label);
-    sheet.getRange(5 + index, 2).setValue(data.gradesServed.includes(grade.value));
+    sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.GRADES_START_ROW + index, CONFIG_LAYOUT.COLS.LABEL).setValue(grade.label);
+    sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.GRADES_START_ROW + index, CONFIG_LAYOUT.COLS.VALUE).setValue(data.gradesServed.includes(grade.value));
   });
   
-  sheet.getRange(16, 1).setValue("Grade Mixing Settings:");
-  sheet.getRange(16, 1).setFontWeight("bold");
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.GRADE_MIXING_HEADER_ROW, CONFIG_LAYOUT.COLS.LABEL).setValue("Grade Mixing Settings:");
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.GRADE_MIXING_HEADER_ROW, CONFIG_LAYOUT.COLS.LABEL).setFontWeight("bold");
   
-  sheet.getRange(17, 1).setValue("Allow Grade Mixing:");
-  sheet.getRange(17, 2).setValue(data.gradeMixing ? data.gradeMixing.allowed : false);
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.GRADE_MIXING_ROW, CONFIG_LAYOUT.COLS.LABEL).setValue("Allow Grade Mixing:");
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.GRADE_MIXING_ROW, CONFIG_LAYOUT.COLS.VALUE).setValue(data.gradeMixing ? data.gradeMixing.allowed : false);
   
-  sheet.getRange(18, 1).setValue("Mixed Grade Combinations:");
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.COMBINATIONS_ROW, CONFIG_LAYOUT.COLS.LABEL).setValue("Mixed Grade Combinations:");
   sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.COMBINATIONS_ROW, CONFIG_LAYOUT.COLS.VALUE)
     .setValue(data.gradeMixing && data.gradeMixing.combinations ? 
       data.gradeMixing.combinations.join(', ') : "");
   
-  sheet.getRange(20, 1).setValue("System Version:");
-  sheet.getRange(20, 2).setValue(SYSTEM_VERSION);
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.VERSION_ROW, CONFIG_LAYOUT.COLS.LABEL).setValue("System Version:");
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.VERSION_ROW, CONFIG_LAYOUT.COLS.VALUE).setValue(SYSTEM_VERSION);
 
-  sheet.getRange(21, 1).setValue("Last Updated:");
-  sheet.getRange(21, 2).setValue(new Date());
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.LAST_UPDATED_ROW, CONFIG_LAYOUT.COLS.LABEL).setValue("Last Updated:");
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.LAST_UPDATED_ROW, CONFIG_LAYOUT.COLS.VALUE).setValue(new Date());
 
   // Branding section
   sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.BRANDING_HEADER_ROW, 1).setValue("School Branding:");
