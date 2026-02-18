@@ -158,3 +158,107 @@ Is duplicated Phase2 code intentional or technical debt?
 What's the relationship between SankofaCoachView and WeeklyCoachingDashboard?
 Are Adelante's Manage UI files the "canonical versions" to sync TO other schools, or FROM them?
 Should GlobalPrep's tutoring system model be replicated to other schools if they need intervention tracking?
+
+---
+
+## APPENDIX: Business Requirements Document (BRD)
+
+### Shared Constants Module (SharedConstants.gs)
+
+**Purpose:** Centralized business-rule constants shared across all schools to ensure consistency and simplify maintenance.
+
+**Implementation Date:** February 2026
+
+**Affected Schools:** Adelante, Allegiant, CCA, CHAW, GlobalPrep, Sankofa
+
+#### Constants Defined
+
+##### 1. LESSON_LABELS (Object)
+- **Type:** Object with 128 key-value pairs
+- **Keys:** Lesson numbers (1-128)
+- **Values:** UFLI lesson labels (e.g., "UFLI L1 a/ā/")
+- **Purpose:** Human-readable labels for all UFLI lessons used in headers, reports, and UI displays
+- **Example:** 
+  ```javascript
+  1: "UFLI L1 a/ā/"
+  35: "UFLI L35 Short A Review (inclu. Nasalized A)"
+  128: "UFLI L128 Affixes Review 2"
+  ```
+
+##### 2. SKILL_SECTIONS (Object)
+- **Type:** Object with 16 skill section names mapped to lesson number arrays
+- **Purpose:** Defines which lessons belong to each skill section for progress tracking
+- **Sections:**
+  1. Single Consonants & Vowels (32 lessons)
+  2. Blends (2 lessons)
+  3. Alphabet Review & Longer Words (7 lessons)
+  4. Digraphs (12 lessons)
+  5. VCE (9 lessons)
+  6. Reading Longer Words (6 lessons)
+  7. Ending Spelling Patterns (8 lessons)
+  8. R-Controlled Vowels (7 lessons)
+  9. Long Vowel Teams (5 lessons)
+  10. Other Vowel Teams (6 lessons)
+  11. Diphthongs (3 lessons)
+  12. Silent Letters (1 lesson)
+  13. Suffixes & Prefixes (8 lessons)
+  14. Suffix Spelling Changes (4 lessons)
+  15. Low Frequency Spellings (8 lessons)
+  16. Additional Affixes (10 lessons)
+
+##### 3. REVIEW_LESSONS (Array)
+- **Type:** Array of 23 lesson numbers
+- **Values:** `[35,36,37,39,40,41,49,53,57,59,62,71,76,79,83,88,92,97,102,104,105,106,128]`
+- **Purpose:** Gateway tests - passing ALL review lessons in a section grants 100% credit
+- **Logic:** If any review lesson is populated, student must pass ALL reviews to get 100% section credit; otherwise falls back to non-review calculation
+
+##### 4. REVIEW_LESSONS_SET (Set)
+- **Type:** Set containing review lesson numbers
+- **Purpose:** O(1) lookup performance for checking if a lesson is a review lesson
+- **Implementation:** `new Set(REVIEW_LESSONS)`
+
+##### 5. PERFORMANCE_THRESHOLDS (Object)
+- **Type:** Object with numeric threshold values
+- **Values:**
+  - `ON_TRACK: 80` (>= 80% performance)
+  - `NEEDS_SUPPORT: 50` (>= 50% performance)
+- **Purpose:** Defines score boundaries for performance status classification
+- **Status Ranges:**
+  - >= 80%: On Track
+  - 50-79%: Needs Support
+  - < 50%: Intervention
+
+##### 6. STATUS_LABELS (Object)
+- **Type:** Object with status label strings
+- **Values:**
+  - `ON_TRACK: "On Track"`
+  - `NEEDS_SUPPORT: "Needs Support"`
+  - `INTERVENTION: "Intervention"`
+- **Purpose:** Standardized text labels for performance status across all reports and UI
+
+##### 7. getPerformanceStatus() (Function)
+- **Parameters:** `percentage` (number, 0-100)
+- **Returns:** Status label string ("On Track", "Needs Support", or "Intervention")
+- **Purpose:** Helper function to determine performance status from a percentage score
+- **Logic:**
+  ```javascript
+  if (percentage >= 80) return "On Track";
+  if (percentage >= 50) return "Needs Support";
+  return "Intervention";
+  ```
+
+#### Usage Notes
+
+1. **Import Pattern:** All Phase2_ProgressTracking.gs files reference SharedConstants.gs for these constants
+2. **No Logic Changes:** This is a pure extraction - all values remain exactly as they were in the original Adelante implementation
+3. **Backward Compatibility:** All school-specific Phase2 files updated to reference shared constants instead of local definitions
+4. **Maintenance:** Any future changes to business rules (e.g., threshold adjustments) only need to be made in one place
+
+#### Validation
+
+**Test Criteria:**
+- All 6 schools' Phase2_ProgressTracking.gs files successfully reference SharedConstants
+- No functional changes to lesson calculations, skill section percentages, or performance status determination
+- All existing reports, dashboards, and UI displays continue to work as before
+
+**Verification Date:** [Pending QA]
