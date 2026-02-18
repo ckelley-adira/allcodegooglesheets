@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    /* --- BASE STYLES --- */
+    * { box-sizing: border-box; }
+    body { font-family: 'Calibri', 'Helvetica Neue', Arial, sans-serif; background: #FAF9F7; margin: 0; padding: 40px 20px; min-height: 100vh; }
+    .container { max-width: 700px; margin: 0 auto; }
+    .header { text-align: center; margin-bottom: 50px; padding: 0 20px; }
+    .header h1 { font-size: 38px; margin: 0 0 12px 0; font-weight: 400; color: #2c2c2c; text-transform: uppercase; letter-spacing: 2px; }
+    .header .tagline { font-size: 18px; color: #666; font-style: italic; font-weight: 300; letter-spacing: 0.5px; }
+    .form-section { background: white; border-radius: 0; box-shadow: 0 2px 15px rgba(0,0,0,0.08); margin-bottom: 30px; overflow: hidden; }
+    .section-header { background: #B8E6DC; padding: 20px 28px; border-bottom: none; }
+    .section-header h2 { margin: 0; font-size: 20px; font-weight: 600; color: #2c2c2c; text-transform: uppercase; letter-spacing: 1.5px; display: flex; align-items: center; }
+    .step-number { display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; background: #2c2c2c; color: white; border-radius: 50%; font-size: 16px; font-weight: 700; margin-right: 15px; font-style: normal; }
+    .section-content { padding: 32px 28px; }
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; font-weight: 500; color: #444; margin-bottom: 12px; font-size: 16px; letter-spacing: 0.3px; }
+    .form-group select { width: 100%; padding: 14px 18px; border: 2px solid #e0e0e0; border-radius: 4px; font-family: 'Calibri', sans-serif; font-size: 17px; background: #fff; transition: all 0.3s ease; cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 14 14'%3E%3Cpath fill='%232c2c2c' d='M7 10L2 5h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 16px center; padding-right: 45px; color: #2c2c2c; }
+    .form-group select:hover { border-color: #B8E6DC; }
+    .form-group select:focus { outline: none; border-color: #B8E6DC; box-shadow: 0 0 0 3px rgba(184, 230, 220, 0.2); }
+    .form-group select:disabled { background-color: #f5f5f5; cursor: not-allowed; opacity: 0.7; }
+    
+    /* --- STUDENT LIST (UFLI Mode) --- */
+    .student-list-wrapper { margin-top: 8px; }
+    .student-list { border: 2px solid #e8e8e8; border-radius: 4px; overflow: hidden; background: #fafafa; }
+    .student-row { display: grid; grid-template-columns: 1fr auto; align-items: center; padding: 20px 24px; border-bottom: 1px solid #e8e8e8; background: white; transition: background 0.2s ease; }
+    .student-row:last-child { border-bottom: none; }
+    .student-row:hover { background: #fafafa; }
+    .student-row-header { background: #f5f5f5; font-weight: 600; color: #2c2c2c; font-size: 13px; text-transform: uppercase; letter-spacing: 1.2px; padding: 16px 24px; }
+    .student-row-header:hover { background: #f5f5f5; }
+    .student-row label { font-weight: 400; color: #2c2c2c; font-size: 17px; letter-spacing: 0.2px; }
+    
+    /* --- LESSON GROUP (PreK E10 Mode) --- */
+    .lesson-group { background: white; border: 2px solid #e8e8e8; border-radius: 8px; padding: 20px 24px; margin-bottom: 16px; transition: all 0.2s ease; }
+    .lesson-group:hover { border-color: #B8E6DC; }
+    .lesson-name { font-size: 18px; font-weight: 600; color: #2c2c2c; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+    .lesson-icon { font-size: 1.2rem; }
+    .status-buttons { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    
+    /* --- RADIO BUTTONS --- */
+    .radio-group { display: flex; gap: 14px; }
+    .radio-label { display: flex; align-items: center; justify-content: center; width: 50px; height: 50px; border-radius: 4px; border: 2px solid #d0d0d0; cursor: pointer; font-weight: 700; transition: all 0.25s ease; background: white; position: relative; }
+    .radio-label:hover { border-color: #B8E6DC; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .radio-label input { display: none; }
+    .radio-label span { display: block; font-size: 20px; transition: all 0.2s; color: #666; }
+    .radio-label input:checked + span { color: white; }
+    .radio-label:has(input[value="Y"]:checked) { background: #4CAF50; border-color: #4CAF50; box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3); }
+    .radio-label:has(input[value="N"]:checked) { background: #FF6B6B; border-color: #FF6B6B; box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3); }
+    .radio-label:has(input[value="A"]:checked) { background: #FFA726; border-color: #FFA726; box-shadow: 0 4px 12px rgba(255, 167, 38, 0.3); }
+    
+    /* --- STATUS BUTTONS (E10 Style) --- */
+    .status-btn { padding: 14px 8px; min-height: 56px; font-size: 0.95rem; font-weight: 600; border: 2px solid #d0d0d0; border-radius: 8px; background: white; color: #666; cursor: pointer; transition: all 0.25s ease; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+    .status-btn:hover { border-color: #B8E6DC; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .status-btn .icon { font-size: 1.3rem; margin-bottom: 4px; }
+    .status-btn .text { font-size: 0.85rem; line-height: 1.2; }
+    .status-btn.active-y { background: linear-gradient(135deg, #52c41a, #73d13d); border-color: #4CAF50; color: white; box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3); }
+    .status-btn.active-n { background: linear-gradient(135deg, #ff4d4f, #ff7875); border-color: #FF6B6B; color: white; box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3); }
+    .status-btn.active-a { background: linear-gradient(135deg, #faad14, #ffc53d); border-color: #FFA726; color: white; box-shadow: 0 4px 12px rgba(255, 167, 38, 0.3); }
+    
+    /* --- BUTTONS --- */
+    .actions { text-align: center; padding: 32px 20px; }
+    .btn { padding: 16px 50px; border: none; border-radius: 4px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; font-family: 'Calibri', sans-serif; letter-spacing: 1.5px; text-transform: uppercase; }
+    .btn-primary { background: #FF6B6B; color: white; box-shadow: 0 4px 15px rgba(255, 107, 107, 0.25); }
+    .btn-primary:hover:not(:disabled) { background: #ff5252; transform: translateY(-3px); box-shadow: 0 6px 20px rgba(255, 107, 107, 0.35); }
+    .btn-primary:active:not(:disabled) { transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
+    
+    /* --- LOADER & ALERTS --- */
+    .loader { text-align: center; padding: 32px; font-size: 16px; color: #666; font-weight: 400; letter-spacing: 0.5px; }
+    .loader::after { content: ''; display: inline-block; width: 22px; height: 22px; border: 3px solid #e8e8e8; border-top-color: #B8E6DC; border-radius: 50%; animation: spin 0.8s linear infinite; margin-left: 12px; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #alert { padding: 18px 24px; border-radius: 4px; margin-bottom: 30px; font-size: 16px; font-weight: 500; display: none; animation: slideDown 0.3s ease-out; border-left: 5px solid; letter-spacing: 0.3px; }
+    @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+    .alert-danger { background: #FFE5E5; color: #c62828; border-color: #FF6B6B; }
+    .alert-success { background: #E8F5E9; color: #2e7d32; border-color: #4CAF50; }
+    .hidden { display: none; }
+    
+    /* --- CURRENT STUDENT DISPLAY --- */
+    .current-student-display { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px 24px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
+    .current-student-display .student-icon { font-size: 2rem; }
+    .current-student-display .student-info { flex: 1; }
+    .current-student-display .student-name { font-size: 1.25rem; font-weight: 600; }
+    .current-student-display .student-sequence { font-size: 0.9rem; opacity: 0.9; }
+    
+    /* --- RESPONSIVE --- */
+    @media (max-width: 640px) {
+      body { padding: 20px 15px; }
+      .header h1 { font-size: 28px; letter-spacing: 1.5px; }
+      .header .tagline { font-size: 16px; }
+      .section-content { padding: 24px 20px; }
+      .radio-label { width: 46px; height: 46px; }
+      .radio-group { gap: 10px; }
+      .student-row { padding: 18px 20px; }
+      .btn { padding: 14px 40px; font-size: 15px; }
+      .status-buttons { gap: 8px; }
+      .status-btn { padding: 12px 6px; min-height: 50px; }
+    }
+  </style>
+</head>
+<body>
+
+    <div class="header">
+      <h1>Allegiant Lesson Check Data Entry</h1>
+      <div class="tagline">Innovate. Educate. Empower.</div>
+    </div>
+    
+    <div id="alert"></div>
+    
+    <!-- STEP 1: Select Grade -->
+    <div class="form-section">
+      <div class="section-header">
+        <h2><span class="step-number">1</span> Select Grade</h2>
+      </div>
+      <div class="section-content">
+        <div class="form-group">
+          <select id="grade-select" onchange="filterGroupsByGrade()">
+            <option value="">Loading grades...</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2: Select Group -->
+    <div class="form-section">
+      <div class="section-header">
+        <h2><span class="step-number">2</span> Select Your Group</h2>
+      </div>
+      <div class="section-content">
+        <div class="form-group">
+          <select id="group-select" onchange="onGroupSelected()" disabled>
+            <option value="">-- Select a Grade First --</option>
+          </select>
+          <input type="hidden" id="teacher-name" />
+        </div>
+      </div>
+    </div>
+    
+    <div id="loader" class="loader hidden"></div>
+    
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- PREK MODE: Student Selection (Step 3a) -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div id="prek-student-section" class="form-section hidden">
+      <div class="section-header">
+        <h2><span class="step-number">3</span> Select Student</h2>
+      </div>
+      <div class="section-content">
+        <div class="form-group">
+          <select id="prek-student-select" onchange="onPreKStudentSelected()">
+            <option value="">-- Select a Student --</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    
+    <!-- PREK MODE: Sequence Selection (Step 4a) -->
+    <div id="prek-sequence-section" class="form-section hidden">
+      <div class="section-header">
+        <h2><span class="step-number">4</span> Select Sequence</h2>
+      </div>
+      <div class="section-content">
+        <div class="form-group">
+          <select id="prek-sequence-select" onchange="onPreKSequenceSelected()">
+            <option value="">-- Select a Sequence --</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    
+    <!-- PREK MODE: Assessment Area (Step 5a) -->
+    <div id="prek-assessment-section" class="form-section hidden">
+      <div class="section-header">
+        <h2><span class="step-number">5</span> Mark Skills</h2>
+      </div>
+      <div class="section-content">
+        <div id="current-student-display" class="current-student-display hidden">
+          <span class="student-icon">👤</span>
+          <div class="student-info">
+            <div class="student-name" id="display-student-name"></div>
+            <div class="student-sequence" id="display-sequence-name"></div>
+          </div>
+        </div>
+        <div id="prek-assessment-area"></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <!-- UFLI MODE: Lesson Selection (Step 3b) -->
+    <!-- ═══════════════════════════════════════════════════════════ -->
+    <div id="lesson-section" class="form-section hidden">
+      <div class="section-header">
+        <h2><span class="step-number">3</span> Select the Lesson</h2>
+      </div>
+      <div class="section-content">
+        <div class="form-group">
+          <label for="lesson-select">Choose UFLI Lesson:</label>
+          <select id="lesson-select" onchange="showStudents()">
+            <option value="">-- Select a Lesson --</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    
+    <!-- UFLI MODE: Student Status (Step 4b) -->
+    <div id="student-section" class="form-section hidden">
+      <div class="section-header">
+        <h2><span class="step-number">4</span> Mark Student Status</h2>
+      </div>
+      <div class="section-content">
+        <div class="student-list-wrapper">
+          <div class="student-list">
+            <div class="student-row student-row-header">
+              <div>Student Name</div>
+              <div>Status</div>
+            </div>
+            <div id="student-list"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Submit Button (Both Modes) -->
+    <div id="actions-section" class="actions hidden">
+      <button class="btn btn-primary" id="submit-btn" onclick="submitData()">Submit Lesson Data</button>
+    </div>
+
+<script>
+    // ═══════════════════════════════════════════════════════════════
+    // GLOBAL STATE
+    // ═══════════════════════════════════════════════════════════════
+    let groupData = {};           // Stores { lessons: [], students: [] }
+    let allGroups = [];           // All group names
+    let isPreKMode = false;       // Flag for PreK vs UFLI mode
+    
+    // PreK-specific state
+    let prekStudentList = [];     // [{name, group}, ...]
+    let prekSequenceList = [];    // [{sequenceName, letters}, ...]
+    let currentPreKStudent = null;
+    let currentPreKSequence = null;
+    let prekCurrentData = {};     // Current assessment values
+    
+    const GRADE_HIERARCHY = {
+      'PreK': 1, 'KG': 2, 'G1': 3, 'G2': 4, 'G3': 5, 
+      'G4': 6, 'G5': 7, 'G6': 8, 'G7': 9, 'G8': 10
+    };
+    
+    // ═══════════════════════════════════════════════════════════════
+    // INITIALIZATION
+    // ═══════════════════════════════════════════════════════════════
+    window.onload = function() {
+      google.script.run
+        .withSuccessHandler(onGroupsLoaded)
+        .withFailureHandler(onFailure)
+        .getGroupsForForm();
+    };
+
+    function onGroupsLoaded(groupNames) {
+      allGroups = groupNames; 
+      const grades = new Set();
+      groupNames.forEach(name => {
+        if(name) grades.add(name.split(' ')[0]);
+      });
+
+      const sortedGrades = Array.from(grades).sort((a, b) => {
+        const rankA = GRADE_HIERARCHY[a] || 99; 
+        const rankB = GRADE_HIERARCHY[b] || 99;
+        return rankA - rankB;
+      });
+
+      const gradeSelect = document.getElementById('grade-select');
+      gradeSelect.innerHTML = '<option value="">-- Select a Grade --</option>';
+      sortedGrades.forEach(grade => {
+        const option = document.createElement('option');
+        option.value = grade;
+        option.text = grade;
+        gradeSelect.appendChild(option);
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // STEP 1: Grade Selection
+    // ═══════════════════════════════════════════════════════════════
+    function filterGroupsByGrade() {
+      const selectedGrade = document.getElementById('grade-select').value;
+      const groupSelect = document.getElementById('group-select');
+      
+      hideAllSections();
+      groupSelect.innerHTML = '<option value="">-- Select a Group --</option>';
+      
+      if (!selectedGrade) {
+        groupSelect.disabled = true;
+        return;
+      }
+      
+      // Determine mode
+      isPreKMode = (selectedGrade === "PreK");
+
+      let filteredGroups = allGroups.filter(name => name.startsWith(selectedGrade + ' '));
+      const naturalSort = new Intl.Collator(undefined, {numeric: true, sensitivity: 'base'});
+      filteredGroups.sort(naturalSort.compare);
+      
+      filteredGroups.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.text = name;
+        groupSelect.appendChild(option);
+      });
+      
+      groupSelect.disabled = false;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // STEP 2: Group Selection (Branches to PreK or UFLI)
+    // ═══════════════════════════════════════════════════════════════
+    function onGroupSelected() {
+      const groupName = document.getElementById('group-select').value;
+      hideAllSections();
+      
+      if (!groupName) return;
+
+      showLoader('Loading...');
+      
+      // Get teacher name
+      google.script.run
+        .withSuccessHandler(function(teacherName) {
+          document.getElementById('teacher-name').value = teacherName;
+        })
+        .withFailureHandler(onFailure)
+        .getTeacherForGroup(groupName);
+
+      if (isPreKMode) {
+        // PreK Mode: Load students
+        google.script.run
+          .withSuccessHandler(onPreKStudentsLoaded)
+          .withFailureHandler(onFailure)
+          .getPreKStudentsByGroup(groupName);
+      } else {
+        // UFLI Mode: Load lessons and students
+        google.script.run
+          .withSuccessHandler(onLessonsAndStudentsLoaded)
+          .withFailureHandler(onFailure)
+          .getLessonsAndStudentsForGroup(groupName);
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // PREK MODE: Student Selection
+    // ═══════════════════════════════════════════════════════════════
+    function onPreKStudentsLoaded(students) {
+      hideLoader();
+      prekStudentList = students || [];
+      
+      const select = document.getElementById('prek-student-select');
+      select.innerHTML = '<option value="">-- Select a Student --</option>';
+      
+      if (prekStudentList.length === 0) {
+        select.innerHTML = '<option value="">No students found</option>';
+        document.getElementById('prek-student-section').classList.remove('hidden');
+        return;
+      }
+      
+      prekStudentList.forEach(student => {
+        const opt = document.createElement('option');
+        opt.value = student.name;
+        opt.text = student.name;
+        select.appendChild(opt);
+      });
+      
+      document.getElementById('prek-student-section').classList.remove('hidden');
+    }
+    
+    function onPreKStudentSelected() {
+      const studentName = document.getElementById('prek-student-select').value;
+      
+      // Hide downstream sections
+      document.getElementById('prek-sequence-section').classList.add('hidden');
+      document.getElementById('prek-assessment-section').classList.add('hidden');
+      document.getElementById('actions-section').classList.add('hidden');
+      
+      if (!studentName) {
+        currentPreKStudent = null;
+        return;
+      }
+      
+      currentPreKStudent = prekStudentList.find(s => s.name === studentName);
+      
+      // Load sequences for this group
+      showLoader('Loading sequences...');
+      const groupName = document.getElementById('group-select').value;
+      
+      google.script.run
+        .withSuccessHandler(onPreKSequencesLoaded)
+        .withFailureHandler(onFailure)
+        .getPreKSequences(groupName);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // PREK MODE: Sequence Selection
+    // ═══════════════════════════════════════════════════════════════
+    function onPreKSequencesLoaded(sequences) {
+      hideLoader();
+      prekSequenceList = sequences || [];
+      
+      const select = document.getElementById('prek-sequence-select');
+      select.innerHTML = '<option value="">-- Select a Sequence --</option>';
+      
+      if (prekSequenceList.length === 0) {
+        select.innerHTML = '<option value="">No sequences found</option>';
+        document.getElementById('prek-sequence-section').classList.remove('hidden');
+        return;
+      }
+      
+      prekSequenceList.forEach(seq => {
+        const opt = document.createElement('option');
+        opt.value = seq.sequenceName;
+        opt.text = seq.sequenceName + ': ' + (seq.letters || 'N/A');
+        select.appendChild(opt);
+      });
+      
+      document.getElementById('prek-sequence-section').classList.remove('hidden');
+    }
+    
+    function onPreKSequenceSelected() {
+      const sequenceName = document.getElementById('prek-sequence-select').value;
+      
+      // Hide downstream sections
+      document.getElementById('prek-assessment-section').classList.add('hidden');
+      document.getElementById('actions-section').classList.add('hidden');
+      
+      if (!sequenceName || !currentPreKStudent) {
+        currentPreKSequence = null;
+        return;
+      }
+      
+      currentPreKSequence = prekSequenceList.find(s => s.sequenceName === sequenceName);
+      
+      // Load assessment data
+      showLoader('Loading assessment...');
+      const groupName = document.getElementById('group-select').value;
+      
+      google.script.run
+        .withSuccessHandler(onPreKAssessmentDataLoaded)
+        .withFailureHandler(onFailure)
+        .getPreKAssessmentData(currentPreKStudent.name, groupName, sequenceName);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // PREK MODE: Build Assessment Form
+    // ═══════════════════════════════════════════════════════════════
+    function onPreKAssessmentDataLoaded(data) {
+      hideLoader();
+      
+      const { lessons, currentData } = data;
+      prekCurrentData = currentData || {};
+      
+      // Update student display
+      document.getElementById('display-student-name').textContent = currentPreKStudent.name;
+      document.getElementById('display-sequence-name').textContent = 
+        currentPreKSequence.sequenceName + ': ' + currentPreKSequence.letters;
+      document.getElementById('current-student-display').classList.remove('hidden');
+      
+      // Build form
+      const assessmentArea = document.getElementById('prek-assessment-area');
+      assessmentArea.innerHTML = '';
+      
+      if (!lessons || lessons.length === 0) {
+        assessmentArea.innerHTML = '<div style="text-align:center;color:#666;padding:20px;">No lessons found for this sequence.</div>';
+        document.getElementById('prek-assessment-section').classList.remove('hidden');
+        return;
+      }
+      
+      lessons.forEach(lessonName => {
+        assessmentArea.appendChild(createPreKLessonGroup(lessonName, prekCurrentData[lessonName]));
+      });
+      
+      document.getElementById('prek-assessment-section').classList.remove('hidden');
+      document.getElementById('actions-section').classList.remove('hidden');
+    }
+    
+    function createPreKLessonGroup(lessonName, currentValue) {
+      const div = document.createElement('div');
+      div.className = 'lesson-group';
+      div.setAttribute('data-lesson', lessonName);
+      
+      // Icon based on skill type
+      let icon = '📝';
+      if (lessonName.includes('Form')) icon = '✏️';
+      else if (lessonName.includes('Name')) icon = '🔤';
+      else if (lessonName.includes('Sound')) icon = '🔊';
+      
+      div.innerHTML = `
+        <div class="lesson-name">
+          <span class="lesson-icon">${icon}</span>
+          <span>${lessonName}</span>
+        </div>
+        <div class="status-buttons">
+          <button type="button" class="status-btn ${currentValue === 'Y' ? 'active-y' : ''}" 
+                  onclick="togglePreKButton(this, 'Y')" value="Y">
+            <span class="icon">✅</span>
+            <span class="text">Yes</span>
+          </button>
+          <button type="button" class="status-btn ${currentValue === 'N' ? 'active-n' : ''}" 
+                  onclick="togglePreKButton(this, 'N')" value="N">
+            <span class="icon">❌</span>
+            <span class="text">No</span>
+          </button>
+          <button type="button" class="status-btn ${currentValue === 'A' ? 'active-a' : ''}" 
+                  onclick="togglePreKButton(this, 'A')" value="A">
+            <span class="icon">A</span>
+            <span class="text">Absent</span>
+          </button>
+        </div>
+      `;
+      
+      return div;
+    }
+    
+    function togglePreKButton(btnEl, value) {
+      const parent = btnEl.parentElement;
+      const buttons = parent.querySelectorAll('button');
+      const activeClass = 'active-' + value.toLowerCase();
+      
+      if (btnEl.classList.contains(activeClass)) {
+        btnEl.classList.remove(activeClass);
+      } else {
+        buttons.forEach(b => b.className = 'status-btn');
+        btnEl.classList.add(activeClass);
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // UFLI MODE: Lessons and Students
+    // ═══════════════════════════════════════════════════════════════
+    function onLessonsAndStudentsLoaded(data) {
+      if (data.error) {
+        onFailure(new Error(data.error));
+        return;
+      }
+      groupData = data;
+      hideLoader();
+      
+      // Populate lesson dropdown
+      const lessonSelect = document.getElementById('lesson-select');
+      lessonSelect.innerHTML = '<option value="">-- Select a Lesson --</option>';
+      
+      data.lessons.forEach(lesson => {
+        const option = document.createElement('option');
+        option.value = lesson.name;
+        option.text = lesson.name;
+        lessonSelect.appendChild(option);
+      });
+      
+      document.getElementById('lesson-section').classList.remove('hidden');
+    }
+    
+    function showStudents() {
+      const lessonName = document.getElementById('lesson-select').value;
+      
+      if (!lessonName) {
+        document.getElementById('student-section').classList.add('hidden');
+        document.getElementById('actions-section').classList.add('hidden');
+        return;
+      }
+
+      const studentList = document.getElementById('student-list');
+      studentList.innerHTML = '';
+
+      groupData.students.forEach((studentName, index) => {
+        const row = document.createElement('div');
+        row.className = 'student-row';
+        row.dataset.studentName = studentName;
+        const radioName = `student_${index}`;
+        
+        row.innerHTML = `
+          <label>${studentName}</label>
+          <div class="radio-group">
+            <label class="radio-label">
+              <input type="radio" name="${radioName}" value="Y">
+              <span class="y">Y</span>
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="${radioName}" value="N">
+              <span class="n">N</span>
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="${radioName}" value="A">
+              <span class="a">A</span>
+            </label>
+          </div>
+        `;
+        studentList.appendChild(row);
+      });
+      
+      document.getElementById('student-section').classList.remove('hidden');
+      document.getElementById('actions-section').classList.remove('hidden');
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // SUBMIT DATA (Both Modes)
+    // ═══════════════════════════════════════════════════════════════
+    function submitData() {
+      if (isPreKMode) {
+        submitPreKData();
+      } else {
+        submitUFLIData();
+      }
+    }
+    
+    function submitPreKData() {
+      if (!currentPreKStudent || !currentPreKSequence) {
+        showAlert('Please select a student and sequence.', 'danger');
+        return;
+      }
+      
+      // Collect assessments
+      const assessments = {};
+      document.querySelectorAll('#prek-assessment-area .lesson-group').forEach(group => {
+        const lessonName = group.getAttribute('data-lesson');
+        const activeBtn = group.querySelector('.status-btn[class*="active-"]');
+        assessments[lessonName] = activeBtn ? activeBtn.value : '';
+      });
+      
+      setLoading(true);
+      
+      const formData = {
+        studentName: currentPreKStudent.name,
+        groupName: document.getElementById('group-select').value,
+        assessments: assessments
+      };
+      
+      google.script.run
+        .withSuccessHandler(onPreKSaveSuccess)
+        .withFailureHandler(onFailure)
+        .savePreKAssessmentData(formData);
+    }
+    
+    function submitUFLIData() {
+      const studentStatuses = [];
+      const studentRows = document.querySelectorAll('#student-list .student-row');
+      let allMarked = true;
+      
+      studentRows.forEach(row => {
+        const name = row.dataset.studentName;
+        const checked = row.querySelector('input:checked');
+        if (checked) {
+          studentStatuses.push({ name: name, status: checked.value });
+        } else {
+          allMarked = false;
+        }
+      });
+      
+      if (!allMarked) {
+        showAlert('Please mark a status (Y, N, or A) for every student.', 'danger');
+        return;
+      }
+      
+      setLoading(true);
+      
+      const formData = {
+        groupName: document.getElementById('group-select').value,
+        lessonName: document.getElementById('lesson-select').value,
+        teacherName: document.getElementById('teacher-name').value,
+        studentStatuses: studentStatuses
+      };
+      
+      google.script.run
+        .withSuccessHandler(onSaveSuccess)
+        .withFailureHandler(onFailure)
+        .saveLessonData(formData);
+    }
+    
+    function onPreKSaveSuccess(response) {
+      setLoading(false);
+      if (response.success) {
+        showAlert(response.message, 'success');
+        // Reload assessment to show updated values
+        onPreKSequenceSelected();
+      } else {
+        showAlert(response.message, 'danger');
+      }
+    }
+    
+    function onSaveSuccess(response) {
+      if (response.success) {
+        showAlert(response.message, 'success');
+        setLoading(false);
+        document.getElementById('lesson-select').value = '';
+        document.getElementById('student-section').classList.add('hidden');
+        document.getElementById('actions-section').classList.add('hidden');
+      } else {
+        onFailure(new Error(response.message));
+      }
+    }
+    
+    function onFailure(error) {
+      setLoading(false);
+      showAlert(error.message, 'danger');
+    }
+    
+    // ═══════════════════════════════════════════════════════════════
+    // UI HELPERS
+    // ═══════════════════════════════════════════════════════════════
+    function showLoader(message) {
+      const loader = document.getElementById('loader');
+      loader.innerText = message || 'Loading...';
+      loader.classList.remove('hidden');
+    }
+    
+    function hideLoader() {
+      document.getElementById('loader').classList.add('hidden');
+    }
+    
+    function hideAllSections() {
+      // PreK sections
+      document.getElementById('prek-student-section').classList.add('hidden');
+      document.getElementById('prek-sequence-section').classList.add('hidden');
+      document.getElementById('prek-assessment-section').classList.add('hidden');
+      document.getElementById('current-student-display').classList.add('hidden');
+      document.getElementById('prek-assessment-area').innerHTML = '';
+      
+      // UFLI sections
+      document.getElementById('lesson-section').classList.add('hidden');
+      document.getElementById('student-section').classList.add('hidden');
+      
+      // Shared
+      document.getElementById('actions-section').classList.add('hidden');
+      hideLoader();
+      clearAlert();
+      
+      // Reset state
+      currentPreKStudent = null;
+      currentPreKSequence = null;
+      prekStudentList = [];
+      prekSequenceList = [];
+    }
+    
+    function setLoading(isLoading) {
+      document.getElementById('submit-btn').disabled = isLoading;
+      document.getElementById('submit-btn').innerText = isLoading ? 'Submitting...' : 'Submit Lesson Data';
+    }
+
+    function showAlert(message, type) {
+      const alertBox = document.getElementById('alert');
+      alertBox.className = `alert alert-${type}`;
+      alertBox.innerText = message;
+      alertBox.style.display = 'block';
+      alertBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    
+    function clearAlert() {
+      document.getElementById('alert').style.display = 'none';
+    }
+  </script>
+</body>
+</html>
