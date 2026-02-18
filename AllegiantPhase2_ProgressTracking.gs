@@ -231,19 +231,6 @@ function getAllegiantConfig() {
   };
 }
 
-function getOrCreateSheet(ss, sheetName, clearIfExists = true) {
-  let sheet = ss.getSheetByName(sheetName);
-  if (sheet) {
-    if (clearIfExists) {
-      sheet.clear();
-      sheet.clearConditionalFormatRules();
-    }
-  } else {
-    sheet = ss.insertSheet(sheetName);
-  }
-  return sheet;
-}
-
 function createMergedHeader(sheet, row, text, width, options = {}) {
   const values = [text];
   for (let i = 1; i < width; i++) values.push("");
