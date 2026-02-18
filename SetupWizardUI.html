@@ -1,0 +1,1739 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Calibri', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #ADD8E6 0%, #87CEEB 100%);
+      padding: 20px;
+    }
+    
+    .wizard-container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      overflow: hidden;
+    }
+    
+    .wizard-header {
+      background: linear-gradient(135deg, #4A90E2 0%, #357ABD 100%);
+      color: white;
+      padding: 30px;
+      text-align: center;
+    }
+    
+    .wizard-header h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+    
+    .wizard-header p {
+      font-size: 14px;
+      opacity: 0.9;
+    }
+    
+    .progress-bar {
+      background: white;
+      height: 8px;
+      margin-top: 20px;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    
+    .progress-fill {
+      background: #90EE90;
+      height: 100%;
+      transition: width 0.3s ease;
+    }
+    
+    .step-indicator {
+      display: flex;
+      justify-content: space-between;
+      padding: 20px 30px;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e0e0e0;
+      flex-wrap: wrap;
+    }
+    
+    .step {
+      flex: 1;
+      text-align: center;
+      position: relative;
+      min-width: 80px;
+      margin-bottom: 10px;
+    }
+    
+    .step-number {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #d0d0d0;
+      color: white;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+    
+    .step.active .step-number {
+      background: #4A90E2;
+    }
+    
+    .step.completed .step-number {
+      background: #90EE90;
+    }
+    
+    .step-label {
+      font-size: 11px;
+      color: #666;
+    }
+    
+    .step.active .step-label {
+      color: #4A90E2;
+      font-weight: bold;
+    }
+    
+    .wizard-content {
+      padding: 40px;
+      min-height: 400px;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    
+    .step-content {
+      display: none;
+    }
+    
+    .step-content.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .step-title {
+      font-size: 24px;
+      color: #333;
+      margin-bottom: 12px;
+    }
+    
+    .step-description {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 30px;
+      line-height: 1.6;
+    }
+    
+    .form-group {
+      margin-bottom: 24px;
+    }
+    
+    label {
+      display: block;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    
+    input[type="text"],
+    input[type="number"],
+    input[type="file"],
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #e0e0e0;
+      border-radius: 6px;
+      font-family: 'Calibri', sans-serif;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+    
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    textarea:focus {
+      outline: none;
+      border-color: #4A90E2;
+    }
+    
+    .checkbox-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 12px;
+    }
+    
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      padding: 12px;
+      background: #f8f9fa;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .checkbox-item:hover {
+      background: #e9ecef;
+    }
+    
+    .checkbox-item input[type="checkbox"] {
+      margin-right: 10px;
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
+    
+    .checkbox-item label {
+      margin: 0;
+      cursor: pointer;
+      font-weight: normal;
+    }
+    
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 13px;
+    }
+    
+    .data-table th {
+      background: #4A90E2;
+      color: white;
+      padding: 10px;
+      text-align: left;
+      font-weight: 600;
+    }
+    
+    .data-table td {
+      padding: 10px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .data-table tbody tr:hover {
+      background: #f8f9fa;
+    }
+    
+    .import-area {
+      border: 2px dashed #4A90E2;
+      border-radius: 8px;
+      padding: 30px;
+      text-align: center;
+      background: #f8f9fa;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .import-area:hover {
+      background: #e9ecef;
+    }
+    
+    .group-config-section {
+      margin-bottom: 24px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+    
+    .group-config-row {
+      display: grid;
+      grid-template-columns: 150px 100px 1fr;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    
+    .recommendation {
+      font-size: 13px;
+      color: #666;
+      font-style: italic;
+    }
+    
+    .recommendation.highlight {
+      color: #4A90E2;
+      font-weight: 600;
+    }
+    
+    .radio-group {
+      display: flex;
+      gap: 20px;
+      margin-top: 12px;
+    }
+    
+    .radio-item {
+      display: flex;
+      align-items: center;
+    }
+    
+    .radio-item input[type="radio"] {
+      margin-right: 8px;
+      width: 18px;
+      height: 18px;
+    }
+    
+    .wizard-actions {
+      display: flex;
+      justify-content: space-between;
+      padding: 20px 40px;
+      background: #f8f9fa;
+      border-top: 1px solid #e0e0e0;
+    }
+    
+    .btn {
+      padding: 12px 30px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Calibri', sans-serif;
+    }
+    
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+    
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+    
+    .btn-primary {
+      background: #4A90E2;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #357ABD;
+    }
+    
+    .btn-success {
+      background: #28a745;
+      color: white;
+    }
+    
+    .btn-success:hover {
+      background: #218838;
+    }
+    
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    
+    .alert {
+      padding: 12px 16px;
+      border-radius: 6px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+    
+    .alert-info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+    
+    .alert-warning {
+      background: #fff3cd;
+      color: #856404;
+      border: 1px solid #ffeeba;
+    }
+    
+    .alert-danger {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    
+    .alert-success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    
+    .summary-section {
+      margin-bottom: 24px;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border-left: 4px solid #4A90E2;
+    }
+    
+    .summary-section h3 {
+      color: #4A90E2;
+      margin-bottom: 12px;
+      font-size: 18px;
+    }
+    
+    .summary-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .summary-item:last-child {
+      border-bottom: none;
+    }
+    
+    .summary-label {
+      font-weight: 600;
+      color: #666;
+    }
+    
+    .summary-value {
+      color: #333;
+    }
+    
+    .feature-item {
+      display: flex;
+      align-items: flex-start;
+      padding: 16px;
+      background: #f8f9fa;
+      border-radius: 6px;
+      margin-bottom: 12px;
+    }
+    
+    .feature-item input[type="checkbox"] {
+      margin-right: 12px;
+      margin-top: 2px;
+      width: 20px;
+      height: 20px;
+    }
+    
+    .feature-info {
+      flex: 1;
+    }
+    
+    .feature-name {
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 4px;
+    }
+    
+    .feature-description {
+      font-size: 13px;
+      color: #666;
+    }
+    
+    .hidden {
+      display: none !important;
+    }
+    
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #4A90E2;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .mixed-grade-input {
+      margin-top: 16px;
+      padding: 16px;
+      background: #fff;
+      border-radius: 6px;
+      border: 2px solid #4A90E2;
+    }
+    
+    .small-text {
+      font-size: 12px;
+      color: #666;
+      font-style: italic;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wizard-container">
+    <div class="wizard-header">
+      <h1>🎓 UFLI Master System Setup</h1>
+      <p>Complete guided setup for your school's literacy intervention program</p>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+      </div>
+    </div>
+    
+    <div class="step-indicator">
+      <div class="step active" data-step="1">
+        <div class="step-number">1</div>
+        <div class="step-label">School</div>
+      </div>
+      <div class="step" data-step="2">
+        <div class="step-number">2</div>
+        <div class="step-label">Grades</div>
+      </div>
+      <div class="step" data-step="3">
+        <div class="step-number">3</div>
+        <div class="step-label">Students</div>
+      </div>
+      <div class="step" data-step="4">
+        <div class="step-number">4</div>
+        <div class="step-label">Teachers</div>
+      </div>
+      <div class="step" data-step="5">
+        <div class="step-number">5</div>
+        <div class="step-label">Groups</div>
+      </div>
+      <div class="step" data-step="6">
+        <div class="step-number">6</div>
+        <div class="step-label">Features</div>
+      </div>
+      <div class="step" data-step="7">
+        <div class="step-number">7</div>
+        <div class="step-label">Branding</div>
+      </div>
+      <div class="step" data-step="8">
+        <div class="step-number">8</div>
+        <div class="step-label">Layout</div>
+      </div>
+    </div>
+    
+    <div class="wizard-content">
+      <div id="alertContainer"></div>
+      
+      <div class="step-content active" data-step="1">
+        <h2 class="step-title">Welcome! Let's Get Started</h2>
+        <p class="step-description">
+          Tell us about your school. This information will appear on all reports and dashboards.
+        </p>
+
+        <div class="form-group">
+          <label for="schoolName">School Name *</label>
+          <input type="text" id="schoolName" placeholder="Enter your school name" />
+          <div class="small-text">Example: Lincoln Elementary School</div>
+        </div>
+
+        <div class="alert alert-info">
+          <strong>💡 Tip:</strong> This name will appear on all reports and dashboards.
+        </div>
+      </div>
+      
+      <div class="step-content" data-step="2">
+        <h2 class="step-title">Grade Levels Served</h2>
+        <p class="step-description">
+          Select all grade levels that receive UFLI intervention at your school.
+        </p>
+        
+        <div class="form-group">
+          <label>Select Grade Levels *</label>
+          <div class="checkbox-grid" id="gradesCheckboxes">
+            </div>
+        </div>
+        
+        <div class="alert alert-info">
+          <strong>💡 Tip:</strong> Only select grades that are currently active in your intervention program.
+        </div>
+      </div>
+      
+      <div class="step-content" data-step="3">
+        <h2 class="step-title">Import Student Roster</h2>
+        <p class="step-description">
+          Upload your student roster. Required columns: Student Name, Grade, Teacher. (Group column is optional and will be assigned later)
+        </p>
+        
+        <div class="alert alert-warning">
+          <strong>⚠️ Important:</strong> Grades must match those selected in Step 2.
+        </div>
+        
+        <div class="form-group">
+          <label>Required Format:</label>
+          <table class="data-table" style="margin-bottom: 20px;">
+            <thead>
+              <tr>
+                <th>Student Name</th>
+                <th>Grade</th>
+                <th>Teacher</th>
+                <th>Group (Optional)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>John Smith</td>
+                <td>G1</td>
+                <td>Ms. Johnson</td>
+                <td></td>
+              </tr>
+              <tr>
+                <td>Maria Garcia</td>
+                <td>G2</td>
+                <td>Mr. Wilson</td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <div class="import-area" onclick="document.getElementById('studentFile').click()">
+            <div style="font-size: 48px; margin-bottom: 12px;">📄</div>
+            <div style="font-weight: 600; margin-bottom: 8px;">Click to select spreadsheet file</div>
+            <div style="font-size: 13px; color: #666;">Supports CSV, TSV, or copy/paste from Excel</div>
+          </div>
+          <input type="file" id="studentFile" accept=".csv,.tsv,.txt" style="display: none;" onchange="handleStudentImport(event)" />
+          
+          <div style="text-align: center; margin: 20px 0; color: #666;">— OR —</div>
+          
+          <label>Paste data from spreadsheet:</label>
+          <textarea id="studentPaste" rows="8" placeholder="Paste your student roster here (including headers)"></textarea>
+          <button class="btn btn-secondary" onclick="processStudentPaste()" style="margin-top: 12px;">Process Pasted Data</button>
+        </div>
+        
+        <div id="studentPreview" class="hidden" style="margin-top: 24px;">
+          <label>Preview (first 5 students):</label>
+          <div id="studentPreviewTable"></div>
+          <div id="studentCount" style="margin-top: 12px; font-weight: 600; color: #4A90E2;"></div>
+        </div>
+      </div>
+      
+      <div class="step-content" data-step="4">
+        <h2 class="step-title">Import Teacher Roster</h2>
+        <p class="step-description">
+          Upload your teacher roster with grade assignments. Teachers may be assigned to multiple grades (separate with commas).
+        </p>
+        
+        <div class="alert alert-warning">
+          <strong>⚠️ Important:</strong> Grade assignments must match grades selected in Step 2.
+        </div>
+        
+        <div class="form-group">
+          <label>Required Format:</label>
+          <table class="data-table" style="margin-bottom: 20px;">
+            <thead>
+              <tr>
+                <th>Teacher Name</th>
+                <th>Grade Assignment(s)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Ms. Johnson</td>
+                <td>G1</td>
+              </tr>
+              <tr>
+                <td>Mr. Wilson</td>
+                <td>G2, G3</td>
+              </tr>
+            </tbody>
+          </table>
+          
+          <div class="import-area" onclick="document.getElementById('teacherFile').click()">
+            <div style="font-size: 48px; margin-bottom: 12px;">👨‍🏫</div>
+            <div style="font-weight: 600; margin-bottom: 8px;">Click to select spreadsheet file</div>
+            <div style="font-size: 13px; color: #666;">Supports CSV, TSV, or copy/paste from Excel</div>
+          </div>
+          <input type="file" id="teacherFile" accept=".csv,.tsv,.txt" style="display: none;" onchange="handleTeacherImport(event)" />
+          
+          <div style="text-align: center; margin: 20px 0; color: #666;">— OR —</div>
+          
+          <label>Paste data from spreadsheet:</label>
+          <textarea id="teacherPaste" rows="8" placeholder="Paste your teacher roster here (including headers)"></textarea>
+          <button class="btn btn-secondary" onclick="processTeacherPaste()" style="margin-top: 12px;">Process Pasted Data</button>
+        </div>
+        
+        <div id="teacherPreview" class="hidden" style="margin-top: 24px;">
+          <label>Preview:</label>
+          <div id="teacherPreviewTable"></div>
+          <div id="teacherCount" style="margin-top: 12px; font-weight: 600; color: #4A90E2;"></div>
+        </div>
+      </div>
+      
+      <div class="step-content" data-step="5">
+        <h2 class="step-title">Configure Group Structure</h2>
+        <p class="step-description">
+          Based on your student roster, we'll recommend the optimal number of intervention groups per grade.
+        </p>
+        
+        <div class="form-group">
+          <label>Number of Groups per Grade Level *</label>
+          <div class="small-text" style="margin-bottom: 12px;">We recommend 6-10 students per group for optimal instruction.</div>
+          <div id="groupsPerGrade">
+            </div>
+        </div>
+        
+        <div class="form-group">
+          <label>Grade Mixing Configuration</label>
+          <div class="radio-group">
+            <div class="radio-item">
+              <input type="radio" id="mixNo" name="gradeMixing" value="no" checked onchange="toggleMixedGradeInput()" />
+              <label for="mixNo">Keep grades separate</label>
+            </div>
+            <div class="radio-item">
+              <input type="radio" id="mixYes" name="gradeMixing" value="yes" onchange="toggleMixedGradeInput()" />
+              <label for="mixYes">Allow mixed-grade groups</label>
+            </div>
+          </div>
+          
+          <div id="mixedGradeInput" class="mixed-grade-input hidden">
+            <label>Define Mixed-Grade Combinations</label>
+            <div class="small-text" style="margin-bottom: 12px;">
+              Enter combinations separated by commas. Example: KG+G1, G2+G3, G6+G7+G8
+            </div>
+            <input type="text" id="mixedCombinations" placeholder="e.g., KG+G1, G2+G3" />
+          </div>
+        </div>
+        
+        <div class="alert alert-info">
+          <strong>💡 Note:</strong> Students can be assigned to groups later in the Student Roster sheet. Group sheets will show "(No students assigned)" for empty groups.
+        </div>
+      </div>
+      
+      <div class="step-content" data-step="6">
+        <h2 class="step-title">Select Additional Features</h2>
+        <p class="step-description">
+          Choose optional features to enable. These can be changed later in System Settings.
+        </p>
+        
+        <div class="form-group">
+          <label>Available Features</label>
+          <div id="featuresList">
+            </div>
+        </div>
+        
+        <div class="alert alert-info">
+          <strong>💡 Note:</strong> Core progress tracking and reporting are always included.
+        </div>
+      </div>
+      
+      <div class="step-content" data-step="7">
+        <h2 class="step-title">School Branding</h2>
+        <p class="step-description">
+          Customize the look and feel of your system with your school's colors and logo (all optional).
+        </p>
+        
+        <div class="form-group">
+          <label style="font-size: 16px; margin-bottom: 16px;">Color Scheme</label>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+              <label for="primaryColor">Primary Color</label>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <input type="color" id="primaryColor" value="#00838F" style="width: 60px; height: 40px; padding: 2px; cursor: pointer;" />
+                <input type="text" id="primaryColorHex" value="#00838F" style="width: 100px;" onchange="syncColorFromHex('primary')" />
+              </div>
+              <div class="small-text">Main header background color</div>
+            </div>
+
+            <div>
+              <label for="secondaryColor">Secondary/Accent Color</label>
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <input type="color" id="secondaryColor" value="#FFB300" style="width: 60px; height: 40px; padding: 2px; cursor: pointer;" />
+                <input type="text" id="secondaryColorHex" value="#FFB300" style="width: 100px;" onchange="syncColorFromHex('secondary')" />
+              </div>
+              <div class="small-text">Accent and highlight color</div>
+            </div>
+          </div>
+
+          <div style="margin-top: 20px;">
+            <label for="logoFileId">Logo (Google Drive File ID)</label>
+            <input type="text" id="logoFileId" placeholder="Optional: Paste Google Drive file ID" style="font-family: monospace;" />
+            <div class="small-text">
+              <strong>How to get File ID:</strong> Upload logo to Google Drive → Get link → Copy the alphanumeric ID from the URL<br>
+              Example: https://drive.google.com/file/d/<strong>1ABC...XYZ</strong>/view → Use "1ABC...XYZ"
+            </div>
+          </div>
+        </div>
+        
+        <div class="alert alert-info">
+          <strong>💡 Tip:</strong> Use your school's official colors for consistent branding across all sheets and reports.
+        </div>
+      </div>
+      
+      <div class="step-content" data-step="8">
+        <h2 class="step-title">Sheet Layout Configuration</h2>
+        <p class="step-description">
+          Customize how your group tracking sheets are structured and displayed.
+        </p>
+        
+        <div class="form-group">
+          <label for="headerRowCount">Header Row Count</label>
+          <select id="headerRowCount">
+            <option value="3">3 rows (Minimal)</option>
+            <option value="4">4 rows (Compact)</option>
+            <option value="5" selected>5 rows (Standard)</option>
+            <option value="6">6 rows (Expanded)</option>
+            <option value="7">7 rows (Detailed)</option>
+            <option value="8">8 rows (Maximum)</option>
+            <option value="9">9 rows (Extra Space)</option>
+            <option value="10">10 rows (Very Spacious)</option>
+          </select>
+          <div class="small-text">Number of header rows at the top of each group sheet. More rows allow for additional metadata or spacing.</div>
+        </div>
+        
+        <div class="form-group">
+          <label for="groupFormat">Group Format Style</label>
+          <select id="groupFormat">
+            <option value="standard" selected>Standard - Default balanced layout</option>
+            <option value="condensed">Condensed - Compact view for more data on screen</option>
+            <option value="expanded">Expanded - Spacious layout with extra white space</option>
+            <option value="sankofa">Sankofa - Specialized format for coaching-focused tracking</option>
+          </select>
+          <div class="small-text">Layout style affects column widths, spacing, and visual presentation of group sheets.</div>
+        </div>
+        
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="includeSCClassroom" style="margin-right: 8px;" />
+            Include SC Classroom Column
+          </label>
+          <div class="small-text">Add a column to track SC Classroom assignment for each student.</div>
+        </div>
+        
+        <div class="alert alert-info">
+          <strong>💡 Tip:</strong> Start with default settings. You can manually adjust individual sheets after setup if needed.
+        </div>
+      </div>
+      
+      <div class="step-content" data-step="9">
+        <h2 class="step-title">Review Configuration</h2>
+        <p class="step-description">
+          Please review your settings before completing setup. You can go back to make changes if needed.
+        </p>
+        
+        <div id="confirmationSummary">
+          </div>
+        
+        <div class="alert alert-success">
+          <strong>✅ Ready to Complete Setup</strong><br>
+          Click "Complete Setup" below to create your UFLI Master System. This will generate all necessary sheets and configure your workbook.
+        </div>
+      </div>
+    </div>
+    
+    <div class="wizard-actions">
+      <button class="btn btn-secondary" id="prevBtn" onclick="previousStep()" style="visibility: hidden;">
+        ← Previous
+      </button>
+      <button class="btn btn-primary" id="nextBtn" onclick="nextStep()">
+        Next →
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // Global state
+    let currentStep = 1;
+    const totalSteps = 8;
+    const stepOrder = [1, 2, 3, 4, 5, 6, 7, 8, 9]; // 9 is the confirmation step
+    const wizardData = {
+      schoolName: '',
+      gradesServed: [],
+      students: [],
+      teachers: [],
+      groups: [],
+      gradeMixing: {
+        allowed: false,
+        combinations: []
+      },
+      features: {},
+      groupRecommendations: {},
+      branding: {
+        primaryColor: '#00838F',
+        secondaryColor: '#FFB300',
+        logoFileId: ''
+      },
+      sheetLayout: {
+        headerRowCount: 5,
+        groupFormat: 'standard',
+        includeSCClassroom: false
+      }
+    };
+    
+    // Constants for dynamic content
+    const GRADE_OPTIONS = [
+      { value: "PreK", label: "Pre-K" },
+      { value: "KG", label: "Kindergarten" },
+      { value: "G1", label: "1st Grade" },
+      { value: "G2", label: "2nd Grade" },
+      { value: "G3", label: "3rd Grade" },
+      { value: "G4", label: "4th Grade" },
+      { value: "G5", label: "5th Grade" },
+      { value: "G6", label: "6th Grade" },
+      { value: "G7", label: "7th Grade" },
+      { value: "G8", label: "8th Grade" }
+    ];
+
+    const FEATURE_OPTIONS = [
+      // === ADVANCED MODULES (Opt-in) ===
+      { 
+        id: "coachingDashboard", 
+        name: "Coaching Dashboard", 
+        description: "Weekly coaching-focused progress visualization with AG% growth tracking by skill section",
+        category: "advanced"
+      },
+      { 
+        id: "tutoring", 
+        name: "Tutoring System", 
+        description: "Dual-track progress system separating whole-group instruction from 1-on-1/small group tutoring",
+        category: "advanced"
+      },
+      { 
+        id: "grantReporting", 
+        name: "Grant Reporting", 
+        description: "Specialized reports for grant compliance and funder-specific outcomes tracking",
+        category: "advanced"
+      },
+      { 
+        id: "growthHighlights", 
+        name: "Growth Highlights", 
+        description: "Visual growth indicators highlighting improvements in AG% and section mastery",
+        category: "advanced"
+      },
+      { 
+        id: "adminImport", 
+        name: "Admin Import", 
+        description: "Bulk student/group data import with validation and exception handling",
+        category: "advanced"
+      },
+      { 
+        id: "unenrollmentAutomation", 
+        name: "Unenrollment Automation", 
+        description: "Automatic archiving of inactive students with data preservation",
+        category: "advanced"
+      },
+      
+      // === STANDARD FEATURES (Recommended) ===
+      { 
+        id: "pacingSheets", 
+        name: "Pacing Sheets", 
+        description: "Monitor group progress against expected lesson completion schedule",
+        category: "standard"
+      },
+      { 
+        id: "parentReports", 
+        name: "Parent Reports", 
+        description: "Generate parent-friendly, jargon-free progress reports",
+        category: "standard"
+      },
+      { 
+        id: "exceptionReports", 
+        name: "Exception Reports", 
+        description: "Identify students below benchmarks or showing regression",
+        category: "standard"
+      },
+      
+      // === INTEGRATIONS (Optional) ===
+      { 
+        id: "mondayIntegration", 
+        name: "Monday.com Integration", 
+        description: "Export progress data to Monday.com project management boards",
+        category: "integration"
+      }
+    ];
+
+    // Initialize wizard
+    window.onload = function() {
+      initializeGradeCheckboxes();
+      initializeFeaturesList();
+      initializeBrandingInputs();
+      loadExistingData();
+    };
+
+    function initializeBrandingInputs() {
+      // Sync color picker with hex input
+      document.getElementById('primaryColor').addEventListener('input', function() {
+        document.getElementById('primaryColorHex').value = this.value.toUpperCase();
+        wizardData.branding.primaryColor = this.value.toUpperCase();
+      });
+      document.getElementById('secondaryColor').addEventListener('input', function() {
+        document.getElementById('secondaryColorHex').value = this.value.toUpperCase();
+        wizardData.branding.secondaryColor = this.value.toUpperCase();
+      });
+    }
+
+    function syncColorFromHex(type) {
+      const hexInput = document.getElementById(type + 'ColorHex');
+      const colorPicker = document.getElementById(type + 'Color');
+      let value = hexInput.value.trim();
+
+      // Add # if missing
+      if (value && !value.startsWith('#')) {
+        value = '#' + value;
+      }
+
+      // Validate hex format
+      if (/^#[0-9A-Fa-f]{6}$/.test(value)) {
+        colorPicker.value = value;
+        hexInput.value = value.toUpperCase();
+        if (type === 'primary') {
+          wizardData.branding.primaryColor = value.toUpperCase();
+        } else {
+          wizardData.branding.secondaryColor = value.toUpperCase();
+        }
+      }
+    }
+    
+    function initializeGradeCheckboxes() {
+      const container = document.getElementById('gradesCheckboxes');
+      
+      GRADE_OPTIONS.forEach(grade => {
+        const div = document.createElement('div');
+        div.className = 'checkbox-item';
+        div.innerHTML = `
+          <input type="checkbox" id="grade_${grade.value}" value="${grade.value}" onchange="updateGradesServed()" />
+          <label for="grade_${grade.value}">${grade.label}</label>
+        `;
+        container.appendChild(div);
+      });
+    }
+    
+    function initializeFeaturesList() {
+      const container = document.getElementById('featuresList');
+      
+      // Group features by category
+      const advanced = FEATURE_OPTIONS.filter(f => f.category === 'advanced');
+      const standard = FEATURE_OPTIONS.filter(f => f.category === 'standard');
+      const integration = FEATURE_OPTIONS.filter(f => f.category === 'integration');
+      
+      // Add Advanced Modules section
+      if (advanced.length > 0) {
+        const categoryHeader = document.createElement('div');
+        categoryHeader.style.cssText = 'font-weight: 600; font-size: 14px; margin-top: 16px; margin-bottom: 8px; color: #4A90E2;';
+        categoryHeader.textContent = '🚀 Advanced Modules';
+        container.appendChild(categoryHeader);
+        
+        advanced.forEach(feature => {
+          const div = document.createElement('div');
+          div.className = 'feature-item';
+          div.innerHTML = `
+            <input type="checkbox" id="feature_${feature.id}" value="${feature.id}" onchange="updateFeatures()" />
+            <div class="feature-info">
+              <div class="feature-name">${feature.name}</div>
+              <div class="feature-description">${feature.description}</div>
+            </div>
+          `;
+          container.appendChild(div);
+        });
+      }
+      
+      // Add Standard Features section
+      if (standard.length > 0) {
+        const categoryHeader = document.createElement('div');
+        categoryHeader.style.cssText = 'font-weight: 600; font-size: 14px; margin-top: 20px; margin-bottom: 8px; color: #2E7D32;';
+        categoryHeader.textContent = '✓ Standard Features (Recommended)';
+        container.appendChild(categoryHeader);
+        
+        standard.forEach(feature => {
+          const div = document.createElement('div');
+          div.className = 'feature-item';
+          div.innerHTML = `
+            <input type="checkbox" id="feature_${feature.id}" value="${feature.id}" onchange="updateFeatures()" />
+            <div class="feature-info">
+              <div class="feature-name">${feature.name}</div>
+              <div class="feature-description">${feature.description}</div>
+            </div>
+          `;
+          container.appendChild(div);
+        });
+      }
+      
+      // Add Integration section
+      if (integration.length > 0) {
+        const categoryHeader = document.createElement('div');
+        categoryHeader.style.cssText = 'font-weight: 600; font-size: 14px; margin-top: 20px; margin-bottom: 8px; color: #F57C00;';
+        categoryHeader.textContent = '🔗 Integrations';
+        container.appendChild(categoryHeader);
+        
+        integration.forEach(feature => {
+          const div = document.createElement('div');
+          div.className = 'feature-item';
+          div.innerHTML = `
+            <input type="checkbox" id="feature_${feature.id}" value="${feature.id}" onchange="updateFeatures()" />
+            <div class="feature-info">
+              <div class="feature-name">${feature.name}</div>
+              <div class="feature-description">${feature.description}</div>
+            </div>
+          `;
+          container.appendChild(div);
+        });
+      }
+    }
+    
+    function loadExistingData() {
+      google.script.run
+        .withSuccessHandler(function(data) {
+          if (data.schoolName) {
+            document.getElementById('schoolName').value = data.schoolName;
+            wizardData.schoolName = data.schoolName;
+          }
+          
+          if (data.gradesServed && data.gradesServed.length > 0) {
+            data.gradesServed.forEach(grade => {
+              const checkbox = document.getElementById('grade_' + grade);
+              if (checkbox) {
+                checkbox.checked = true;
+              }
+            });
+            updateGradesServed(); // Sync wizardData
+          }
+          
+          if (data.students) {
+            wizardData.students = data.students;
+            if (data.students.length > 0) {
+              showStudentPreview(data.students);
+            }
+          }
+          
+          if (data.teachers) {
+            wizardData.teachers = data.teachers;
+            if (data.teachers.length > 0) {
+              showTeacherPreview(data.teachers);
+            }
+          }
+          
+          if (data.groups) {
+            wizardData.groups = data.groups;
+          }
+
+          if (data.gradeMixing) {
+            wizardData.gradeMixing = data.gradeMixing;
+            if (data.gradeMixing.allowed) {
+              document.getElementById('mixYes').checked = true;
+              document.getElementById('mixedCombinations').value = data.gradeMixing.combinations.join(', ');
+              toggleMixedGradeInput();
+            }
+          }
+          
+          if (data.features) {
+            Object.keys(data.features).forEach(featureId => {
+              const checkbox = document.getElementById('feature_' + featureId);
+              if (checkbox && data.features[featureId]) {
+                checkbox.checked = true;
+              }
+            });
+            updateFeatures(); // Sync wizardData
+          }
+
+          // Load branding settings
+          if (data.branding) {
+            wizardData.branding = data.branding;
+            if (data.branding.primaryColor) {
+              document.getElementById('primaryColor').value = data.branding.primaryColor;
+              document.getElementById('primaryColorHex').value = data.branding.primaryColor;
+            }
+            if (data.branding.secondaryColor) {
+              document.getElementById('secondaryColor').value = data.branding.secondaryColor;
+              document.getElementById('secondaryColorHex').value = data.branding.secondaryColor;
+            }
+            if (data.branding.logoFileId) {
+              document.getElementById('logoFileId').value = data.branding.logoFileId;
+            }
+          }
+          
+          // Load sheet layout settings
+          if (data.sheetLayout) {
+            wizardData.sheetLayout = data.sheetLayout;
+            if (data.sheetLayout.headerRowCount) {
+              document.getElementById('headerRowCount').value = data.sheetLayout.headerRowCount;
+            }
+            if (data.sheetLayout.groupFormat) {
+              document.getElementById('groupFormat').value = data.sheetLayout.groupFormat;
+            }
+            if (data.sheetLayout.includeSCClassroom !== undefined) {
+              document.getElementById('includeSCClassroom').checked = data.sheetLayout.includeSCClassroom;
+            }
+          }
+        })
+        .getWizardData();
+    }
+    
+    function updateGradesServed() {
+      wizardData.gradesServed = [];
+      document.querySelectorAll('#gradesCheckboxes input[type="checkbox"]:checked').forEach(cb => {
+        wizardData.gradesServed.push(cb.value);
+      });
+    }
+    
+    function updateFeatures() {
+      wizardData.features = {};
+      document.querySelectorAll('[id^="feature_"]').forEach(cb => {
+        wizardData.features[cb.value] = cb.checked;
+      });
+    }
+    
+    function getCurrentStepNumber() {
+      return stepOrder[currentStep - 1];
+    }
+    
+    function nextStep() {
+      const validation = validateCurrentStep();
+      if (!validation.valid) {
+        showAlert(validation.message, 'danger');
+        return;
+      }
+      
+      saveCurrentStepData();
+      
+      if (currentStep < totalSteps) {
+        currentStep++;
+        updateStepDisplay();
+      } else {
+        // Last step was 8, now show confirmation (9)
+        currentStep++; // Move to step 9
+        showConfirmation();
+      }
+    }
+    
+    function previousStep() {
+      if (currentStep > 1) {
+        currentStep--;
+        updateStepDisplay();
+      }
+    }
+    
+    function validateCurrentStep() {
+      clearAlert();
+      const stepNum = getCurrentStepNumber();
+      
+      switch(stepNum) {
+        case 1:
+          wizardData.schoolName = document.getElementById('schoolName').value.trim();
+          if (!wizardData.schoolName) {
+            return { valid: false, message: 'Please enter a school name.' };
+          }
+          return { valid: true };
+
+        case 2:
+          if (wizardData.gradesServed.length === 0) {
+            return { valid: false, message: 'Please select at least one grade level.' };
+          }
+          return { valid: true };
+          
+        case 3:
+          // Check for validation against server-side
+          let studentValidation = { valid: true };
+          for (let i = 0; i < wizardData.students.length; i++) {
+            const student = wizardData.students[i];
+            if (!student.name || !student.grade || !student.teacher) {
+              return { valid: false, message: `Row ${i + 1}: Student is missing required information (Name, Grade, or Teacher).` };
+            }
+            if (!wizardData.gradesServed.includes(student.grade)) {
+              return { valid: false, message: `Row ${i + 1}: Student "${student.name}" has grade "${student.grade}" which is not in your selected grades served.` };
+            }
+          }
+          
+          if (wizardData.students.length === 0) {
+            return { valid: false, message: 'Please import student roster data.' };
+          }
+          return { valid: true };
+          
+        case 4:
+          // Check for validation against server-side
+          for (let i = 0; i < wizardData.teachers.length; i++) {
+            const teacher = wizardData.teachers[i];
+            if (!teacher.name || !teacher.grades || teacher.grades.length === 0) {
+              return { valid: false, message: `Row ${i + 1}: Teacher is missing name or grade assignment.` };
+            }
+            for (let grade of teacher.grades) {
+              if (!wizardData.gradesServed.includes(grade)) {
+                return { valid: false, message: `Teacher "${teacher.name}" is assigned to grade "${grade}" which is not in your selected grades served.` };
+              }
+            }
+          }
+        
+          if (wizardData.teachers.length === 0) {
+            return { valid: false, message: 'Please import teacher roster data.' };
+          }
+          return { valid: true };
+          
+        case 5:
+          const groups = [];
+          document.querySelectorAll('[id^="groupCount_"]').forEach(input => {
+            const grade = input.id.replace('groupCount_', '');
+            const count = parseInt(input.value) || 0;
+            if (count > 0) {
+              groups.push({ grade: grade, count: count });
+            }
+          });
+          
+          if (groups.length === 0) {
+            return { valid: false, message: 'Please specify at least one group for at least one grade.' };
+          }
+          
+          wizardData.groups = groups;
+          
+          const mixingAllowed = document.getElementById('mixYes').checked;
+          wizardData.gradeMixing.allowed = mixingAllowed;
+          
+          if (mixingAllowed) {
+            const combos = document.getElementById('mixedCombinations').value.trim();
+            if (!combos) {
+              return { valid: false, message: 'Please define mixed-grade combinations or select "Keep grades separate".' };
+            }
+            wizardData.gradeMixing.combinations = combos.split(',').map(c => c.trim()).filter(c => c.length > 0);
+          } else {
+            wizardData.gradeMixing.combinations = [];
+          }
+          
+          return { valid: true };
+          
+        case 6:
+          updateFeatures();
+          return { valid: true };
+          
+        case 7:
+          // Save branding settings
+          wizardData.branding.primaryColor = document.getElementById('primaryColorHex').value.trim() || '#00838F';
+          wizardData.branding.secondaryColor = document.getElementById('secondaryColorHex').value.trim() || '#FFB300';
+          wizardData.branding.logoFileId = document.getElementById('logoFileId').value.trim() || '';
+          return { valid: true };
+          
+        case 8:
+          // Save sheet layout settings
+          wizardData.sheetLayout.headerRowCount = parseInt(document.getElementById('headerRowCount').value) || 5;
+          wizardData.sheetLayout.groupFormat = document.getElementById('groupFormat').value || 'standard';
+          wizardData.sheetLayout.includeSCClassroom = document.getElementById('includeSCClassroom').checked || false;
+          return { valid: true };
+          
+        default:
+          return { valid: true };
+      }
+    }
+    
+    function saveCurrentStepData() {
+      // Data is saved in validateCurrentStep as it runs
+    }
+    
+    function updateStepDisplay() {
+      const stepNum = getCurrentStepNumber();
+      // Progress bar should reflect steps 1-8
+      const progress = (currentStep -1) / totalSteps * 100;
+      document.getElementById('progressBar').style.width = progress + '%';
+      
+      document.querySelectorAll('.step').forEach((step) => {
+        const stepData = parseFloat(step.getAttribute('data-step'));
+        step.classList.remove('active', 'completed');
+        if (stepData === stepNum) {
+          step.classList.add('active');
+        } else if (stepData < stepNum) {
+          step.classList.add('completed');
+        }
+      });
+      
+      document.querySelectorAll('.step-content').forEach(content => {
+        content.classList.remove('active');
+      });
+      document.querySelector(`.step-content[data-step="${stepNum}"]`).classList.add('active');
+      
+      document.getElementById('prevBtn').style.visibility = currentStep > 1 ? 'visible' : 'hidden';
+      
+      const nextBtn = document.getElementById('nextBtn');
+      nextBtn.className = 'btn btn-primary';
+      nextBtn.onclick = nextStep;
+      
+      if (currentStep === totalSteps) {
+        nextBtn.textContent = 'Review & Complete →';
+      } else {
+        nextBtn.textContent = 'Next →';
+      }
+      
+      // Special handling for Step 5
+      if (stepNum === 5) {
+        populateGroupInputsWithRecommendations();
+      }
+      
+      clearAlert();
+    }
+    
+    function populateGroupInputsWithRecommendations() {
+      const container = document.getElementById('groupsPerGrade');
+      container.innerHTML = '';
+      
+      // Calculate recommendations
+      google.script.run
+        .withSuccessHandler(function(recommendations) {
+          wizardData.groupRecommendations = recommendations;
+          
+          // Get existing group counts to pre-fill
+          const existingGroupCounts = {};
+          wizardData.groups.forEach(g => {
+            existingGroupCounts[g.grade] = g.count;
+          });
+
+          wizardData.gradesServed.forEach(grade => {
+            const rec = recommendations[grade];
+            const gradeLabel = getGradeLabel(grade);
+            
+            // Use existing value if present, otherwise use recommendation
+            const existingCount = existingGroupCounts[grade];
+            const displayCount = (existingCount !== undefined) ? existingCount : rec.recommended;
+
+            const div = document.createElement('div');
+            div.className = 'group-config-row';
+            
+            let recText = '';
+            if (rec.studentCount === 0) {
+              recText = '<span class="recommendation">No students</span>';
+            } else {
+              recText = `<span class="recommendation highlight">${rec.message}</span>`;
+            }
+            
+            div.innerHTML = `
+              <label>${gradeLabel}:</label>
+              <input type="number" id="groupCount_${grade}" min="0" value="${displayCount}" style="padding: 8px;" />
+              ${recText}
+            `;
+            container.appendChild(div);
+          });
+        })
+        .calculateGroupRecommendations(wizardData);
+    }
+    
+    function getGradeLabel(gradeValue) {
+      const grade = GRADE_OPTIONS.find(g => g.value === gradeValue);
+      return grade ? grade.label : gradeValue;
+    }
+    
+    function toggleMixedGradeInput() {
+      const input = document.getElementById('mixedGradeInput');
+      const mixYes = document.getElementById('mixYes').checked;
+      input.classList.toggle('hidden', !mixYes);
+    }
+    
+    function handleStudentImport(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const text = e.target.result;
+        parseStudentData(text);
+      };
+      reader.readAsText(file);
+    }
+    
+    function processStudentPaste() {
+      const text = document.getElementById('studentPaste').value;
+      if (!text.trim()) {
+        showAlert('Please paste student data first.', 'warning');
+        return;
+      }
+      parseStudentData(text);
+    }
+    
+    function parseStudentData(text) {
+  try {
+    const lines = text.trim().split('\n');
+    const students = [];
+    const headers = lines[0].trim().split(/\t|,/).map(h => h.toLowerCase());
+    
+    // Find column indices
+    const nameIndex = headers.findIndex(h => h.includes('name'));
+    const gradeIndex = headers.findIndex(h => h.includes('grade'));
+    const teacherIndex = headers.findIndex(h => h.includes('teacher'));
+    const groupIndex = headers.findIndex(h => h.includes('group'));
+
+    if (nameIndex === -1 || gradeIndex === -1 || teacherIndex === -1) {
+      showAlert('Invalid headers. Could not find required columns: Name, Grade, and Teacher.', 'danger');
+      return;
+    }
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      
+      let parts = line.split('\t');
+      if (parts.length < Math.max(nameIndex, gradeIndex, teacherIndex)) {
+        parts = line.split(',');
+      }
+      
+      if (parts.length >= 3) {
+        const rawGrade = parts[gradeIndex] ? parts[gradeIndex].trim() : '';
+        
+        students.push({
+          name: parts[nameIndex] ? parts[nameIndex].trim() : '',
+          grade: normalizeGrade(rawGrade),  // ← NORMALIZE HERE
+          teacher: parts[teacherIndex] ? parts[teacherIndex].trim() : '',
+          group: (groupIndex !== -1 && parts[groupIndex]) ? parts[groupIndex].trim() : ''
+        });
+      }
+    }
+    
+    if (students.length === 0) {
+      showAlert('No valid student data found below the headers.', 'danger');
+      return;
+    }
+    
+    wizardData.students = students;
+    showStudentPreview(students);
+    showAlert(`Successfully imported ${students.length} students!`, 'success');
+  } catch (e) {
+    showAlert('Error parsing data: ' + e.message, 'danger');
+  }
+}
+
+/**
+ * Normalizes grade values to match system expected format
+ * @param {string} grade - Raw grade from import
+ * @returns {string} Normalized grade value
+ */
+function normalizeGrade(grade) {
+  if (!grade) return '';
+  
+  const g = grade.toString().toUpperCase().trim();
+  
+  // Pre-K variations
+  if (g === 'PRE-K' || g === 'PREK' || g === 'PK' || g === 'PRE K' || g === 'P-K') {
+    return 'PreK';
+  }
+  
+  // Kindergarten variations
+  if (g === 'K' || g === 'KG' || g === 'KINDER' || g === 'KINDERGARTEN') {
+    return 'KG';
+  }
+  
+  // Grade 1-8 variations (handles "1", "1st", "G1", "Grade 1", etc.)
+  const gradeMatch = g.match(/^(?:G|GRADE\s*)?(\d)(?:ST|ND|RD|TH)?(?:\s*GRADE)?$/);
+  if (gradeMatch) {
+    return 'G' + gradeMatch[1];
+  }
+  
+  // Return original if no match (will fail validation with helpful message)
+  return grade.trim();
+}
+    
+    function showStudentPreview(students) {
+      const preview = students.slice(0, 5);
+      let html = '<table class="data-table">';
+      html += '<thead><tr><th>Student Name</th><th>Grade</th><th>Teacher</th><th>Group</th></tr></thead>';
+      html += '<tbody>';
+      preview.forEach(student => {
+        html += `<tr>
+          <td>${student.name}</td>
+          <td>${student.grade}</td>
+          <td>${student.teacher}</td>
+          <td>${student.group || '(none)'}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      
+      document.getElementById('studentPreviewTable').innerHTML = html;
+      document.getElementById('studentCount').textContent = `Total: ${students.length} students`;
+      document.getElementById('studentPreview').classList.remove('hidden');
+    }
+    
+    function handleTeacherImport(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const text = e.target.result;
+        parseTeacherData(text);
+      };
+      reader.readAsText(file);
+    }
+    
+    function processTeacherPaste() {
+      const text = document.getElementById('teacherPaste').value;
+      if (!text.trim()) {
+        showAlert('Please paste teacher data first.', 'warning');
+        return;
+      }
+      parseTeacherData(text);
+    }
+    
+    // ▼▼▼ THIS FUNCTION IS NOW FIXED ▼▼▼
+    function parseTeacherData(text) {
+      try {
+        const lines = text.trim().split('\n');
+        const teachers = [];
+        const headers = lines[0].trim().split(/\t|,/).map(h => h.toLowerCase());
+
+        const nameIndex = headers.findIndex(h => h.includes('name'));
+        const gradeIndex = headers.findIndex(h => h.includes('grade'));
+
+        if (nameIndex === -1 || gradeIndex === -1) {
+          showAlert('Invalid headers. Could not find required columns: Name and Grade.', 'danger');
+          return;
+        }
+
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+          
+          let parts = line.split('\t');
+          // --- THIS IS THE FIX ---
+          if (parts.length < 2) {
+            parts = line.split(',');
+          }
+          // --- END FIX ---
+          
+          if (parts.length >= 2) {
+            const grades = parts[gradeIndex] ? parts[gradeIndex].trim().split(',').map(g => g.trim()) : [];
+            teachers.push({
+              name: parts[nameIndex] ? parts[nameIndex].trim() : '',
+              grades: grades
+            });
+          }
+        }
+        
+        if (teachers.length === 0) {
+          showAlert('No valid teacher data found below the headers.', 'danger');
+          return;
+        }
+        
+        wizardData.teachers = teachers;
+        showTeacherPreview(teachers);
+        showAlert(`Successfully imported ${teachers.length} teachers!`, 'success');
+      } catch (e) {
+        showAlert('Error parsing data: ' + e.message, 'danger');
+      }
+    }
+    // ▲▲▲ THIS FUNCTION IS NOW FIXED ▲▲▲
+    
+    function showTeacherPreview(teachers) {
+      const preview = teachers.slice(0, 5);
+      let html = '<table class="data-table">';
+      html += '<thead><tr><th>Teacher Name</th><th>Grade Assignment(s)</th></tr></thead>';
+      html += '<tbody>';
+      preview.forEach(teacher => {
+        html += `<tr>
+          <td>${teacher.name}</td>
+          <td>${teacher.grades.join(', ')}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      
+      document.getElementById('teacherPreviewTable').innerHTML = html;
+      document.getElementById('teacherCount').textContent = `Total: ${teachers.length} teachers`;
+      document.getElementById('teacherPreview').classList.remove('hidden');
+    }
+    
+    function showConfirmation() {
+      let html = '';
+      
+      html += '<div class="summary-section">';
+      html += '<h3>School Information</h3>';
+      html += `<div class="summary-item"><span class="summary-label">School Name:</span><span class="summary-value">${wizardData.schoolName}</span></div>`;
+      html += '</div>';
+      
+      html += '<div class="summary-section">';
+      html += '<h3>Grade Levels</h3>';
+      html += `<div class="summary-item"><span class="summary-label">Grades Served:</span><span class="summary-value">${wizardData.gradesServed.map(getGradeLabel).join(', ')}</span></div>`;
+      html += '</div>';
+      
+      html += '<div class="summary-section">';
+      html += '<h3>Students & Teachers</h3>';
+      html += `<div class="summary-item"><span class="summary-label">Total Students:</span><span class="summary-value">${wizardData.students.length}</span></div>`;
+      html += `<div class="summary-item"><span class="summary-label">Total Teachers:</span><span class="summary-value">${wizardData.teachers.length}</span></div>`;
+      html += '</div>';
+      
+      html += '<div class="summary-section">';
+      html += '<h3>Group Structure</h3>';
+      wizardData.groups.forEach(group => {
+        const studentsInGroups = wizardData.students.filter(s => s.group && s.group.includes(group.grade)).length;
+        html += `<div class="summary-item"><span class="summary-label">${getGradeLabel(group.grade)}:</span><span class="summary-value">${group.count} group(s)${studentsInGroups > 0 ? ' with ' + studentsInGroups + ' students' : ''}</span></div>`;
+      });
+      html += `<div class="summary-item"><span class="summary-label">Mixed Grades:</span><span class="summary-value">${wizardData.gradeMixing.allowed ? 'Yes (' + wizardData.gradeMixing.combinations.join(', ') + ')' : 'No'}</span></div>`;
+      html += '</div>';
+      
+      // Get the *names* of the features, not the IDs
+      const enabledFeatureNames = FEATURE_OPTIONS
+        .filter(feature => wizardData.features[feature.id])
+        .map(feature => feature.name);
+
+      if (enabledFeatureNames.length > 0) {
+        html += '<div class="summary-section">';
+        html += '<h3>Enabled Features</h3>';
+        html += `<div class="summary-value">${enabledFeatureNames.join(', ')}</div>`;
+        html += '</div>';
+      }
+      
+      html += '<div class="summary-section">';
+      html += '<h3>Branding</h3>';
+      html += `<div class="summary-item"><span class="summary-label">Primary Color:</span><span class="summary-value"><span style="display:inline-block;width:20px;height:20px;background:${wizardData.branding.primaryColor};vertical-align:middle;margin-right:8px;border:1px solid #ccc;"></span>${wizardData.branding.primaryColor}</span></div>`;
+      html += `<div class="summary-item"><span class="summary-label">Secondary Color:</span><span class="summary-value"><span style="display:inline-block;width:20px;height:20px;background:${wizardData.branding.secondaryColor};vertical-align:middle;margin-right:8px;border:1px solid #ccc;"></span>${wizardData.branding.secondaryColor}</span></div>`;
+      if (wizardData.branding.logoFileId) {
+        html += `<div class="summary-item"><span class="summary-label">Logo:</span><span class="summary-value">Configured (${wizardData.branding.logoFileId.substring(0, 12)}...)</span></div>`;
+      }
+      html += '</div>';
+      
+      html += '<div class="summary-section">';
+      html += '<h3>Sheet Layout</h3>';
+      html += `<div class="summary-item"><span class="summary-label">Header Rows:</span><span class="summary-value">${wizardData.sheetLayout.headerRowCount}</span></div>`;
+      html += `<div class="summary-item"><span class="summary-label">Group Format:</span><span class="summary-value">${wizardData.sheetLayout.groupFormat.charAt(0).toUpperCase() + wizardData.sheetLayout.groupFormat.slice(1)}</span></div>`;
+      html += `<div class="summary-item"><span class="summary-label">SC Classroom Column:</span><span class="summary-value">${wizardData.sheetLayout.includeSCClassroom ? 'Yes' : 'No'}</span></div>`;
+      html += '</div>';
+
+      document.getElementById('confirmationSummary').innerHTML = html;
+      
+      // Show step 9
+      document.querySelectorAll('.step-content').forEach(content => {
+        content.classList.remove('active');
+      });
+      document.querySelector('.step-content[data-step="9"]').classList.add('active');
+      
+      // Update progress bar to 100%
+      document.getElementById('progressBar').style.width = '100%';
+      document.querySelectorAll('.step').forEach((step) => {
+        step.classList.add('completed');
+        step.classList.remove('active');
+      });
+
+
+      const nextBtn = document.getElementById('nextBtn');
+      nextBtn.textContent = 'Complete Setup ✓';
+      nextBtn.className = 'btn btn-success';
+      nextBtn.onclick = completeSetup;
+    }
+    
+    function completeSetup() {
+      showAlert('Setting up your system... Please wait.', 'info');
+      document.getElementById('nextBtn').disabled = true;
+      document.getElementById('prevBtn').disabled = true;
+      
+      google.script.run
+        .withSuccessHandler(function(result) {
+          if (result.success) {
+            showAlert(result.message, 'success');
+            setTimeout(function() {
+              google.script.host.close();
+            }, 2000);
+          } else {
+            showAlert(result.message, 'danger');
+            document.getElementById('nextBtn').disabled = false;
+            document.getElementById('prevBtn').disabled = false;
+          }
+        })
+        .withFailureHandler(function(error) {
+          showAlert('Error: ' + error.message, 'danger');
+          document.getElementById('nextBtn').disabled = false;
+          document.getElementById('prevBtn').disabled = false;
+        })
+        .saveConfiguration(wizardData);
+    }
+    
+    function showAlert(message, type) {
+      const container = document.getElementById('alertContainer');
+      container.innerHTML = `<div class="alert alert-${type}">${message}</div>`;
+      container.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    
+    function clearAlert() {
+      document.getElementById('alertContainer').innerHTML = '';
+    }
+  </script>
+</body>
+</html>
