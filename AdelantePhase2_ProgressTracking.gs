@@ -32,6 +32,8 @@
 // - New function: calculateSectionPercentage(mapRow, sectionLessons, isInitialAssessment)
 // ═══════════════════════════════════════════════════════════════════════════
 
+// Core calculation functions are imported from SharedEngine.gs
+
 // ═══════════════════════════════════════════════════════════════════════════
 // CONSTANTS - SYSTEM SHEETS
 // ═══════════════════════════════════════════════════════════════════════════
@@ -223,9 +225,139 @@ function getAdelanteConfig() {
   };
 }
 
+ * Gets the column index for a lesson number
+ * @param {number} lessonNum - Lesson number (1-128)
+ * @returns {number} Array index (0-based)
+ */
+const FOUNDATIONAL_LESSONS = Array.from({length: 34}, (_, i) => i + 1);
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MINIMUM GRADE LESSON ARRAYS (Updated January 2026)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// G1 Minimum: Lessons 1-34 + Digraphs (42-53), excluding reviews
+const G1_MINIMUM_LESSONS = (() => {
+  const lessons = [];
+  // Foundational: 1-34
+  for (let i = 1; i <= 34; i++) lessons.push(i);
+  // Digraphs: 42-53, excluding reviews 49, 53
+  for (let i = 42; i <= 53; i++) {
+    if (![49, 53].includes(i)) lessons.push(i);
+  }
+  return lessons;  // 34 + 10 = 44 lessons
+})();
+
+const G1_CURRENT_YEAR_LESSONS = (() => {
+  const lessons = [];
+  for (let i = 35; i <= 62; i++) {
+    if (![49, 53, 57, 59, 62].includes(i)) lessons.push(i);
+  }
+  return lessons;
+})();
+
+// G2/G3 Minimum: Lessons 1-34 + Digraphs + VCE + RLW, excluding reviews
+const G2_MINIMUM_LESSONS = (() => {
+  const lessons = [];
+  // Foundational: 1-34
+  for (let i = 1; i <= 34; i++) lessons.push(i);
+  // Digraphs: 42-53, excluding reviews 49, 53
+  for (let i = 42; i <= 53; i++) {
+    if (![49, 53].includes(i)) lessons.push(i);
+  }
+  // VCE: 54-62, excluding reviews 57, 59, 62
+  for (let i = 54; i <= 62; i++) {
+    if (![57, 59, 62].includes(i)) lessons.push(i);
+  }
+  // Reading Longer Words: 63-68 (no reviews)
+  for (let i = 63; i <= 68; i++) lessons.push(i);
+  return lessons;  // 34 + 10 + 6 + 6 = 56 lessons
+})();
+
+const G2_CURRENT_YEAR_LESSONS = (() => {
+  const lessons = [38];
+  for (let i = 63; i <= 83; i++) {
+    if (![71, 76, 79, 83].includes(i)) lessons.push(i);
+  }
+  return lessons;
+})();
+
+// G4-G8 Minimum: Lessons 1-34 + 42-110, excluding only Alphabet Review section
+const G4_MINIMUM_LESSONS = (() => {
+  const lessons = [];
+  // Foundational: 1-34
+  for (let i = 1; i <= 34; i++) lessons.push(i);
+  // Everything from 42-110 (includes review lessons)
+  for (let i = 42; i <= 110; i++) lessons.push(i);
+  return lessons;  // 34 + 69 = 103 lessons
+})();
+
+const ALL_NON_REVIEW_LESSONS = (() => {
+  const lessons = [];
+  for (let i = 1; i <= 128; i++) {
+    if (!REVIEW_LESSONS.includes(i)) lessons.push(i);
+  }
+  return lessons;
+})();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GRADE METRICS (Updated January 2026)
+// ═══════════════════════════════════════════════════════════════════════════
+
+const GRADE_METRICS = {
+  'PreK': {
+    foundational: { lessons: FOUNDATIONAL_LESSONS, denominator: 26 },
+    minimum: { lessons: FOUNDATIONAL_LESSONS, denominator: 26 },
+    currentYear: { lessons: FOUNDATIONAL_LESSONS, denominator: 26 }
+  },
+  'KG': {
+    foundational: { lessons: FOUNDATIONAL_LESSONS, denominator: 34 },
+    minimum: { lessons: FOUNDATIONAL_LESSONS, denominator: 34 },
+    currentYear: { lessons: FOUNDATIONAL_LESSONS, denominator: 34 }
+  },
+  'G1': {
+    foundational: { lessons: FOUNDATIONAL_LESSONS, denominator: 34 },
+    minimum: { lessons: G1_MINIMUM_LESSONS, denominator: 44 },
+    currentYear: { lessons: G1_CURRENT_YEAR_LESSONS, denominator: 23 }
+  },
+  'G2': {
+    foundational: { lessons: FOUNDATIONAL_LESSONS, denominator: 34 },
+    minimum: { lessons: G2_MINIMUM_LESSONS, denominator: 56 },
+    currentYear: { lessons: G2_CURRENT_YEAR_LESSONS, denominator: 18 }
+  },
+  'G3': {
+    foundational: { lessons: FOUNDATIONAL_LESSONS, denominator: 34 },
+    minimum: { lessons: G2_MINIMUM_LESSONS, denominator: 56 },
+    currentYear: { lessons: ALL_NON_REVIEW_LESSONS, denominator: 107 }
+  }
+};
+
+// G4-G8 share the same configuration
+['G4', 'G5', 'G6', 'G7', 'G8'].forEach(grade => {
+  GRADE_METRICS[grade] = {
+    foundational: { lessons: FOUNDATIONAL_LESSONS, denominator: 34 },
+    minimum: { lessons: G4_MINIMUM_LESSONS, denominator: 103 },
+    currentYear: { lessons: ALL_NON_REVIEW_LESSONS, denominator: 107 }
+  };
+});
 // ═══════════════════════════════════════════════════════════════════════════
 // UTILITY FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * School-specific normalizeStudent that normalizes all student fields
+ * (Adelante-specific override: extends SharedEngine version to normalize
+ * all fields - name, grade, teacher, group - instead of just name)
+ * @param {Object} student - Student object
+ * @returns {Object} Student with normalized fields
+ */
+function normalizeStudent(student) {
+  return {
+    name: (student && student.name) ? student.name.toString().trim() : "",
+    grade: (student && student.grade) ? student.grade.toString().trim() : "",
+    teacher: (student && student.teacher) ? student.teacher.toString().trim() : "",
+    group: (student && student.group) ? student.group.toString().trim() : ""
+  };
+}
 
 /**
  * Creates a non-merged header row with consistent branding
@@ -409,6 +541,33 @@ function calculatePercentage(mapRow, lessonIndices) {
   }
 
   return attempted > 0 ? Math.round((passed / attempted) * 100) : "";
+}
+
+/**
+ * Creates a non-merged header row with consistent branding
+ * @param {Sheet} sheet - The sheet to add header to
+ * @param {number} row - Row number for the header
+ * @param {string} text - Header text
+ * @param {number} width - Number of columns to span (background only, no merge)
+ * @param {string} fontSize - Font size (optional, default 11)
+ */
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONFIGURATION HELPER
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Returns configuration object for Adelante school
+ * Used by SharedEngine functions
+ */
+function getAdelanteConfig() {
+  return {
+    SHEET_NAMES_V2: SHEET_NAMES_V2,
+    SHEET_NAMES_PREK: SHEET_NAMES_PREK,
+    LAYOUT: LAYOUT,
+    PREK_CONFIG: PREK_CONFIG,
+    GRADE_METRICS: GRADE_METRICS
+  };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
