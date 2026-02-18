@@ -1256,8 +1256,8 @@ function lightenColor(hex, factor) {
   
   // Convert back to hex
   const toHex = (n) => {
-    const hex = n.toString(16);
-    return hex.length === 1 ? '0' + hex : hex;
+    const hexStr = n.toString(16);
+    return hexStr.length === 1 ? '0' + hexStr : hexStr;
   };
   
   return '#' + toHex(r) + toHex(g) + toHex(b);
