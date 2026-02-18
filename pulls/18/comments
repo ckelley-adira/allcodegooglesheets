@@ -1,0 +1,97 @@
+## 🔍 Template Review: Canonical Files & SITE_CONFIG Analysis for Phase 5
+
+### Canonical Adelante UI Templates (Use as Base)
+
+The following 6 Adelante files have been reviewed and confirmed as the canonical templates for unification:
+
+| File | Size | Notes |
+|------|------|-------|
+| `AdelanteLessonEntryForm.html` | 36 KB | Uses TILT Design System with CSS custom properties |
+| `AdelanteManageGroupsUI.html` | 46 KB | Shared logo-header + #B8E6DC accent pattern |
+| `AdelanteManageStudentsUI.html` | 52 KB | Nearly identical structure to ManageGroupsUI |
+| `AdelanteGenerateReportsUI.html` | 50 KB | Same design language, same accent color |
+| `AdelanteGrowthHighlighterSidebar.html` | 13 KB | Different accent (#4A90A4) — sidebar-specific layout |
+| `AdelanteSetupWizardUI.html` | 50 KB | Uses #4A90E2 blue — wizard-specific header |
+
+---
+
+### Hardcoded Values to Parameterize Per File
+
+Each file contains school-specific hardcoded values that must be replaced with SITE_CONFIG tokens:
+- **Logo** — `<img>` in `.logo-header` or `.header`
+- **School name** — header `<h1>` text
+- **Tagline** — subtitle text under the header
+- **Primary/accent color** — `#B8E6DC` used for `.section-header` backgrounds in most files
+- **Header gradient** — `#4A90E2 → #357ABD` in SetupWizardUI; `#4A90A4 → #357a8a` in GrowthHighlighterSidebar
+
+---
+
+### ⚠️ SITE_CONFIG Gap: Missing Branding Fields
+
+`SiteConfig_TEMPLATE.gs` currently only has `schoolName` and `systemVersion` at the top level — no branding/UI fields exist yet.
+
+**Recommended addition to `SiteConfig_TEMPLATE.gs`:**
+
+```javascript
+branding: {
+  schoolName: "Your School Name",
+  shortName: "",
+  tagline: "",
+  logoUrl: "",
+  primaryColor: "#B8E6DC",
+  headerGradientStart: "#4A90E2",
+  headerGradientEnd: "#357ABD",
+  accentColor: "#4A90A4",
+}
+```
+
+---
+
+### Implementation Checklist
+
+- [ ] Add `branding` block to `SITE_CONFIG` in `SiteConfig_TEMPLATE.gs`
+- [ ] Add `getBranding()` helper function
+- [ ] Rename and refactor all 6 Adelante files to canonical names (drop "Adelante" prefix)
+- [ ] Replace hardcoded values with `<?= ?>` Apps Script template tokens
+- [ ] Delete school-specific duplicates: `SankofaLessonEntryForm.html`, `GlobalPrepLessonEntryForm.html`, `CHAWLessonEntryform.html`, `AllegiantLessonEntryForm.html`
+- [ ] **Keep all PreK files untouched**
+- [ ] Add `UI_PHASE5_UNIFICATION.md`
+- [ ] QA: Verify rendering with at least 2 school branding configs
+
+---
+
+### Apps Script Templating Pattern
+
+```javascript
+// In .gs server file:
+function showLessonEntryForm() {
+  const branding = SITE_CONFIG.branding;
+  const template = HtmlService.createTemplateFromFile('LessonEntryForm');
+  template.schoolName = branding.schoolName;
+  template.tagline = branding.tagline;
+  template.logoUrl = branding.logoUrl;
+  template.primaryColor = branding.primaryColor;
+  template.headerGradientStart = branding.headerGradientStart;
+  template.headerGradientEnd = branding.headerGradientEnd;
+  const html = template.evaluate().setWidth(800).setHeight(600);
+  SpreadsheetApp.getUi().showModalDialog(html, branding.schoolName);
+}
+```
+
+```html
+<!-- In LessonEntryForm.html: -->
+<style>
+  :root {
+    --primary-color: <?= primaryColor ?>;
+    --header-gradient-start: <?= headerGradientStart ?>;
+    --header-gradient-end: <?= headerGradientEnd ?>;
+  }
+</style>
+<div class="header">
+  <? if (logoUrl) { ?>
+    <img src="<?= logoUrl ?>" alt="<?= schoolName ?> logo">
+  <? } ?>
+  <h1><?= schoolName ?></h1>
+  <p class="tagline"><?= tagline ?></p>
+</div>
+```
