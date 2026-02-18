@@ -1,3 +1,11 @@
+/**
+ * ⚠️ DEPRECATED - Phase 7b
+ * This file has been consolidated into AdminImport_Unified.gs
+ * See: PHASE7_AUDIT_REPORT.md § 3.4
+ * This file is retained for reference only and should not be modified.
+ * Migration date: February 18, 2026
+ */
+
 // ═══════════════════════════════════════════════════════════════════════════
 // UFLI MASTER SYSTEM - ADMIN IMPORT UTILITY
 // Historical Data Import with Validation and Exception Reporting

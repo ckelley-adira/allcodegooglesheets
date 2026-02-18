@@ -101,6 +101,24 @@ const SITE_CONFIG = {
     adminImport: false,
     
     /**
+     * ENHANCED SECURITY
+     * Input sanitization and formula injection prevention
+     * Required for: All schools (default: ON)
+     * Adds: sanitizeCellValue() for all user inputs
+     * Security: Prevents formula injection, null bytes, enforces length limits
+     */
+    enhancedSecurity: true,
+    
+    /**
+     * STRUCTURED LOGGING
+     * Detailed logging for troubleshooting and auditing
+     * Required for: Schools needing audit trails (Allegiant)
+     * Adds: log(func, msg, lvl) structured logging
+     * Usage: Set to true to enable diagnostic logging in AdminImport
+     */
+    structuredLogging: false,
+    
+    /**
      * UNENROLLMENT AUTOMATION
      * Automatic archival and Monday.com integration for unenrolled students
      * Required for: Schools using Monday.com workflow tracking
