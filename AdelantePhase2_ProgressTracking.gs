@@ -545,11 +545,11 @@ function calculatePercentage(mapRow, lessonIndices) {
  */
 function getAdelanteConfig() {
   return {
-    SHEET_NAMES_V2,
-    SHEET_NAMES_PREK,
-    LAYOUT,
-    PREK_CONFIG,
-    GRADE_METRICS
+    SHEET_NAMES_V2: SHEET_NAMES_V2,
+    SHEET_NAMES_PREK: SHEET_NAMES_PREK,
+    LAYOUT: LAYOUT,
+    PREK_CONFIG: PREK_CONFIG,
+    GRADE_METRICS: GRADE_METRICS
   };
 }
 
