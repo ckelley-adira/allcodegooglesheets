@@ -203,62 +203,26 @@ const GRADE_METRICS = {
     currentYear: { lessons: ALL_NON_REVIEW_LESSONS, denominator: 107 }
   };
 });
+
+// Core calculation functions are imported from SharedEngine.gs
+
 // ═══════════════════════════════════════════════════════════════════════════
-// UTILITY FUNCTIONS
+// CONFIG HELPER
 // ═══════════════════════════════════════════════════════════════════════════
 
-function getColumnLetter(columnNumber) {
-  if (columnNumber < 1) return 'A';
-  let letter = '';
-  while (columnNumber > 0) {
-    const remainder = (columnNumber - 1) % 26;
-    letter = String.fromCharCode(65 + remainder) + letter;
-    columnNumber = Math.floor((columnNumber - 1) / 26);
-  }
-  return letter;
-}
-
-function extractLessonNumber(lessonText) {
-  if (lessonText === null || lessonText === undefined) return null;
-  const str = lessonText.toString().toUpperCase().trim();
-  if (str === '') return null;
-  const match = str.match(/(?:LESSON\s*|L\s*)?(\d{1,3})/);
-  if (match && match[1]) {
-    const num = parseInt(match[1], 10);
-    return (num >= 1 && num <= LAYOUT.TOTAL_LESSONS) ? num : null;
-  }
-  return null;
-}
-
-function log(functionName, message, level = 'INFO') {
-  Logger.log(`[${level}] [${functionName}] ${message}`);
-}
-
-function normalizeStudent(student) {
+function getGlobalPrepConfig() {
   return {
-    name: (student && student.name) ? student.name.toString().trim() : "",
-    grade: (student && student.grade) ? student.grade.toString().trim() : "",
-    teacher: (student && student.teacher) ? student.teacher.toString().trim() : "",
-    group: (student && student.group) ? student.group.toString().trim() : ""
+    SHEET_NAMES_V2: SHEET_NAMES_V2,
+    SHEET_NAMES_PREK: SHEET_NAMES_PREK,
+    LAYOUT: LAYOUT,
+    PREK_CONFIG: PREK_CONFIG,
+    GRADE_METRICS: GRADE_METRICS
   };
 }
 
-function getLastLessonColumn() {
-  return getColumnLetter(LAYOUT.COL_FIRST_LESSON + LAYOUT.TOTAL_LESSONS - 1);
-}
-
-function getOrCreateSheet(ss, sheetName, clearIfExists = true) {
-  let sheet = ss.getSheetByName(sheetName);
-  if (sheet) {
-    if (clearIfExists) {
-      sheet.clear();
-      sheet.clearConditionalFormatRules();
-    }
-  } else {
-    sheet = ss.insertSheet(sheetName);
-  }
-  return sheet;
-}
+// ═══════════════════════════════════════════════════════════════════════════
+// UTILITY FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════
 
 function createMergedHeader(sheet, row, text, width, options = {}) {
   const values = [text];
@@ -333,63 +297,6 @@ function calculatePercentage(mapRow, lessonIndices) {
   });
   
   return attempted > 0 ? Math.round((passed / attempted) * 100) : "";
-}
-
-/**
- * Calculates benchmark percentage based on fixed denominator
- * @param {Array} mapRow - Student's row data
- * @param {Array<number>} lessonIndices - Lessons in benchmark
- * @param {number} denominator - Fixed total for benchmark
- * @returns {number} Percentage integer (defaults to 0)
- */
-function calculateBenchmark(mapRow, lessonIndices, denominator) {
-  if (denominator === 0) return 0;
-  let passed = 0;
-  
-  lessonIndices.forEach(lessonNum => {
-    const idx = LAYOUT.LESSON_COLUMN_OFFSET + lessonNum - 1;
-    if (idx < mapRow.length) {
-      const status = mapRow[idx] ? mapRow[idx].toString().toUpperCase().trim() : "";
-      if (status === 'Y') passed++;
-    }
-  });
-  
-  return Math.round((passed / denominator) * 100);
-}
-
-/**
- * Calculates HWT Pre-K scores using FIXED DENOMINATORS (Benchmark-style)
- * * Metrics (based on Handwriting Without Tears pedagogy):
- * - Foundational Skills % = Form Y count / 26 (Motor Integration - fine motor production)
- * - Min Grade Skills % = (Name Y + Sound Y) / 52 (Literacy Knowledge - cognitive/receptive)
- * - Full Grade Skills % = (Name Y + Sound Y + Form Y) / 78 (K-Readiness - visual-motor integration)
- * * @param {Array} row - Student's row data from Pre-K Data sheet
- * @param {Array} headers - Header row from Pre-K Data sheet
- * @returns {Object} { foundational, minGrade, fullGrade } percentages
- */
-function calculatePreKScores(row, headers) {
-  let nameY = 0;
-  let soundY = 0;
-  let formY = 0;
-
-  // Loop through columns starting at index 2 (Column C)
-  for (let i = 2; i < row.length; i++) {
-    const header = headers[i];
-    const value = row[i] ? row[i].toString().toUpperCase() : "";
-    
-    if (!header) continue;
-
-    if (header.includes("- Name") && value === "Y") nameY++;
-    else if (header.includes("- Sound") && value === "Y") soundY++;
-    else if (header.includes("- Form") && value === "Y") formY++;
-  }
-
-  // Fixed Denominators (Benchmark-style)
-  return {
-    foundational: Math.round((formY / PREK_CONFIG.FORM_DENOMINATOR) * 100),
-    minGrade: Math.round(((nameY + soundY) / PREK_CONFIG.NAME_SOUND_DENOMINATOR) * 100),
-    fullGrade: Math.round(((nameY + soundY + formY) / PREK_CONFIG.FULL_DENOMINATOR) * 100)
-  };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -978,7 +885,7 @@ function syncSmallGroupProgress() {
   });
   
   // 6. CHAIN REACTION: Update Stats (Skills & Summary) using the updated Map Data
-  updateAllStats(ss, mapData);
+  updateAllStats(ss, mapData, getGlobalPrepConfig());
   
   log(functionName, 'Sync Complete.');
 }
@@ -1114,219 +1021,6 @@ function updateGroupArrayInMemory(groupSheetsData, groupName, studentName, lesso
     }
   }
 }
-
-// ═══════════════════════════════════════════════════════════════════════════
-// FIX FOR "Typed Column" ERROR - REPLACE updateAllStats() function
-// ═══════════════════════════════════════════════════════════════════════════
-// 
-// ISSUE: The error "You can't set the number format of cells in a typed column"
-// appears in logs AFTER "Sync Complete" because Google Sheets batches operations
-// and throws errors asynchronously.
-//
-// FIX: 
-// 1. Wrap all formatting in outer try/catch blocks
-// 2. Add SpreadsheetApp.flush() to force all operations to complete
-// 3. This ensures errors are caught within the function, not later
-//
-// INSTRUCTIONS: Replace your existing updateAllStats() function with this one
-// ═══════════════════════════════════════════════════════════════════════════
-
-/**
- * Calculates and Writes stats for BOTH UFLI (K-8) and HWT (Pre-K)
- * Merges data into Skills Tracker and Grade Summary
- * 
- * FIXED v5.6: Added outer try/catch and SpreadsheetApp.flush() to prevent
- * async "typed column" errors from appearing after sync completes.
- */
-function updateAllStats(ss, mapData) {
-  const functionName = 'updateAllStats';
-  
-  // 1. GET UFLI DATA
-  if (!mapData) {
-    const mapSheet = ss.getSheetByName(SHEET_NAMES_V2.UFLI_MAP);
-    mapData = mapSheet ? mapSheet.getDataRange().getValues() : [];
-  }
-
-  // 2. GET PRE-K DATA
-  const preKSheet = ss.getSheetByName(SHEET_NAMES_PREK.DATA);
-  let preKData = [];
-  let preKHeaders = [];
-  if (preKSheet) {
-    preKData = preKSheet.getDataRange().getValues();
-    if (preKData.length >= PREK_CONFIG.HEADER_ROW) {
-      preKHeaders = preKData[PREK_CONFIG.HEADER_ROW - 1];
-    }
-  }
-
-  // Read Initial Assessment Data (UFLI only)
-  const initialSheet = ss.getSheetByName(SHEET_NAMES_V2.INITIAL_ASSESSMENT);
-  const initialData = initialSheet ? initialSheet.getDataRange().getValues() : [];
-  const initialMap = {};
-  for (let i = LAYOUT.DATA_START_ROW - 1; i < initialData.length; i++) {
-    if (initialData[i][0]) initialMap[initialData[i][0].toString().trim().toUpperCase()] = initialData[i];
-  }
-  
-  // Output Arrays
-  const skillsOutput = []; 
-  const summaryOutput = []; 
-  const skillEntries = Object.entries(SKILL_SECTIONS);
-  
-  // --- PROCESS UFLI STUDENTS (K-8) ---
-  for (let i = LAYOUT.DATA_START_ROW - 1; i < mapData.length; i++) {
-    const row = mapData[i];
-    if (!row[0]) continue; // Skip blank names
-    
-    // Skip PreK students - they are handled separately from Pre-K Data sheet
-    if (row[1] && row[1].toString().trim() === "PreK") continue;
-
-    const metadata = [row[0], row[1], row[2], row[3]]; // Name, Grade, Teacher, Group
-    const cleanName = row[0].toString().trim().toUpperCase();
-    const initialRow = initialMap[cleanName];
-    const grade = row[1];
-
-    // Skills Tracker Row
-    const skillsRow = [...metadata];
-    skillEntries.forEach(([_, lessons]) => {
-      skillsRow.push(calculatePercentage(row, lessons));
-    });
-    skillsOutput.push(skillsRow);
-
-    // Grade Summary Row
-    const summaryRow = [...metadata];
-    const metrics = GRADE_METRICS[grade];
-
-    if (metrics) {
-      const foundPct = calculateBenchmark(row, metrics.foundational.lessons, metrics.foundational.denominator);
-      const minPct = calculateBenchmark(row, metrics.minimum.lessons, metrics.minimum.denominator);
-      const fullPct = calculateBenchmark(row, metrics.currentYear.lessons, metrics.currentYear.denominator);
-      
-      summaryRow.push(foundPct);
-      summaryRow.push(minPct);
-      summaryRow.push(fullPct);
-      
-      // Benchmark Status based on Min Grade Skills %
-      let status = "Intervention";
-      if (minPct >= 80) status = "On Track";
-      else if (minPct >= 50) status = "Needs Support";
-      summaryRow.push(status);
-    } else {
-      summaryRow.push("", "", "", "");
-    }
-
-    // Add Detailed Skill Sections (Initial/AG/Total)
-    skillEntries.forEach(([_, lessons]) => {
-      const totalPct = calculatePercentage(row, lessons);
-      const initialPct = initialRow ? calculatePercentage(initialRow, lessons) : "";
-      let agPct = (totalPct !== "" && initialPct !== "") ? totalPct - initialPct : "";
-      summaryRow.push(initialPct, agPct, totalPct);
-    });
-    summaryOutput.push(summaryRow);
-  }
-
-  // --- PROCESS PRE-K STUDENTS (HWT) ---
-  if (preKData.length > 0) {
-    for (let i = PREK_CONFIG.DATA_START_ROW - 1; i < preKData.length; i++) {
-      const row = preKData[i];
-      if (!row[0]) continue;
-
-      // HWT Sheet Structure: [Name, Group, Program, ...] 
-      // We map this to: [Name, "PreK", "", Group]
-      const metadata = [row[0], "PreK", "", row[1]]; 
-      
-      // Use corrected calculatePreKScores with fixed denominators
-      const scores = calculatePreKScores(row, preKHeaders);
-
-      // Skills Tracker Row (PreK doesn't use UFLI Skills, fill with blanks)
-      const skillsRow = [...metadata];
-      skillEntries.forEach(() => skillsRow.push(""));
-      skillsOutput.push(skillsRow);
-
-      // Grade Summary Row
-      const summaryRow = [...metadata];
-      
-      summaryRow.push(scores.foundational);  // Form / 26
-      summaryRow.push(scores.minGrade);      // (Name + Sound) / 52
-      summaryRow.push(scores.fullGrade);     // (Name + Sound + Form) / 78
-      
-      // Status Logic for PreK
-      let status = "Intervention";
-      if (scores.fullGrade >= 80) status = "On Track";
-      else if (scores.fullGrade >= 50) status = "Needs Support";
-      summaryRow.push(status);
-
-      // Fill remaining detailed columns with blanks
-      skillEntries.forEach(() => summaryRow.push("", "", ""));
-      
-      summaryOutput.push(summaryRow);
-    }
-  }
-
-  // --- WRITE DATA ---
-  
-  // 1. Skills Tracker
-  const skillsSheet = getOrCreateSheet(ss, SHEET_NAMES_V2.SKILLS, false);
-  if (skillsOutput.length > 0) {
-    // Sort combined list by Grade, then Name
-    skillsOutput.sort((a, b) => (a[1] || "").localeCompare(b[1] || "") || (a[0] || "").localeCompare(b[0] || ""));
-    
-    skillsSheet.getRange(LAYOUT.DATA_START_ROW, 1, skillsOutput.length, skillsOutput[0].length).setValues(skillsOutput);
-    
-    // FIX v5.6: Protected Formatting - Wrapped in master try/catch
-    try {
-      const startCol = 5;
-      const endCol = skillsOutput[0].length;
-      for (let c = startCol; c <= endCol; c++) {
-        try {
-          skillsSheet.getRange(LAYOUT.DATA_START_ROW, c, skillsOutput.length).setNumberFormat('0"%"');
-        } catch (innerErr) {
-          // Silently skip typed columns
-        }
-      }
-    } catch (outerErr) {
-      Logger.log('Skills Tracker formatting skipped: ' + outerErr.message);
-    }
-  }
-  
-  // 2. Grade Summary
-  const summarySheet = getOrCreateSheet(ss, SHEET_NAMES_V2.GRADE_SUMMARY, false);
-  if (summaryOutput.length > 0) {
-    // Sort combined list by Grade, then Name
-    summaryOutput.sort((a, b) => (a[1] || "").localeCompare(b[1] || "") || (a[0] || "").localeCompare(b[0] || ""));
-
-    summarySheet.getRange(LAYOUT.DATA_START_ROW, 1, summaryOutput.length, summaryOutput[0].length).setValues(summaryOutput);
-    
-    // FIX v5.6: Protected Formatting - Wrapped in master try/catch
-    try {
-      // Format Main Metrics (Cols 5, 6, 7)
-      [5, 6, 7].forEach(c => {
-        try {
-          summarySheet.getRange(LAYOUT.DATA_START_ROW, c, summaryOutput.length).setNumberFormat('0"%"');
-        } catch (innerErr) {
-          // Silently skip typed columns
-        }
-      });
-
-      // Format Detailed Metrics (Cols 9 onwards)
-      for (let c = 9; c <= summaryOutput[0].length; c++) {
-        try {
-          summarySheet.getRange(LAYOUT.DATA_START_ROW, c, summaryOutput.length).setNumberFormat('0"%"');
-        } catch (innerErr) {
-          // Silently skip typed columns
-        }
-      }
-    } catch (outerErr) {
-      Logger.log('Grade Summary formatting skipped: ' + outerErr.message);
-    }
-  }
-  
-  // FIX v5.6: Flush all pending changes to ensure errors are caught here, not after "Sync Complete"
-  try {
-    SpreadsheetApp.flush();
-  } catch (flushErr) {
-    Logger.log('Flush encountered error (non-fatal): ' + flushErr.message);
-  }
-}
-
 
 function updateStatsForNewStudents() {
   const functionName = 'updateStatsForNewStudents';
@@ -2089,13 +1783,13 @@ function fixMissingTeachers() {
 
 function repairSkillsTrackerFormulas() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  updateAllStats(ss);
+  updateAllStats(ss, null, getGlobalPrepConfig());
   SpreadsheetApp.getUi().alert('Skills Tracker values recalculated.');
 }
 
 function repairGradeSummaryFormulas() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  updateAllStats(ss);
+  updateAllStats(ss, null, getGlobalPrepConfig());
   SpreadsheetApp.getUi().alert('Grade Summary values recalculated.');
 }
 
