@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Program Dashboard - MZA PreK Program</title>
+    <base target="_top">
+    <script src="https://www.gstatic.com/charts/loader.js"></script>
+
+    <style>
+        :root {
+            --primary: #1E3A5F;
+            --primary-light: #2E5A8F;
+            --accent: #E8B923;
+            --success: #22C55E;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            --background: #F8FAFC;
+            --card: #FFFFFF;
+            --text: #1E293B;
+            --text-muted: #64748B;
+            --border: #E2E8F0;
+            --shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: var(--background);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            padding: 1.5rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .header-logo {
+            font-size: 2.5rem;
+        }
+
+        .header-title h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .header-title .subtitle {
+            font-size: 0.875rem;
+            opacity: 0.9;
+        }
+
+        .header-badge {
+            background: var(--accent);
+            color: var(--primary);
+            padding: 0.5rem 1rem;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            border-left: 4px solid var(--primary);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .stat-card.success { border-left-color: var(--success); }
+        .stat-card.warning { border-left-color: var(--warning); }
+        .stat-card.accent { border-left-color: var(--accent); }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--text);
+            line-height: 1.2;
+        }
+
+        .stat-change {
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .stat-change.positive { color: var(--success); }
+        .stat-change.neutral { color: var(--text-muted); }
+
+        /* Charts Section */
+        .charts-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .chart-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .chart-container {
+            min-height: 300px;
+        }
+
+        /* Progress Table */
+        .table-card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            margin-bottom: 2rem;
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .table-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .export-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: background 0.2s;
+        }
+
+        .export-btn:hover {
+            background: var(--primary-light);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            background: var(--background);
+            font-weight: 600;
+            color: var(--text-muted);
+            font-size: 0.875rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        tr:hover {
+            background: var(--background);
+        }
+
+        /* Progress Bars */
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+
+        .progress-fill.high { background: var(--success); }
+        .progress-fill.medium { background: var(--warning); }
+        .progress-fill.low { background: var(--danger); }
+
+        .progress-text {
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-top: 0.25rem;
+        }
+
+        /* Loading State */
+        .loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 4rem;
+            color: var(--text-muted);
+        }
+
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid var(--border);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                text-align: center;
+                gap: 1rem;
+            }
+
+            .charts-section {
+                grid-template-columns: 1fr;
+            }
+
+            .container {
+                padding: 1rem;
+            }
+
+            .table-card {
+                overflow-x: auto;
+            }
+        }
+
+        /* Print Styles */
+        @media print {
+            .header {
+                background: var(--primary) !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .export-btn { display: none; }
+            .chart-card, .stat-card, .table-card {
+                break-inside: avoid;
+                box-shadow: none;
+                border: 1px solid var(--border);
+            }
+        }
+        /* Portal Navigation */
+        .portal-nav { background: rgba(255,255,255,0.1); padding: 0.5rem 1rem; display: flex; justify-content: center; gap: 0.25rem; flex-wrap: wrap; }
+        .portal-nav a { color: rgba(255,255,255,0.7); text-decoration: none; padding: 0.5rem 1rem; border-radius: 8px; font-size: 0.85rem; font-weight: 500; transition: all 0.3s ease; cursor: pointer; }
+        .portal-nav a:hover { background: rgba(255,255,255,0.1); color: white; }
+        .portal-nav a.active { background: rgba(255,255,255,0.2); color: white; font-weight: 600; }
+        .portal-nav .nav-home { color: #E8B923; }
+        .portal-nav .nav-home:hover { background: rgba(232,185,35,0.2); }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="header-brand">
+            <span class="header-logo">📚</span>
+            <div class="header-title">
+                <h1>PreK Literacy Program</h1>
+                <div class="subtitle">The Indy Learning Team with Adira Reads</div>
+            </div>
+        </div>
+        <div class="header-badge">Program Dashboard</div>
+    </header>
+    <nav class="portal-nav">
+        <a onclick="navigateToPortal('')" class="nav-home">Home Page</a>
+        <a onclick="navigateToPortal('teacher')">Teacher</a>
+        <a onclick="navigateToPortal('tutor')">Tutor</a>
+        <a class="active">Dashboard</a>
+    </nav>
+
+    <div class="container">
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <div>Loading dashboard data...</div>
+        </div>
+
+        <div id="dashboard-content" style="display: none;">
+            <!-- Key Metrics -->
+            <div class="stats-grid" id="stats-grid">
+                <!-- Stats populated by JS -->
+            </div>
+
+            <!-- Charts -->
+            <div class="charts-section">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div class="chart-title">Program Enrollment</div>
+                    </div>
+                    <div id="program-chart" class="chart-container"></div>
+                </div>
+
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div class="chart-title">Skill Mastery Distribution</div>
+                    </div>
+                    <div id="mastery-chart" class="chart-container"></div>
+                </div>
+            </div>
+
+            <div class="charts-section">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div class="chart-title">Progress by Skill Type</div>
+                    </div>
+                    <div id="skills-chart" class="chart-container"></div>
+                </div>
+
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div class="chart-title">Group Performance Comparison</div>
+                    </div>
+                    <div id="groups-chart" class="chart-container"></div>
+                </div>
+            </div>
+
+            <!-- Student Progress Table -->
+            <div class="table-card">
+                <div class="table-header">
+                    <div class="table-title">Student Progress Overview</div>
+                    <button class="export-btn" onclick="exportToCSV()">
+                        <span>📊</span> Export to CSV
+                    </button>
+                </div>
+                <table id="progress-table">
+                    <thead>
+                        <tr>
+                            <th>Student Name</th>
+                            <th>Group</th>
+                            <th>Program</th>
+                            <th>Overall Progress</th>
+                            <th>Mastery Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody id="progress-tbody">
+                        <!-- Populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Portal Navigation ---
+        function navigateToPortal(page) {
+            google.script.run.withSuccessHandler(function(url) {
+                window.top.location.href = page ? url + '?page=' + page : url;
+            }).getWebAppUrl();
+        }
+
+        // Load Google Charts
+        google.charts.load('current', {'packages':['corechart', 'bar']});
+        google.charts.setOnLoadCallback(initDashboard);
+
+        let dashboardData = null;
+
+        function initDashboard() {
+            google.script.run
+                .withSuccessHandler(renderDashboard)
+                .withFailureHandler(showError)
+                .getDashboardData();
+        }
+
+        function renderDashboard(data) {
+            dashboardData = data;
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('dashboard-content').style.display = 'block';
+
+            renderStats(data.stats);
+            renderProgramChart(data.programBreakdown);
+            renderMasteryChart(data.masteryDistribution);
+            renderSkillsChart(data.skillsProgress);
+            renderGroupsChart(data.groupProgress);
+            renderProgressTable(data.students);
+        }
+
+        function renderStats(stats) {
+            const grid = document.getElementById('stats-grid');
+            grid.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-label">Total Students</div>
+                    <div class="stat-value">${stats.totalStudents}</div>
+                    <div class="stat-change neutral">Across all groups</div>
+                </div>
+                <div class="stat-card success">
+                    <div class="stat-label">Average Mastery</div>
+                    <div class="stat-value">${stats.avgMastery}%</div>
+                    <div class="stat-change ${stats.avgMastery >= 70 ? 'positive' : 'neutral'}">
+                        ${stats.avgMastery >= 70 ? '✓ On Track' : 'Building Progress'}
+                    </div>
+                </div>
+                <div class="stat-card warning">
+                    <div class="stat-label">Letters Assessed</div>
+                    <div class="stat-value">${stats.lettersAssessed}/26</div>
+                    <div class="stat-change neutral">Average per student</div>
+                </div>
+                <div class="stat-card accent">
+                    <div class="stat-label">Active Groups</div>
+                    <div class="stat-value">${stats.totalGroups}</div>
+                    <div class="stat-change neutral">Learning together</div>
+                </div>
+            `;
+        }
+
+        function renderProgramChart(breakdown) {
+            const data = google.visualization.arrayToDataTable([
+                ['Program', 'Students'],
+                ['Pre-School', breakdown.preSchool || 0],
+                ['Pre-K', breakdown.preK || 0]
+            ]);
+
+            const options = {
+                pieHole: 0.4,
+                colors: ['#E8B923', '#1E3A5F'],
+                legend: { position: 'bottom' },
+                chartArea: { width: '90%', height: '80%' },
+                pieSliceText: 'value'
+            };
+
+            const chart = new google.visualization.PieChart(document.getElementById('program-chart'));
+            chart.draw(data, options);
+        }
+
+        function renderMasteryChart(distribution) {
+            const data = google.visualization.arrayToDataTable([
+                ['Level', 'Students', { role: 'style' }],
+                ['Mastered (80%+)', distribution.mastered || 0, '#22C55E'],
+                ['Progressing (50-79%)', distribution.progressing || 0, '#F59E0B'],
+                ['Beginning (<50%)', distribution.beginning || 0, '#EF4444']
+            ]);
+
+            const options = {
+                legend: { position: 'none' },
+                chartArea: { width: '80%', height: '70%' },
+                hAxis: { title: 'Number of Students' },
+                bars: 'horizontal'
+            };
+
+            const chart = new google.visualization.BarChart(document.getElementById('mastery-chart'));
+            chart.draw(data, options);
+        }
+
+        function renderSkillsChart(skills) {
+            const data = google.visualization.arrayToDataTable([
+                ['Skill', 'Average Mastery %'],
+                ['Letter Form', skills.form || 0],
+                ['Letter Name', skills.name || 0],
+                ['Letter Sound', skills.sound || 0]
+            ]);
+
+            const options = {
+                colors: ['#1E3A5F'],
+                legend: { position: 'none' },
+                chartArea: { width: '70%', height: '70%' },
+                vAxis: { minValue: 0, maxValue: 100, title: 'Mastery %' },
+                bar: { groupWidth: '60%' }
+            };
+
+            const chart = new google.visualization.ColumnChart(document.getElementById('skills-chart'));
+            chart.draw(data, options);
+        }
+
+        function renderGroupsChart(groups) {
+            const chartData = [['Group', 'Average Progress %']];
+            groups.forEach(g => {
+                chartData.push([g.name, g.avgProgress]);
+            });
+
+            const data = google.visualization.arrayToDataTable(chartData);
+
+            const options = {
+                colors: ['#2E5A8F'],
+                legend: { position: 'none' },
+                chartArea: { width: '70%', height: '70%' },
+                vAxis: { minValue: 0, maxValue: 100 },
+                bar: { groupWidth: '70%' }
+            };
+
+            const chart = new google.visualization.ColumnChart(document.getElementById('groups-chart'));
+            chart.draw(data, options);
+        }
+
+        function renderProgressTable(students) {
+            const tbody = document.getElementById('progress-tbody');
+            tbody.innerHTML = '';
+
+            students.forEach(student => {
+                const progressClass = student.progress >= 80 ? 'high' : student.progress >= 50 ? 'medium' : 'low';
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><strong>${student.name}</strong></td>
+                    <td>${student.group}</td>
+                    <td>${student.program}</td>
+                    <td>
+                        <div class="progress-bar">
+                            <div class="progress-fill ${progressClass}" style="width: ${student.progress}%"></div>
+                        </div>
+                        <div class="progress-text">${student.progress}%</div>
+                    </td>
+                    <td>
+                        <span style="color: ${student.mastery >= 80 ? 'var(--success)' : student.mastery >= 50 ? 'var(--warning)' : 'var(--danger)'}; font-weight: 600;">
+                            ${student.mastery}%
+                        </span>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function exportToCSV() {
+            if (!dashboardData || !dashboardData.students) {
+                alert('No data to export');
+                return;
+            }
+
+            // Create CSV content
+            const headers = ['Student Name', 'Group', 'Program', 'Progress %', 'Mastery %'];
+            const rows = dashboardData.students.map(s =>
+                [s.name, s.group, s.program, s.progress, s.mastery].join(',')
+            );
+
+            const csvContent = [headers.join(','), ...rows].join('\n');
+
+            // Trigger download via server
+            google.script.run
+                .withSuccessHandler(function(url) {
+                    if (url) {
+                        window.open(url, '_blank');
+                    } else {
+                        // Fallback: copy to clipboard
+                        navigator.clipboard.writeText(csvContent).then(() => {
+                            alert('Data copied to clipboard! Paste into Excel or Google Sheets.');
+                        });
+                    }
+                })
+                .withFailureHandler(function() {
+                    // Fallback: copy to clipboard
+                    navigator.clipboard.writeText(csvContent).then(() => {
+                        alert('Data copied to clipboard! Paste into Excel or Google Sheets.');
+                    });
+                })
+                .createCSVDownload(csvContent, 'PreK_Progress_Report.csv');
+        }
+
+        function showError(error) {
+            document.getElementById('loading').innerHTML = `
+                <div style="color: var(--danger);">
+                    <h3>Error Loading Dashboard</h3>
+                    <p>${error.message || error}</p>
+                    <button onclick="initDashboard()" style="margin-top: 1rem; padding: 0.5rem 1rem; cursor: pointer;">
+                        Retry
+                    </button>
+                </div>
+            `;
+        }
+
+        // Handle window resize for responsive charts
+        window.addEventListener('resize', function() {
+            if (dashboardData) {
+                renderProgramChart(dashboardData.programBreakdown);
+                renderMasteryChart(dashboardData.masteryDistribution);
+                renderSkillsChart(dashboardData.skillsProgress);
+                renderGroupsChart(dashboardData.groupProgress);
+            }
+        });
+    </script>
+</body>
+</html>
