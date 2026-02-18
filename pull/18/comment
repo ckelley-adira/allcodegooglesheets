@@ -1,0 +1,115 @@
+## 🔍 Template Review: Canonical Files & SITE_CONFIG Analysis for Phase 5
+
+### Canonical Adelante UI Templates (Use as Base)
+
+The following 6 Adelante files have been reviewed and confirmed as the canonical templates for unification:
+
+| File | Size | Notes |
+|------|------|-------|
+| `AdelanteLessonEntryForm.html` | 36 KB | Uses TILT Design System with CSS custom properties |
+| `AdelanteManageGroupsUI.html` | 46 KB | Shared logo-header + #B8E6DC accent pattern |
+| `AdelanteManageStudentsUI.html` | 52 KB | Nearly identical structure to ManageGroupsUI |
+| `AdelanteGenerateReportsUI.html` | 50 KB | Same design language, same accent color |
+| `AdelanteGrowthHighlighterSidebar.html` | 13 KB | Different accent (#4A90A4) — sidebar-specific layout |
+| `AdelanteSetupWizardUI.html` | 50 KB | Uses #4A90E2 blue — wizard-specific header |
+
+---
+
+### Hardcoded Values to Parameterize Per File
+
+Each file contains the following school-specific hardcoded values that must be replaced with SITE_CONFIG tokens:
+
+- **Logo** — `<img>` in `.logo-header` or `.header`
+- **School name** — header `<h1>` text
+- **Tagline** — subtitle/description text under the header
+- **Primary/accent color** — `#B8E6DC` used for `.section-header` backgrounds in most files
+- **Header gradient** — `#4A90E2 → #357ABD` in SetupWizardUI; `#4A90A4 → #357a8a` in GrowthHighlighterSidebar
+- **Font stack** — minor inconsistencies between files (Calibri vs Segoe UI vs Google Sans)
+
+---
+
+### ⚠️ SITE_CONFIG Gap: Missing Branding Fields
+
+`SiteConfig_TEMPLATE.gs` currently only has `schoolName` and `systemVersion` at the top level. It does **not** have branding/UI fields.
+
+**Recommended addition to `SiteConfig_TEMPLATE.gs`:**
+
+```javascript
+const SITE_CONFIG = {
+  schoolName: "Your School Name",
+  systemVersion: "4.0",
+
+  // ═══════════════════════════════════════════════════════════════
+  // BRANDING & UI CONFIGURATION
+  // Controls colors, logos, and labels across all canonical UI files
+  // ═══════════════════════════════════════════════════════════════
+  branding: {
+    schoolName: "Your School Name",     // Displayed in all UI headers
+    shortName: "",                       // Abbreviated name for compact views/sidebars
+    tagline: "",                         // Subtitle shown under school name
+    logoUrl: "",                         // Logo image URL (or leave blank for text-only)
+    primaryColor: "#B8E6DC",            // Section headers, accents, table highlights
+    headerGradientStart: "#4A90E2",     // Wizard/sidebar header gradient start
+    headerGradientEnd: "#357ABD",       // Wizard/sidebar header gradient end
+    accentColor: "#4A90A4",             // Used in GrowthHighlighter sidebar
+  }
+};
+```
+
+---
+
+### Implementation Checklist for This PR
+
+- [ ] Add `branding` block to `SITE_CONFIG` in `SiteConfig_TEMPLATE.gs`
+- [ ] Add a helper function `getBranding()` to retrieve branding config
+- [ ] Refactor `AdelanteLessonEntryForm.html` → `LessonEntryForm.html` (canonical)
+- [ ] Refactor `AdelanteManageGroupsUI.html` → `ManageGroupsUI.html` (canonical)
+- [ ] Refactor `AdelanteManageStudentsUI.html` → `ManageStudentsUI.html` (canonical)
+- [ ] Refactor `AdelanteGenerateReportsUI.html` → `GenerateReportsUI.html` (canonical)
+- [ ] Refactor `AdelanteGrowthHighlighterSidebar.html` → `GrowthHighlighterSidebar.html` (canonical)
+- [ ] Refactor `AdelanteSetupWizardUI.html` → `SetupWizardUI.html` (canonical)
+- [ ] Use Apps Script HTML templating `<?= ?>` syntax to inject branding values at serve time
+- [ ] Delete school-specific duplicates: `SankofaLessonEntryForm.html`, `GlobalPrepLessonEntryForm.html`, `CHAWLessonEntryform.html`, `AllegiantLessonEntryForm.html`
+- [ ] **Keep PreK files as-is** (`PreKSetupWizard.html`, `PreKDashboard.html`, etc. — these remain special)
+- [ ] Add `UI_PHASE5_UNIFICATION.md` documenting token reference, migration steps, and per-school branding values
+- [ ] QA: Verify each UI renders correctly with parameterized branding for at least 2 schools
+
+---
+
+### Apps Script Templating Pattern
+
+Use Google Apps Script's built-in HTML templating for runtime injection:
+
+```javascript
+// In your .gs server file:
+function showLessonEntryForm() {
+  const branding = SITE_CONFIG.branding;
+  const template = HtmlService.createTemplateFromFile('LessonEntryForm');
+  template.schoolName = branding.schoolName;
+  template.tagline = branding.tagline;
+  template.logoUrl = branding.logoUrl;
+  template.primaryColor = branding.primaryColor;
+  template.headerGradientStart = branding.headerGradientStart;
+  template.headerGradientEnd = branding.headerGradientEnd;
+  const html = template.evaluate().setWidth(800).setHeight(600);
+  SpreadsheetApp.getUi().showModalDialog(html, branding.schoolName);
+}
+```
+
+```html
+<!-- In LessonEntryForm.html: -->
+<style>
+  :root {
+    --primary-color: <?= primaryColor ?>;
+    --header-gradient-start: <?= headerGradientStart ?>;
+    --header-gradient-end: <?= headerGradientEnd ?>;
+  }
+</style>
+<div class="header">
+  <? if (logoUrl) { ?>
+    <img src="<?= logoUrl ?>" alt="<?= schoolName ?> logo">
+  <? } ?>
+  <h1><?= schoolName ?></h1>
+  <p class="tagline"><?= tagline ?></p>
+</div>
+```
