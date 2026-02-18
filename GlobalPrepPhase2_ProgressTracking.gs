@@ -2,17 +2,20 @@
 // UFLI MASTER SYSTEM - SYSTEM SHEETS (PHASE 2)
 // Sheet Generation, Progress Tracking, Sync, and Pacing Engine
 // ═══════════════════════════════════════════════════════════════════════════
+// Core calculation functions are imported from SharedEngine.gs
 // Version: 5.5 - BULLETPROOF FORMATTING FIX
 // Last Updated: January 2026
 //
 // ARCHITECTURE:
 // - SetupWizard_v3.gs owns: Config constants, menu, wizard, manage UI, reports, web app
 // - This file owns: System constants, sheet generation, sync, pacing, repair
+// - SharedEngine.gs provides: Core calculation functions, lesson arrays, grade metrics
 //
 // MAJOR CHANGES v5.5:
 // - Implemented Granular Formatting: Formats columns one by one instead of in blocks.
 // - Added individual try/catch blocks to every formatting call to skip "Typed" columns.
 // - Fixed "Sync Complete" followed by error issue.
+// - Refactored to use SharedEngine.gs for core calculation functions
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -93,78 +96,44 @@ const COLORS = {
 // - getPerformanceStatus(): Helper function to determine status from percentage
 // ═══════════════════════════════════════════════════════════════════════════
 
-const FOUNDATIONAL_LESSONS = Array.from({length: 34}, (_, i) => i + 1);
-
 // ═══════════════════════════════════════════════════════════════════════════
-// MINIMUM GRADE LESSON ARRAYS (Updated January 2026)
+// SHARED ENGINE - Core calculation functions are imported from SharedEngine.gs
 // ═══════════════════════════════════════════════════════════════════════════
-
-// G1 Minimum: Lessons 1-34 + Digraphs (42-53), excluding reviews
-const G1_MINIMUM_LESSONS = (() => {
-  const lessons = [];
-  // Foundational: 1-34
-  for (let i = 1; i <= 34; i++) lessons.push(i);
-  // Digraphs: 42-53, excluding reviews 49, 53
-  for (let i = 42; i <= 53; i++) {
-    if (![49, 53].includes(i)) lessons.push(i);
-  }
-  return lessons;  // 34 + 10 = 44 lessons
-})();
-
-const G1_CURRENT_YEAR_LESSONS = (() => {
-  const lessons = [];
-  for (let i = 35; i <= 62; i++) {
-    if (![49, 53, 57, 59, 62].includes(i)) lessons.push(i);
-  }
-  return lessons;
-})();
-
-// G2/G3 Minimum: Lessons 1-34 + Digraphs + VCE + RLW, excluding reviews
-const G2_MINIMUM_LESSONS = (() => {
-  const lessons = [];
-  // Foundational: 1-34
-  for (let i = 1; i <= 34; i++) lessons.push(i);
-  // Digraphs: 42-53, excluding reviews 49, 53
-  for (let i = 42; i <= 53; i++) {
-    if (![49, 53].includes(i)) lessons.push(i);
-  }
-  // VCE: 54-62, excluding reviews 57, 59, 62
-  for (let i = 54; i <= 62; i++) {
-    if (![57, 59, 62].includes(i)) lessons.push(i);
-  }
-  // Reading Longer Words: 63-68 (no reviews)
-  for (let i = 63; i <= 68; i++) lessons.push(i);
-  return lessons;  // 34 + 10 + 6 + 6 = 56 lessons
-})();
-
-const G2_CURRENT_YEAR_LESSONS = (() => {
-  const lessons = [38];
-  for (let i = 63; i <= 83; i++) {
-    if (![71, 76, 79, 83].includes(i)) lessons.push(i);
-  }
-  return lessons;
-})();
-
-// G4-G8 Minimum: Lessons 1-34 + 42-110, excluding only Alphabet Review section
-const G4_MINIMUM_LESSONS = (() => {
-  const lessons = [];
-  // Foundational: 1-34
-  for (let i = 1; i <= 34; i++) lessons.push(i);
-  // Everything from 42-110 (includes review lessons)
-  for (let i = 42; i <= 110; i++) lessons.push(i);
-  return lessons;  // 34 + 69 = 103 lessons
-})();
-
-const ALL_NON_REVIEW_LESSONS = (() => {
-  const lessons = [];
-  for (let i = 1; i <= 128; i++) {
-    if (!REVIEW_LESSONS.includes(i)) lessons.push(i);
-  }
-  return lessons;
-})();
+// The following functions are now defined in SharedEngine.gs:
+// - calculateBenchmark(): Benchmark calculation with gateway logic
+// - calculateSectionPercentage(): Section percentage with gateway logic
+// - updateAllStats(): Core statistics update engine
+// - calculatePreKScores(): HWT Pre-K score calculations
+// - countYsInColumns(): Helper for Pre-K calculations
+// - partitionLessonsByReview(): Partition lessons into review/non-review
+// - checkGateway(): Gateway status checking
+// - getLessonStatus(): Get lesson status from row
+// - getLessonColumnIndex(): Get column index for lesson
+// - isReviewLesson(): Check if lesson is a review
+// - getColumnLetter(): Convert column number to letter
+// - extractLessonNumber(): Extract lesson number from text
+// - normalizeStudent(): Normalize student name
+// - getLastLessonColumn(): Get last lesson column letter
+// - getOrCreateSheet(): Get or create sheet
+// - log(): Logging function
+// - createMergedRow(): Create merged row preserving Y values
+//
+// The following lesson arrays are imported from SharedEngine.gs:
+// - FOUNDATIONAL_LESSONS: Lessons 1-34
+// - G1_MINIMUM_LESSONS: G1 minimum lessons
+// - G1_CURRENT_YEAR_LESSONS: G1 current year lessons
+// - G2_MINIMUM_LESSONS: G2 minimum lessons
+// - G2_CURRENT_YEAR_LESSONS: G2 current year lessons
+// - G4_MINIMUM_LESSONS: G4-G8 minimum lessons
+// - ALL_NON_REVIEW_LESSONS: All non-review lessons
+// - SHARED_GRADE_METRICS: Standard grade metrics (can be overridden locally)
+// ═══════════════════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════════════════
 // GRADE METRICS (Updated January 2026)
+// ═══════════════════════════════════════════════════════════════════════════
+// NOTE: GlobalPrep uses custom GRADE_METRICS that differs from SHARED_GRADE_METRICS
+// Specifically, G3 currentYear denominator is 120 instead of 107
 // ═══════════════════════════════════════════════════════════════════════════
 
 const GRADE_METRICS = {
@@ -203,8 +172,6 @@ const GRADE_METRICS = {
     currentYear: { lessons: ALL_NON_REVIEW_LESSONS, denominator: 107 }
   };
 });
-
-// Core calculation functions are imported from SharedEngine.gs
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CONFIG HELPER
