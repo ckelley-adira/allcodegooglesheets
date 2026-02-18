@@ -2,6 +2,8 @@
 // UFLI MASTER SYSTEM - SYSTEM SHEETS (PHASE 2)
 // Sheet Generation, Progress Tracking, Sync, and Pacing Engine
 // ═══════════════════════════════════════════════════════════════════════════
+// Core calculation functions are imported from SharedEngine.gs
+//
 // Version: 5.2 - WEIGHTED REVIEW LESSONS
 // Last Updated: January 2026
 //
@@ -165,122 +167,13 @@ var COLORS = {
 // - getPerformanceStatus(): Helper function to determine status from percentage
 // ═══════════════════════════════════════════════════════════════════════════
 
-const FOUNDATIONAL_LESSONS = Array.from({length: 34}, (_, i) => i + 1);
-
 // ═══════════════════════════════════════════════════════════════════════════
-// MINIMUM GRADE LESSON ARRAYS (Updated January 2026)
-// ═══════════════════════════════════════════════════════════════════════════
-
-// G1 Minimum: Lessons 1-34 + Digraphs (42-53), excluding reviews
-const G1_MINIMUM_LESSONS = (() => {
-  const lessons = [];
-  // Foundational: 1-34
-  for (let i = 1; i <= 34; i++) lessons.push(i);
-  // Digraphs: 42-53, excluding reviews 49, 53
-  for (let i = 42; i <= 53; i++) {
-    if (![49, 53].includes(i)) lessons.push(i);
-  }
-  return lessons;  // 34 + 10 = 44 lessons
-})();
-
-const G1_CURRENT_YEAR_LESSONS = (() => {
-  const lessons = [];
-  for (let i = 35; i <= 62; i++) {
-    if (![49, 53, 57, 59, 62].includes(i)) lessons.push(i);
-  }
-  return lessons;
-})();
-
-// G2/G3 Minimum: Lessons 1-34 + Digraphs + VCE + RLW, excluding reviews
-const G2_MINIMUM_LESSONS = (() => {
-  const lessons = [];
-  // Foundational: 1-34
-  for (let i = 1; i <= 34; i++) lessons.push(i);
-  // Digraphs: 42-53, excluding reviews 49, 53
-  for (let i = 42; i <= 53; i++) {
-    if (![49, 53].includes(i)) lessons.push(i);
-  }
-  // VCE: 54-62, excluding reviews 57, 59, 62
-  for (let i = 54; i <= 62; i++) {
-    if (![57, 59, 62].includes(i)) lessons.push(i);
-  }
-  // Reading Longer Words: 63-68 (no reviews)
-  for (let i = 63; i <= 68; i++) lessons.push(i);
-  return lessons;  // 34 + 10 + 6 + 6 = 56 lessons
-})();
-
-const G2_CURRENT_YEAR_LESSONS = (() => {
-  const lessons = [38];
-  for (let i = 63; i <= 83; i++) {
-    if (![71, 76, 79, 83].includes(i)) lessons.push(i);
-  }
-  return lessons;
-})();
-
-// G4-G8 Minimum: Lessons 1-34 + 42-110, excluding only Alphabet Review section
-const G4_MINIMUM_LESSONS = (() => {
-  const lessons = [];
-  // Foundational: 1-34
-  for (let i = 1; i <= 34; i++) lessons.push(i);
-  // Everything from 42-110 (includes review lessons)
-  for (let i = 42; i <= 110; i++) lessons.push(i);
-  return lessons;  // 34 + 69 = 103 lessons
-})();
-
-const ALL_NON_REVIEW_LESSONS = (() => {
-  const lessons = [];
-  for (let i = 1; i <= 128; i++) {
-    if (!REVIEW_LESSONS.includes(i)) lessons.push(i);
-  }
-  return lessons;
-})();
-
-// ═══════════════════════════════════════════════════════════════════════════
-// GRADE METRICS (Updated January 2026)
-// ═══════════════════════════════════════════════════════════════════════════
-
-const GRADE_METRICS = {
-  'PreK': {
-    foundational: { lessons: FOUNDATIONAL_LESSONS, denominator: 26 },
-    minimum: { lessons: FOUNDATIONAL_LESSONS, denominator: 26 },
-    currentYear: { lessons: FOUNDATIONAL_LESSONS, denominator: 26 }
-  },
-  'KG': {
-    foundational: { lessons: FOUNDATIONAL_LESSONS, denominator: 34 },
-    minimum: { lessons: FOUNDATIONAL_LESSONS, denominator: 34 },
-    currentYear: { lessons: FOUNDATIONAL_LESSONS, denominator: 34 }
-  },
-  'G1': {
-    foundational: { lessons: FOUNDATIONAL_LESSONS, denominator: 34 },
-    minimum: { lessons: G1_MINIMUM_LESSONS, denominator: 44 },
-    currentYear: { lessons: G1_CURRENT_YEAR_LESSONS, denominator: 23 }
-  },
-  'G2': {
-    foundational: { lessons: FOUNDATIONAL_LESSONS, denominator: 34 },
-    minimum: { lessons: G2_MINIMUM_LESSONS, denominator: 56 },
-    currentYear: { lessons: G2_CURRENT_YEAR_LESSONS, denominator: 18 }
-  },
-  'G3': {
-    foundational: { lessons: FOUNDATIONAL_LESSONS, denominator: 34 },
-    minimum: { lessons: G2_MINIMUM_LESSONS, denominator: 56 },
-    currentYear: { lessons: ALL_NON_REVIEW_LESSONS, denominator: 107 }
-  }
-};
-
-// G4-G8 share the same configuration
-['G4', 'G5', 'G6', 'G7', 'G8'].forEach(grade => {
-  GRADE_METRICS[grade] = {
-    foundational: { lessons: FOUNDATIONAL_LESSONS, denominator: 34 },
-    minimum: { lessons: G4_MINIMUM_LESSONS, denominator: 103 },
-    currentYear: { lessons: ALL_NON_REVIEW_LESSONS, denominator: 107 }
-  };
-});
-// ═══════════════════════════════════════════════════════════════════════════
-// CONFIGURATION HELPER
+// CONFIGURATION FUNCTION FOR SHAREDENGINE.GS
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Returns Sankofa-specific configuration for SharedEngine functions
+ * Returns Sankofa-specific configuration for SharedEngine.gs
+ * @returns {Object} Configuration object with all necessary constants
  */
 function getSankofaConfig() {
   return {
@@ -288,14 +181,13 @@ function getSankofaConfig() {
     SHEET_NAMES_PREK: SHEET_NAMES_PREK,
     LAYOUT: LAYOUT,
     PREK_CONFIG: PREK_CONFIG,
-    GRADE_METRICS: GRADE_METRICS
+    GRADE_METRICS: SHARED_GRADE_METRICS
   };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
 // UTILITY FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════
-// Core calculation functions are imported from SharedEngine.gs
 
 function createMergedHeader(sheet, row, text, width, options = {}) {
   const values = [text];
@@ -1386,39 +1278,6 @@ function updateGroupArrayInMemory(groupSheetsData, groupName, studentName, lesso
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// HELPER: Merge Initial + Current (Suppress Negative Growth)
-// ═══════════════════════════════════════════════════════════════════════════
-
-/**
- * Creates a merged row where 'Y' takes precedence from either source
- * If a student passed a lesson in EITHER initial assessment OR current progress, count as 'Y'
- * This ensures students don't lose credit for previously mastered skills
- * 
- * @param {Array} currentRow - Student's current row from UFLI MAP
- * @param {Array} initialRow - Student's row from Initial Assessment (may be undefined)
- * @returns {Array} Merged row with 'Y' preserved from either source
- */
-function createMergedRow(currentRow, initialRow) {
-  if (!initialRow) return currentRow;
-  
-  const merged = [...currentRow];
-  
-  // Merge lesson columns (starting at LESSON_COLUMN_OFFSET)
-  for (let i = LAYOUT.LESSON_COLUMN_OFFSET; i < merged.length; i++) {
-    const currentStatus = merged[i] ? merged[i].toString().toUpperCase().trim() : "";
-    const initialStatus = (i < initialRow.length && initialRow[i]) 
-      ? initialRow[i].toString().toUpperCase().trim() : "";
-    
-    // If initial was 'Y', preserve it (don't let current 'N' or blank override)
-    if (initialStatus === 'Y' && currentStatus !== 'Y') {
-      merged[i] = 'Y';
-    }
-  }
-  
-  return merged;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
 // UPDATE ALL STATS (v5.3 - Suppress Negative Growth)
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -1888,7 +1747,7 @@ function calculateGrowthMetrics(students, initialData, grade) {
   let fullInitialSum = 0, fullCurrentSum = 0, fullCount = 0;
   
   // Get the correct metric configuration for this grade
-  const metrics = GRADE_METRICS[grade];
+  const metrics = SHARED_GRADE_METRICS[grade];
   
   students.forEach(s => {
     const studentName = s[0];
