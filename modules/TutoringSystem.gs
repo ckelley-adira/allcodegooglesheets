@@ -483,7 +483,7 @@ function goToTutoringSummary() {
   if (sheet) {
     ss.setActiveSheet(sheet);
   } else {
-    SpreadsheetApp.getUi().alert('Tutoring Summary sheet not found. Run "Sync Tutoring Data" first to create it.');
+    SpreadsheetApp.getUi().alert('Tutoring Summary sheet not found. It will be created when tutoring data is first synced.');
   }
 }
 
@@ -497,7 +497,7 @@ function goToTutoringLog() {
   if (sheet) {
     ss.setActiveSheet(sheet);
   } else {
-    SpreadsheetApp.getUi().alert('Tutoring Progress Log sheet not found. Run "Sync Tutoring Data" first to create it.');
+    SpreadsheetApp.getUi().alert('Tutoring Progress Log sheet not found. It will be created when tutoring data is first synced.');
   }
 }
 
