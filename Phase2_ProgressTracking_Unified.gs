@@ -50,7 +50,9 @@
 // @see SankofaStatsExtensions.gs - Custom statistics calculation
 //      Functions: updateAllStats_Sankofa(), getSankofaConfig()
 // @see CCASkillsExtensions.gs - Skill analytics and averaging
-//      Functions: calculateSkillAverages(), renderSkillAveragesRow(), getCCAConfig()
+//      Feature flag: skillAveragesAnalytics
+//      Functions: calculateSkillAverages(), renderSkillAveragesRow()
+//      Note: Also contains buildStudentLookups() override for CCA historical compatibility
 //
 // DEPENDENCIES:
 // - SharedEngine.gs: Core calculation functions (imported from Phase 5)
@@ -658,6 +660,7 @@ function updatePacingReports() {
  * 
  * @param {Sheet} mapSheet - Optional UFLI MAP sheet (if not provided, will fetch from active spreadsheet)
  * @returns {Object} { studentCountByGroup: Map, teacherByGroup: Map }
+ * @see CCASkillsExtensions.gs - CCA maintains a custom override with identical functionality for historical compatibility
  */
 function buildStudentLookups(mapSheet = null) {
   const studentCountByGroup = new Map();

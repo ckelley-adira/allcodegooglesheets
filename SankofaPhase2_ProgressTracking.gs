@@ -1,3 +1,12 @@
+/**
+ * ⚠️ DEPRECATED - Phase 7d
+ * This file has been consolidated into Phase2_ProgressTracking_Unified.gs
+ * School-specific extensions are in: SankofaStatsExtensions.gs
+ * See: PHASE7_AUDIT_REPORT.md § 1.1 and § 3.1
+ * This file is retained for reference only and should not be modified.
+ * Migration date: 2026-02-19
+ */
+
 // ═══════════════════════════════════════════════════════════════════════════
 // UFLI MASTER SYSTEM - SYSTEM SHEETS (PHASE 2)
 // Sheet Generation, Progress Tracking, Sync, and Pacing Engine
