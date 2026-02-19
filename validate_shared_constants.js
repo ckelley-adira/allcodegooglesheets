@@ -150,6 +150,24 @@ for (const file of PHASE7_FILES) {
         console.error(`      ❌ GRADE_RANGE_MODELS NOT defined`);
         allValid = false;
       }
+      if (content.includes('function getGradeRangeModels()')) {
+        console.log(`      ✅ getGradeRangeModels() defined`);
+      } else {
+        console.error(`      ❌ getGradeRangeModels() NOT defined`);
+        allValid = false;
+      }
+      if (content.includes('function getDefaultGradesForModel(')) {
+        console.log(`      ✅ getDefaultGradesForModel() defined`);
+      } else {
+        console.error(`      ❌ getDefaultGradesForModel() NOT defined`);
+        allValid = false;
+      }
+      if (content.includes('function validateUnifiedConfig(')) {
+        console.log(`      ✅ validateUnifiedConfig() defined`);
+      } else {
+        console.error(`      ❌ validateUnifiedConfig() NOT defined`);
+        allValid = false;
+      }
     }
     
     if (file === 'UnifiedPhase2_ProgressTracking.gs') {

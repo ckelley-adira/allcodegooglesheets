@@ -160,6 +160,9 @@ function getUnifiedConfig() {
     ? SHARED_GRADE_METRICS
     : {};
 
+  // Feature flags — read directly from SITE_CONFIG.features
+  const features = (typeof SITE_CONFIG !== 'undefined' && SITE_CONFIG.features) || {};
+
   return {
     LAYOUT: LAYOUT_RESOLVED,
     SHEET_NAMES_V2: SHEET_NAMES_V2_RESOLVED,
@@ -168,6 +171,7 @@ function getUnifiedConfig() {
     PREK_CONFIG: PREK_CONFIG_RESOLVED,
     COLORS: COLORS_RESOLVED,
     GRADE_METRICS: GRADE_METRICS_RESOLVED,
+    features: features,
     gradeRangeModel: siteGrades,
     gradesServed: gradesServed,
     schoolName: siteName

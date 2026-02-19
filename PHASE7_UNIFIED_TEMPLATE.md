@@ -197,9 +197,9 @@ layout: {
 |------|-------------|-------------|
 | `UnifiedConfig.gs` | **NEW** | Configuration resolver — eliminates per-school constants |
 | `UnifiedPhase2_ProgressTracking.gs` | **NEW** | Parameterized Phase2 — replaces 6 school copies |
-| `SiteConfig_TEMPLATE.gs` | UPDATED | Added `gradeRangeModel`, `gradesServed`, `layout` sections |
-| `SetupWizard.gs` | UPDATED | Dynamic `onOpen()` using `buildFeatureMenu()`, grade range model support |
-| `SetupWizardUI.html` | UPDATED | Grade range model selector in Step 2, review display |
+| `SiteConfig_TEMPLATE.gs` | Already in `main` (Phase 7f / PR#30) | `gradeRangeModel`, expanded `layout` block, feature flags |
+| `SetupWizard.gs` | Already in `main` (Phase 7f / PR#30) | `CONFIG_LAYOUT` constants, `getWizardData()` round-trip |
+| `SetupWizardUI.html` | Already in `main` (Phase 7f / PR#30) | Grade range model dropdown, Step 6/8 form fields |
 | `validate_shared_constants.js` | UPDATED | Phase 7 file and config validation |
 | `PHASE7_UNIFIED_TEMPLATE.md` | **NEW** | This documentation |
 
