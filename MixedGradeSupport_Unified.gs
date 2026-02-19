@@ -124,21 +124,13 @@ const GROUP_NAMING_PATTERN = "NUMBERED_TEACHER";
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Gets runtime configuration from SITE_CONFIG or falls back to defaults
+ * Gets runtime configuration from global MIXED_GRADE_CONFIG constant
  * 
  * @returns {Object} Configuration object with combinations, sheetFormat, namingPattern
  */
 function getMixedGradeConfig() {
-  // Try to load from SITE_CONFIG if available
-  if (typeof SITE_CONFIG !== 'undefined' && SITE_CONFIG?.mixedGradeConfig) {
-    return {
-      combinations: SITE_CONFIG.mixedGradeConfig.combinations || MIXED_GRADE_CONFIG.combinations,
-      sheetFormat: SITE_CONFIG.mixedGradeConfig.sheetFormat || MIXED_GRADE_CONFIG.sheetFormat,
-      namingPattern: SITE_CONFIG.mixedGradeConfig.namingPattern || MIXED_GRADE_CONFIG.namingPattern
-    };
-  }
-  
-  // Fallback to constants
+  // Return the global MIXED_GRADE_CONFIG constant
+  // This can be overridden by schools by redefining MIXED_GRADE_CONFIG before including this file
   return MIXED_GRADE_CONFIG;
 }
 
@@ -191,7 +183,9 @@ function getSheetNameForGroup(groupName) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
   // SC Classroom groups (feature-flagged)
-  if (SITE_CONFIG?.features?.scClassroomGroups === true) {
+  if (typeof SITE_CONFIG !== 'undefined' && 
+      SITE_CONFIG.features && 
+      SITE_CONFIG.features.scClassroomGroups === true) {
     if (groupName === "SC Classroom" || groupName.startsWith("SC Classroom")) {
       const scSheet = ss.getSheetByName("SC Classroom");
       if (scSheet) return "SC Classroom";
@@ -337,7 +331,9 @@ function isGradeRangeGroup(groupName, gradeRange) {
  * @returns {boolean} True if group is SC Classroom group
  */
 function isSCClassroomGroup(groupName) {
-  if (SITE_CONFIG?.features?.scClassroomGroups !== true) {
+  if (typeof SITE_CONFIG === 'undefined' || 
+      !SITE_CONFIG.features || 
+      SITE_CONFIG.features.scClassroomGroups !== true) {
     return false;
   }
   
@@ -356,7 +352,9 @@ function isSCClassroomGroup(groupName) {
  * @returns {string|null} Partner group name or null if none
  */
 function getPartnerGroup(groupName) {
-  if (SITE_CONFIG?.features?.coTeachingSupport !== true) {
+  if (typeof SITE_CONFIG === 'undefined' || 
+      !SITE_CONFIG.features || 
+      SITE_CONFIG.features.coTeachingSupport !== true) {
     return null;
   }
 
@@ -402,7 +400,9 @@ function getPartnerGroup(groupName) {
  * @returns {boolean} True if group has a partner
  */
 function isCoTeachingGroup(groupName) {
-  if (SITE_CONFIG?.features?.coTeachingSupport !== true) {
+  if (typeof SITE_CONFIG === 'undefined' || 
+      !SITE_CONFIG.features || 
+      SITE_CONFIG.features.coTeachingSupport !== true) {
     return false;
   }
   
@@ -416,7 +416,9 @@ function isCoTeachingGroup(groupName) {
  * @returns {Array} Array of {group1, group2, grade} objects for each co-teaching pair
  */
 function getAllCoTeachingPairs() {
-  if (SITE_CONFIG?.features?.coTeachingSupport !== true) {
+  if (typeof SITE_CONFIG === 'undefined' || 
+      !SITE_CONFIG.features || 
+      SITE_CONFIG.features.coTeachingSupport !== true) {
     return [];
   }
 
@@ -465,7 +467,9 @@ function getAllCoTeachingPairs() {
  * @returns {Array} Array of {groupName, grade} objects for solo groups
  */
 function getAllSoloGroups() {
-  if (SITE_CONFIG?.features?.coTeachingSupport !== true) {
+  if (typeof SITE_CONFIG === 'undefined' || 
+      !SITE_CONFIG.features || 
+      SITE_CONFIG.features.coTeachingSupport !== true) {
     // If co-teaching is disabled, return all groups as solo groups
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const groupConfigSheet = ss.getSheetByName("Group Configuration");
@@ -584,12 +588,18 @@ function getLessonsAndStudentsForGroup_MixedGrade(groupName) {
   const config = getMixedGradeConfig();
 
   // SC Classroom special handling
-  if (SITE_CONFIG?.features?.scClassroomGroups === true && isSCClassroomGroup(groupName)) {
+  if (typeof SITE_CONFIG !== 'undefined' && 
+      SITE_CONFIG.features && 
+      SITE_CONFIG.features.scClassroomGroups === true && 
+      isSCClassroomGroup(groupName)) {
     return getLessonsAndStudentsForSCClassroom(data, groupName);
   }
 
   // Co-teaching special handling
-  if (SITE_CONFIG?.features?.coTeachingSupport === true && isCoTeachingGroup(groupName)) {
+  if (typeof SITE_CONFIG !== 'undefined' && 
+      SITE_CONFIG.features && 
+      SITE_CONFIG.features.coTeachingSupport === true && 
+      isCoTeachingGroup(groupName)) {
     return getLessonsAndStudentsForCoTeachingGroup(data, groupName);
   }
 
@@ -733,7 +743,9 @@ function getLessonsAndStudents_Sankofa(data, groupName) {
  * @returns {Object} Lessons and students data
  */
 function getLessonsAndStudentsForSCClassroom(data, groupName) {
-  if (SITE_CONFIG?.features?.scClassroomGroups !== true) {
+  if (typeof SITE_CONFIG === 'undefined' || 
+      !SITE_CONFIG.features || 
+      SITE_CONFIG.features.scClassroomGroups !== true) {
     return { error: "SC Classroom feature not enabled" };
   }
 
@@ -757,7 +769,9 @@ function getLessonsAndStudentsForSCClassroom(data, groupName) {
  * @returns {Object} Combined lessons and students data
  */
 function getLessonsAndStudentsForCoTeachingGroup(data, groupName) {
-  if (SITE_CONFIG?.features?.coTeachingSupport !== true) {
+  if (typeof SITE_CONFIG === 'undefined' || 
+      !SITE_CONFIG.features || 
+      SITE_CONFIG.features.coTeachingSupport !== true) {
     return { error: "Co-teaching feature not enabled" };
   }
 
@@ -1216,7 +1230,10 @@ function scanGradeSheetsForPacing_MixedGrade(grades) {
     }
 
     // Handle SC Classroom separately if enabled
-    if (SITE_CONFIG?.features?.scClassroomGroups === true && sheetName === "SC Classroom") {
+    if (typeof SITE_CONFIG !== 'undefined' && 
+        SITE_CONFIG.features && 
+        SITE_CONFIG.features.scClassroomGroups === true && 
+        sheetName === "SC Classroom") {
       sheetPacing = processPacing_SCClassroom(data, sheetName, sheetGrades);
     }
 
@@ -1355,7 +1372,9 @@ function processPacing_Sankofa(data, sheetName, grades) {
  * @returns {Object} Pacing data by grade
  */
 function processPacing_SCClassroom(data, sheetName, grades) {
-  if (SITE_CONFIG?.features?.scClassroomGroups !== true) {
+  if (typeof SITE_CONFIG === 'undefined' || 
+      !SITE_CONFIG.features || 
+      SITE_CONFIG.features.scClassroomGroups !== true) {
     return {};
   }
 
@@ -1601,7 +1620,7 @@ function formatGrowth(value) {
  * @returns {string} Site name
  */
 function getSiteName() {
-  if (typeof SITE_CONFIG !== 'undefined' && SITE_CONFIG?.siteName) {
+  if (typeof SITE_CONFIG !== 'undefined' && SITE_CONFIG.siteName) {
     return SITE_CONFIG.siteName;
   }
   return "School";
@@ -1640,10 +1659,12 @@ function testMixedGradeConfig() {
   
   Logger.log("");
   Logger.log("Feature Flags:");
-  Logger.log("  SC Classroom: " + (SITE_CONFIG?.features?.scClassroomGroups === true ? "✓" : "✗"));
-  Logger.log("  Co-Teaching: " + (SITE_CONFIG?.features?.coTeachingSupport === true ? "✓" : "✗"));
+  const scEnabled = (typeof SITE_CONFIG !== 'undefined' && SITE_CONFIG.features && SITE_CONFIG.features.scClassroomGroups === true);
+  const coTeachEnabled = (typeof SITE_CONFIG !== 'undefined' && SITE_CONFIG.features && SITE_CONFIG.features.coTeachingSupport === true);
+  Logger.log("  SC Classroom: " + (scEnabled ? "✓" : "✗"));
+  Logger.log("  Co-Teaching: " + (coTeachEnabled ? "✓" : "✗"));
   
-  if (SITE_CONFIG?.features?.coTeachingSupport === true) {
+  if (coTeachEnabled) {
     const pairs = getAllCoTeachingPairs();
     Logger.log("  Co-Teaching Pairs: " + pairs.length);
     pairs.forEach(p => {
@@ -1679,12 +1700,14 @@ function debugGroupLoading(groupName) {
     }
   }
   
-  if (SITE_CONFIG?.features?.coTeachingSupport === true) {
+  const coTeachEnabled = (typeof SITE_CONFIG !== 'undefined' && SITE_CONFIG.features && SITE_CONFIG.features.coTeachingSupport === true);
+  if (coTeachEnabled) {
     const partner = getPartnerGroup(groupName);
     Logger.log("Partner Group: " + (partner || "None"));
   }
   
-  if (SITE_CONFIG?.features?.scClassroomGroups === true) {
+  const scEnabled = (typeof SITE_CONFIG !== 'undefined' && SITE_CONFIG.features && SITE_CONFIG.features.scClassroomGroups === true);
+  if (scEnabled) {
     Logger.log("Is SC Classroom: " + isSCClassroomGroup(groupName));
   }
   
