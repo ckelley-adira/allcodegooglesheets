@@ -19,7 +19,7 @@
  *   - SECONDARY_COLOR: School's secondary/accent color (hex)
  *   - LOGO_FILE_ID: Google Drive file ID or URL for school logo
  * 
- * Configuration Sheet Reference:
+ * Configuration Sheet Reference (Site Configuration sheet):
  * - Row 24: Primary Color
  * - Row 25: Secondary Color
  * - Row 26: Logo File ID
