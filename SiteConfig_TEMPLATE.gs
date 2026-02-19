@@ -29,6 +29,8 @@ const SITE_CONFIG = {
   // ═══════════════════════════════════════════════════════════════════════════
   // BRANDING
   // Visual identity and styling for all UI components
+  // Defaults are applied automatically during onboarding if values are empty.
+  // Schools may configure full branding or rely on these defaults.
   // ═══════════════════════════════════════════════════════════════════════════
   branding: {
     schoolName: "Your School Name",
@@ -42,10 +44,52 @@ const SITE_CONFIG = {
   },
   
   // ═══════════════════════════════════════════════════════════════════════════
+  // VERSION TRACKING
+  // Tracks upgrade history for schools migrating from legacy configurations.
+  // previousVersions: Array of prior systemVersion values before upgrade.
+  // upgradeDate: ISO date string of last upgrade.
+  // legacyConfigFormat: Set to the legacy format name if migrated (e.g., "v3.2").
+  // ═══════════════════════════════════════════════════════════════════════════
+  versionTracking: {
+    previousVersions: [],    // e.g., ["3.0", "3.2"]
+    upgradeDate: "",         // e.g., "2026-02-19"
+    legacyConfigFormat: ""   // e.g., "v3.2" if migrated from older config
+  },
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MENU CUSTOMIZATION
+  // Override default menu labels and icons per school.
+  // If a key is omitted or empty, the built-in default is used.
+  // ═══════════════════════════════════════════════════════════════════════════
+  menuCustomization: {
+    // Override the top-level menu name (default: school short name or "UFLI Tools")
+    menuName: "",
+    // Override individual feature menu labels/icons
+    // Keys match feature flag names; values are { label, icon } objects
+    featureLabels: {}
+    // Example:
+    // featureLabels: {
+    //   coachingDashboard: { label: "Coaching", icon: "📋" },
+    //   adminImport:       { label: "Data Import", icon: "📂" }
+    // }
+  },
+  
+  // ═══════════════════════════════════════════════════════════════════════════
   // FEATURE FLAGS
   // Set to true to enable, false to disable
   // ═══════════════════════════════════════════════════════════════════════════
   features: {
+    /**
+     * PRE-K ONLY MODE
+     * Selects the Pre-K–specific sheet layout (Pre-K Data, Pre-K Pacing,
+     * Pre-K Summary) and skips UFLI lesson-based sheets during onboarding.
+     * For mixed-grade sites that include Pre-K alongside K–8 grades, leave
+     * this false and add "PreK" to the grade list instead.
+     * Required for: Sites serving only Pre-K students
+     * Adds: Pre-K–only sheet generation and dashboard
+     */
+    preKOnlyMode: false,
+    
     /**
      * MIXED GRADE SUPPORT
      * Enables grouping students across multiple grade levels
@@ -422,4 +466,60 @@ function getEnabledFeatures() {
   return Object.keys(SITE_CONFIG.features).filter(feature => 
     SITE_CONFIG.features[feature] === true
   );
+}
+
+/**
+ * Returns the effective menu name for the top-level UFLI menu.
+ * Uses menuCustomization.menuName if set, otherwise falls back to
+ * the school short name or "UFLI Tools".
+ * @returns {string} Menu name
+ */
+function getMenuName() {
+  const custom = (SITE_CONFIG.menuCustomization || {}).menuName;
+  if (custom) return custom;
+  const short = (SITE_CONFIG.branding || {}).shortName;
+  return short || "UFLI Tools";
+}
+
+/**
+ * Returns the display label and icon for a feature menu item.
+ * Checks menuCustomization.featureLabels first, then uses the provided defaults.
+ * @param {string} featureName - Feature flag name
+ * @param {string} defaultLabel - Default label text
+ * @param {string} defaultIcon - Default emoji icon
+ * @returns {{label: string, icon: string}}
+ */
+function getFeatureMenuLabel(featureName, defaultLabel, defaultIcon) {
+  const overrides = ((SITE_CONFIG.menuCustomization || {}).featureLabels || {})[featureName];
+  return {
+    label: (overrides && overrides.label) || defaultLabel,
+    icon: (overrides && overrides.icon) || defaultIcon
+  };
+}
+
+/**
+ * Detects whether the current site is a Pre-K–only deployment.
+ * A site is Pre-K–only when the preKOnlyMode feature flag is true.
+ * @returns {boolean}
+ */
+function isPreKOnlySite() {
+  return SITE_CONFIG.features.preKOnlyMode === true;
+}
+
+/**
+ * Returns true when the site was migrated from a legacy configuration format.
+ * Useful for gating backward-compatible behavior.
+ * @returns {boolean}
+ */
+function isLegacyUpgrade() {
+  var tracking = SITE_CONFIG.versionTracking || {};
+  return !!(tracking.legacyConfigFormat);
+}
+
+/**
+ * Returns the version tracking metadata for this site.
+ * @returns {{previousVersions: Array<string>, upgradeDate: string, legacyConfigFormat: string}}
+ */
+function getVersionTracking() {
+  return SITE_CONFIG.versionTracking || { previousVersions: [], upgradeDate: "", legacyConfigFormat: "" };
 }

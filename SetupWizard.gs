@@ -168,6 +168,11 @@ const SHEET_LAYOUT_OPTIONS = [
     value: "sankofa", 
     label: "Sankofa Format", 
     description: "Co-teaching format with 'Student Name' header rows and group name in column D" 
+  },
+  { 
+    value: "prek", 
+    label: "Pre-K Only", 
+    description: "Pre-K–specific layout using Pre-K Data, Pre-K Pacing, and Pre-K Summary sheets" 
   }
 ];
 
@@ -718,7 +723,16 @@ function calculateGroupRecommendations(wizardData) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Automatically distributes students evenly across groups
+ * Automatically distributes students evenly across groups.
+ *
+ * Supports three layout scenarios:
+ * 1. Standard single-grade groups (default round-robin).
+ * 2. Mixed-grade groups — when mixedGradeSupport is enabled,
+ *    students whose grade falls within a MIXED_GRADE_CONFIG combination
+ *    are pooled together and distributed across the combined group.
+ * 3. Pre-K groups — treated identically to single-grade groups
+ *    (group names prefixed with "PreK").
+ *
  * @param {Object} wizardData - Current wizard data
  * @returns {Object} Updated wizard data with balanced assignments
  */
@@ -726,7 +740,29 @@ function autoBalanceStudents(wizardData) {
   const result = { ...wizardData };
   
   result.students = (result.students || []).map(s => ({ ...s, group: "" }));
-  
+
+  // Build a lookup of mixed-grade combinations when the feature is on.
+  // Maps each grade code to the array of grades it is combined with.
+  var mixedGradeLookup = {};
+  if (typeof isFeatureEnabled === 'function' && isFeatureEnabled('mixedGradeSupport')) {
+    var mixedCfg = (typeof MIXED_GRADE_CONFIG !== 'undefined') ? MIXED_GRADE_CONFIG : {};
+    var combos = mixedCfg.combinations || {};
+    // combinations may be an object { sheetName: [grades] } or a comma-separated string
+    if (typeof combos === 'string') {
+      combos.split(',').map(function(c) { return c.trim(); }).forEach(function(combo) {
+        var grades = combo.split('+').map(function(g) { return g.trim(); });
+        grades.forEach(function(g) { mixedGradeLookup[g] = grades; });
+      });
+    } else if (typeof combos === 'object') {
+      Object.keys(combos).forEach(function(key) {
+        var grades = combos[key];
+        if (Array.isArray(grades)) {
+          grades.forEach(function(g) { mixedGradeLookup[g] = grades; });
+        }
+      });
+    }
+  }
+
   (wizardData.groups || []).forEach(groupConfig => {
     const grade = groupConfig.grade;
     const groupCount = groupConfig.count;
@@ -735,8 +771,11 @@ function autoBalanceStudents(wizardData) {
       logMessage('autoBalanceStudents', `Skipping invalid group config: ${JSON.stringify(groupConfig)}`, 'WARN');
       return;
     }
-    
-    const studentsInGrade = result.students.filter(s => s.grade === grade && !s.group);
+
+    // Determine which grades to pool for this group config
+    var poolGrades = mixedGradeLookup[grade] || [grade];
+
+    const studentsInGrade = result.students.filter(s => poolGrades.indexOf(s.grade) !== -1 && !s.group);
     
     if (studentsInGrade.length === 0) return;
     
