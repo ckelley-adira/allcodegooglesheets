@@ -133,6 +133,32 @@ const FEATURE_OPTIONS = [
     name: "Monday.com Integration", 
     description: "Export progress data to Monday.com project management boards",
     category: "integration"
+  },
+  
+  // === SYSTEM & SECURITY (Phase 7b/7c) ===
+  { 
+    id: "enhancedSecurity", 
+    name: "Enhanced Security", 
+    description: "Input sanitization and formula injection prevention for all user inputs (recommended ON)",
+    category: "system"
+  },
+  { 
+    id: "structuredLogging", 
+    name: "Structured Logging", 
+    description: "Detailed logging for troubleshooting and auditing (useful for schools needing audit trails)",
+    category: "system"
+  },
+  { 
+    id: "scClassroomGroups", 
+    name: "SC Classroom Groups", 
+    description: "Special needs classroom with wide grade range support (SC programs)",
+    category: "system"
+  },
+  { 
+    id: "coTeachingSupport", 
+    name: "Co-Teaching Support", 
+    description: "Partner group tracking for co-taught classes (co-teaching model)",
+    category: "system"
   }
 ];
 

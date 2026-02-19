@@ -106,19 +106,23 @@ pre-Phase 7f behavior.
 - [ ] `CONFIG_LAYOUT.SITE_CONFIG.GRADE_RANGE_MODEL_ROW` equals `3`
 - [ ] `CONFIG_LAYOUT.SITE_CONFIG.DATA_START_ROW_CONFIG_ROW` equals `32`
 - [ ] `CONFIG_LAYOUT.SITE_CONFIG.LESSON_COLUMN_OFFSET_ROW` equals `33`
+- [ ] `FEATURE_OPTIONS` includes 4 system features: `enhancedSecurity`, `structuredLogging`, `scClassroomGroups`, `coTeachingSupport`
 - [ ] `getWizardData()` returns `gradeRangeModel` in its response
 - [ ] `getWizardData()` returns `sheetLayout.dataStartRow` and `sheetLayout.lessonColumnOffset`
 - [ ] `createConfigurationSheet()` writes Grade Range Model to row 3
 - [ ] `createConfigurationSheet()` writes Data Start Row to row 32
 - [ ] `createConfigurationSheet()` writes Lesson Column Offset to row 33
+- [ ] `createFeatureSettingsSheet()` persists all 14 features (including 4 system flags)
+- [ ] `getExistingFeatures()` loads all 14 features on re-run
 - [ ] Font family range covers rows 2–33
 
 ### SetupWizardUI.html
 - [ ] Step 2: Grade Range Model dropdown appears above grade checkboxes
 - [ ] Step 2: Selecting a preset auto-checks matching grades
 - [ ] Step 2: Manually toggling a checkbox switches dropdown to "Custom"
-- [ ] Step 6: Four system/security checkboxes render below existing feature categories
-- [ ] Step 6: Enhanced Security defaults to checked
+- [ ] Step 6: Four system/security checkboxes render via `initializeFeaturesList()` under "🔧 System & Security" category
+- [ ] Step 6: `FEATURE_OPTIONS` array matches SetupWizard.gs (14 items)
+- [ ] Step 6: Enhanced Security defaults to checked via `defaultOn: true`
 - [ ] Step 8: Data Start Row input with default 6
 - [ ] Step 8: Lesson Column Offset input with default 5
 - [ ] Step 9 (Review): Grade Range Model displays in summary
