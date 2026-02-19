@@ -1,3 +1,11 @@
+/**
+ * ⚠️ DEPRECATED - Phase 7c
+ * This file has been consolidated into MixedGradeSupport_Unified.gs
+ * See: PHASE7_AUDIT_REPORT.md § 1.3 and § 3.3
+ * This file is retained for reference only and should not be modified.
+ * Migration date: 2026-02-18
+ */
+
 // ═══════════════════════════════════════════════════════════════════════════
 // UFLI MASTER SYSTEM - MIXED GRADE SUPPORT MODULE (ENHANCED)
 // Enables sites with combined grade groups (e.g., KG+G1, G2+G3, G4-G6)

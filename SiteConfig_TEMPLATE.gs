@@ -125,7 +125,25 @@ const SITE_CONFIG = {
      * Adds: Automatic student archival, Monday.com task creation, "Student Archive" sheet
      * File: modules/UnenrollmentAutomation.gs
      */
-    unenrollmentAutomation: false
+    unenrollmentAutomation: false,
+    
+    /**
+     * SC CLASSROOM GROUPS
+     * Special needs classroom with wide grade range
+     * Required for: Schools with SC programs (Adelante, Sankofa)
+     * Adds: SC Classroom sheet generation and tracking
+     * Configuration: MIXED_GRADE_CONFIG.scClassroom
+     */
+    scClassroomGroups: false,
+    
+    /**
+     * CO-TEACHING SUPPORT
+     * Partner group tracking for co-taught classes
+     * Required for: Schools with co-teaching model (Sankofa)
+     * Adds: getPartnerGroup(), isCoTeachingGroup(), co-teaching pair management
+     * Configuration: MIXED_GRADE_CONFIG.coTeaching
+     */
+    coTeachingSupport: false
   }
 };
 
@@ -145,12 +163,28 @@ const MIXED_GRADE_CONFIG = {
   // Sheet format type
   sheetFormat: "STANDARD", // "STANDARD" or "SANKOFA"
   
-  // Mixed grade combinations (comma-separated)
-  // Example: "G6+G7+G8, G1+G2+G3+G4"
-  combinations: "",
+  // Mixed grade combinations (object mapping sheet names to grade arrays)
+  // Example: { "G6 to G8 Groups": ["G6", "G7", "G8"], "KG and G1 Groups": ["KG", "G1"] }
+  combinations: {},
   
   // Group naming pattern
-  namingPattern: "NUMBERED_TEACHER" // "NUMBERED_TEACHER", "NUMBERED", or "ALPHA"
+  namingPattern: "NUMBERED_TEACHER", // "NUMBERED_TEACHER", "NUMBERED", or "ALPHA"
+  
+  // SC Classroom configuration (special needs classroom)
+  // Note: Enable/disable is controlled via SITE_CONFIG.features.scClassroomGroups
+  // Current implementation uses a fixed "SC Classroom" sheet name
+  scClassroom: {
+    gradeRange: [], // e.g., ["G1", "G2", "G3", "G4"] or ["G1", "G2", "G3", "G4", "G5"]
+    hasSubGroups: true,
+    sheetName: "SC Classroom"
+  },
+  
+  // Co-teaching configuration (partner group tracking)
+  // Note: Enable/disable is controlled via SITE_CONFIG.features.coTeachingSupport
+  // Partner group column is defined by GROUP_CONFIG_COLS.PARTNER_GROUP in the unified module
+  coTeaching: {
+    // Add additional configuration options here only if the main code is updated to use them
+  }
 };
 
 /**
