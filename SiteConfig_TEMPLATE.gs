@@ -357,7 +357,7 @@ const MIXED_GRADE_CONFIG = {
   // Note: Enable/disable is controlled via SITE_CONFIG.features.coTeachingSupport
   // Partner group column is defined by GROUP_CONFIG_COLS.PARTNER_GROUP in the unified module
   coTeaching: {
-    partnerGroupColumn: 0  // Column index for partner group (0 = disabled)
+    partnerGroupColumn: 0  // 1-based column index for partner group (0 = disabled)
   }
 };
 
