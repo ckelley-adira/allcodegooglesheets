@@ -2,17 +2,21 @@
 // SITE CONFIGURATION TEMPLATE
 // Instructions for configuring optional feature modules
 // ═══════════════════════════════════════════════════════════════════════════
-// Version: 4.0 - MODULAR ARCHITECTURE
+// Version: 7.0 - UNIFIED SCHOOL SITE TEMPLATE (PHASE 7)
 // Last Updated: February 2026
 //
 // PURPOSE:
-// This template defines all optional feature modules available in the UFLI
-// Master System. Each feature can be enabled/disabled via feature flags.
+// This template defines ALL school-specific configuration for the UFLI
+// Master System. When combined with UnifiedConfig.gs and
+// UnifiedPhase2_ProgressTracking.gs, it eliminates the need for per-school
+// copies of logic files. Each feature and layout option can be configured
+// via the SetUp Wizard or by editing this file directly.
 //
 // USAGE:
-// 1. Copy this template to your school's setup wizard
-// 2. Set feature flags to true/false in SITE_CONFIG.features
-// 3. Features are automatically activated/deactivated in menus, dialogs, and triggers
+// 1. Deploy the template package to a new Google Sheet
+// 2. Run the SetUp Wizard (it auto-launches on first open)
+// 3. All settings below are written by the wizard — or edit directly
+// 4. Features are automatically activated/deactivated in menus and sheets
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
@@ -24,7 +28,7 @@ const SITE_CONFIG = {
   // BASIC SETTINGS
   // ═══════════════════════════════════════════════════════════════════════════
   schoolName: "Your School Name",
-  systemVersion: "4.0",
+  systemVersion: "7.0",
   
   /**
    * GRADE RANGE MODEL
@@ -34,6 +38,34 @@ const SITE_CONFIG = {
    */
   gradeRangeModel: "custom",
   
+  // ═══════════════════════════════════════════════════════════════════════════
+  // GRADE RANGE MODEL (Phase 7)
+  // Determines which grades this school serves and Pre-K inclusion
+  // Options: "prek_only", "k5", "k8", "prek_8", "custom"
+  // ═══════════════════════════════════════════════════════════════════════════
+  gradeRangeModel: "custom",
+  
+  /**
+   * Explicit list of active grade codes (used when gradeRangeModel is "custom"
+   * or to override model defaults).
+   * Valid values: "PreK", "KG", "G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8"
+   */
+  gradesServed: [],
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SHEET LAYOUT (Phase 7)
+  // Controls how tracking sheets are structured. These values are resolved
+  // by UnifiedConfig.gs into the LAYOUT object used by all modules.
+  // ═══════════════════════════════════════════════════════════════════════════
+  layout: {
+    headerRowCount: 5,          // Number of header rows (3-10)
+    dataStartRow: 6,            // First data row = headerRowCount + 1
+    lessonColumnOffset: 5,      // 0-based offset to first lesson column (default 5 = col F)
+    lessonsPerGroupSheet: 12,   // Lesson columns shown on each group sheet
+    groupFormat: "standard",    // "standard", "condensed", "expanded", "sankofa"
+    includeSCClassroom: false   // Add Self-Contained Classroom column
+  },
+
   // ═══════════════════════════════════════════════════════════════════════════
   // BRANDING
   // Visual identity and styling for all UI components

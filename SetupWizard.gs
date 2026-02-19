@@ -353,7 +353,8 @@ function onOpen() {
   }
   
   // 2. Configured State (Full Menu)
-  const baseMenu = ui.createMenu('Adira Reads Progress Report')
+  // Build base menu with core items (always present)
+  var baseMenu = ui.createMenu('Adira Reads Progress Report')
     // === PRIMARY ACTIONS (Daily Use) ===
     .addItem('📊 View School Summary', 'goToSchoolSummary')
     .addItem('📈 Generate Reports', 'generateReports')
@@ -375,6 +376,18 @@ function onOpen() {
       .addItem('✅ Enable Nightly Full Sync', 'setupNightlySyncTrigger')
       .addItem('❌ Disable Nightly Full Sync', 'removeNightlySyncTrigger')
       .addItem('ℹ️ Check Sync Status', 'showSyncStatus'));
+
+  // === FEATURE MODULES (Phase 7: Dynamic menu items from feature flags) ===
+  // Uses ModuleLoader.buildFeatureMenu() to add menus only for enabled features
+  // (Coaching Dashboard, Tutoring, Grant Reports, Growth Highlighter, Admin Import, etc.)
+  if (typeof buildFeatureMenu === 'function') {
+    buildFeatureMenu(ui, baseMenu);
+  }
+
+  baseMenu.addSeparator()
+
+    // === MAINTENANCE ===
+    .addSubMenu(ui.createMenu('🔧 System Tools')
   
   // === FEATURE-SPECIFIC MENUS (Dynamic, driven by SITE_CONFIG feature flags) ===
   buildFeatureMenu(ui, baseMenu);
@@ -388,7 +401,7 @@ function onOpen() {
       // Repairs (Only the essential ones)
       .addItem('🔧 Repair All Formulas', 'repairAllFormulas')
       .addItem('⚠️ Fix Missing Teachers', 'fixMissingTeachers')
-      .addItem('🎨 Repair Formatting', 'repairUFLIMapFormatting')
+      .addItem('🎨 Repair Formatting', 'repairUFLIMapFormatting'))
     
     .addSeparator()
     
