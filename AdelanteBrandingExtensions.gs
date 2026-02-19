@@ -1,17 +1,18 @@
 /**
  * =============================================================================
- * CHAW BRANDING EXTENSIONS
+ * ADELANTE BRANDING EXTENSIONS
  * =============================================================================
  * 
- * School: CHAW (Handwriting Without Tears)
+ * School: Adelante Bilingual Academy
  * 
  * Purpose:
- * This file contains CHAW-specific branding functions extracted from
- * CHAWPhase2_ProgressTracking.gs. These functions extend the unified
+ * This file contains Adelante-specific branding functions extracted from
+ * AdelantePhase2_ProgressTracking.gs. These functions extend the unified
  * Phase2_ProgressTracking_Unified.gs with dynamic branding capabilities.
  * 
  * Feature Flags:
  * - dynamicBranding: Enables dynamic loading of branding from Site Configuration
+ * - studentNormalization: Enables student name normalization functionality
  * 
  * Dependencies:
  * - SITE_CONFIG.branding: Configuration object containing:
@@ -28,18 +29,13 @@
  * 1. loadSchoolBranding() - Loads branding from Site Configuration
  * 2. insertSheetLogo() - Inserts school logo on sheets
  * 3. applySheetBranding() - Applies custom branding to sheets
- * 4. lightenColor() - Color manipulation utility
- * 5. getCHAWConfig() - CHAW-specific configuration retrieval
- * 6. createHeader() - Helper function for creating non-merged headers
- * 7. clearBrandingCache() - Clears cached branding data
- * 
- * Constants Defined:
- * - SCHOOL_BRANDING: Branding configuration object with static and dynamic properties
- * - COLORS: Color palette for sheet formatting
+ * 4. clearBrandingCache() - Clears cached branding data
+ * 5. lightenColor() - Color manipulation utility
+ * 6. normalizeStudent() - Student data normalization
  * 
  * Usage:
- * These functions should be called from CHAWPhase2_ProgressTracking.gs
- * when the dynamicBranding feature flag is enabled.
+ * These functions should be called from AdelantePhase2_ProgressTracking.gs
+ * when the dynamicBranding or studentNormalization feature flags are enabled.
  * =============================================================================
  */
 
@@ -56,24 +52,6 @@ let _brandingCache = null;
  */
 function clearBrandingCache() {
   _brandingCache = null;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════
-// CHAW CONFIGURATION
-// ═══════════════════════════════════════════════════════════════════════════
-
-/**
- * Returns CHAW-specific configuration for SharedEngine functions
- * @returns {Object} Configuration object
- */
-function getCHAWConfig() {
-  return {
-    SHEET_NAMES_V2,
-    SHEET_NAMES_PREK,
-    LAYOUT,
-    PREK_CONFIG,
-    GRADE_METRICS: SHARED_GRADE_METRICS
-  };
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -142,73 +120,27 @@ function lightenColor(hex, factor) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// BRANDING CONSTANTS
+// STUDENT DATA NORMALIZATION
 // ═══════════════════════════════════════════════════════════════════════════
 
-// SCHOOL_BRANDING object with lazy-loaded values from Site Configuration
-const SCHOOL_BRANDING = {
-  // Font settings (static)
-  FONT_FAMILY: "Calibri",
-  HEADER_FONT_SIZE: 14,
-  SUBHEADER_FONT_SIZE: 10,
-  LOGO_WIDTH: 100,
-  LOGO_HEIGHT: 50,
-
-  // Dynamic getters that load from config sheet
-  get PRIMARY_COLOR() { return loadSchoolBranding().PRIMARY_COLOR; },
-  get SECONDARY_COLOR() { return loadSchoolBranding().SECONDARY_COLOR; },
-  get LOGO_FILE_ID() { return loadSchoolBranding().LOGO_FILE_ID; },
-
-  // Derived colors
-  get HEADER_BG() { return this.PRIMARY_COLOR; },
-  get HEADER_FG() { return "#FFFFFF"; },
-  get TITLE_BG() { return lightenColor(this.PRIMARY_COLOR, 0.7); },
-  get TITLE_FG() { return "#000000"; },
-  get ACCENT_BG() { return this.SECONDARY_COLOR; }
-};
-
-const COLORS = {
-  Y: "#d4edda",        // Light green - Yes/Pass
-  N: "#f8d7da",        // Light red - No/Fail
-  A: "#fff3cd",        // Light yellow - Absent
-  HEADER_BG: SCHOOL_BRANDING.HEADER_BG,
-  HEADER_FG: SCHOOL_BRANDING.HEADER_FG,
-  TITLE_BG: SCHOOL_BRANDING.TITLE_BG,
-  TITLE_FG: SCHOOL_BRANDING.TITLE_FG,
-  SUB_HEADER_BG: "#f8f9fa",
-  PLACEHOLDER_FG: "#999999"
-};
+/**
+ * Normalizes student data object
+ * Ensures all fields are properly trimmed and converted to strings
+ * @param {Object} student - Student object with name, grade, teacher, group fields
+ * @returns {Object} Normalized student object
+ */
+function normalizeStudent(student) {
+  return {
+    name: (student && student.name) ? student.name.toString().trim() : "",
+    grade: (student && student.grade) ? student.grade.toString().trim() : "",
+    teacher: (student && student.teacher) ? student.teacher.toString().trim() : "",
+    group: (student && student.group) ? student.group.toString().trim() : ""
+  };
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SHEET BRANDING FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════
-
-/**
- * Creates a header row without merging cells (for better performance)
- * @param {Sheet} sheet - The sheet to format
- * @param {number} row - Row number for the header
- * @param {string} text - Header text
- * @param {number} width - Number of columns to apply background to
- * @param {Object} options - Formatting options (background, fontColor, fontWeight, fontSize, fontFamily, fontStyle, horizontalAlignment)
- */
-function createHeader(sheet, row, text, width, options = {}) {
-  // Set background across the full width (no merge)
-  const fullRange = sheet.getRange(row, 1, 1, width);
-  if (options.background) fullRange.setBackground(options.background);
-
-  // Set text in first column only (or column 2 if logo present and row 1)
-  const textCol = (row === 1 && SCHOOL_BRANDING.LOGO_FILE_ID) ? 2 : 1;
-  const textRange = sheet.getRange(row, textCol);
-  textRange.setValue(text);
-
-  // Apply font styling to the text cell
-  textRange.setFontFamily(options.fontFamily || SCHOOL_BRANDING.FONT_FAMILY);
-  if (options.fontColor) textRange.setFontColor(options.fontColor);
-  if (options.fontWeight) textRange.setFontWeight(options.fontWeight);
-  if (options.fontSize) textRange.setFontSize(options.fontSize);
-  if (options.fontStyle) textRange.setFontStyle(options.fontStyle);
-  if (options.horizontalAlignment) textRange.setHorizontalAlignment(options.horizontalAlignment);
-}
 
 /**
  * Inserts the school logo into a sheet (row 1, column A)
