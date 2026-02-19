@@ -184,6 +184,7 @@ const CONFIG_LAYOUT = {
   SITE_CONFIG: {
     HEADER_ROW: 1,
     SCHOOL_NAME_ROW: 2,
+    GRADE_RANGE_MODEL_ROW: 3,
     GRADES_HEADER_ROW: 4,
     GRADES_START_ROW: 5,
     GRADE_MIXING_HEADER_ROW: 16,
@@ -196,11 +197,13 @@ const CONFIG_LAYOUT = {
     PRIMARY_COLOR_ROW: 24,
     SECONDARY_COLOR_ROW: 25,
     LOGO_FILE_ID_ROW: 26,
-    // Sheet Layout Options (rows 28-31)
+    // Sheet Layout Options (rows 28-33)
     LAYOUT_HEADER_ROW: 28,
     HEADER_ROW_COUNT_ROW: 29,
     GROUP_FORMAT_ROW: 30,
-    SC_CLASSROOM_ROW: 31
+    SC_CLASSROOM_ROW: 31,
+    DATA_START_ROW_CONFIG_ROW: 32,
+    LESSON_COLUMN_OFFSET_ROW: 33
   },
   ROSTER: {
     TITLE_ROW: 1,
@@ -435,6 +438,7 @@ function getWizardData() {
   if (!configSheet) {
     return {
       schoolName: "",
+      gradeRangeModel: "custom",
       gradesServed: [],
       students: [],
       teachers: [],
@@ -452,13 +456,16 @@ function getWizardData() {
       sheetLayout: {
         headerRowCount: 5,
         groupFormat: "standard",
-        includeSCClassroom: false
+        includeSCClassroom: false,
+        dataStartRow: 6,
+        lessonColumnOffset: 5
       }
     };
   }
 
   return {
     schoolName: configSheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.SCHOOL_NAME_ROW, CONFIG_LAYOUT.COLS.VALUE).getValue() || "",
+    gradeRangeModel: configSheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.GRADE_RANGE_MODEL_ROW, CONFIG_LAYOUT.COLS.VALUE).getValue() || "custom",
     gradesServed: getExistingGrades(configSheet),
     students: getExistingStudents(),
     teachers: getExistingTeachers(),
@@ -508,7 +515,9 @@ function getExistingSheetLayout(configSheet) {
   const defaultLayout = {
     headerRowCount: 5,
     groupFormat: "standard",
-    includeSCClassroom: false
+    includeSCClassroom: false,
+    dataStartRow: 6,
+    lessonColumnOffset: 5
   };
 
   if (!configSheet) return defaultLayout;
@@ -517,11 +526,15 @@ function getExistingSheetLayout(configSheet) {
     const headerRowCount = configSheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.HEADER_ROW_COUNT_ROW, CONFIG_LAYOUT.COLS.VALUE).getValue();
     const groupFormat = configSheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.GROUP_FORMAT_ROW, CONFIG_LAYOUT.COLS.VALUE).getValue();
     const includeSCClassroom = configSheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.SC_CLASSROOM_ROW, CONFIG_LAYOUT.COLS.VALUE).getValue();
+    const dataStartRow = configSheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.DATA_START_ROW_CONFIG_ROW, CONFIG_LAYOUT.COLS.VALUE).getValue();
+    const lessonColumnOffset = configSheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.LESSON_COLUMN_OFFSET_ROW, CONFIG_LAYOUT.COLS.VALUE).getValue();
 
     return {
       headerRowCount: headerRowCount || defaultLayout.headerRowCount,
       groupFormat: groupFormat || defaultLayout.groupFormat,
-      includeSCClassroom: includeSCClassroom === true || includeSCClassroom === "TRUE"
+      includeSCClassroom: includeSCClassroom === true || includeSCClassroom === "TRUE",
+      dataStartRow: dataStartRow || defaultLayout.dataStartRow,
+      lessonColumnOffset: lessonColumnOffset || defaultLayout.lessonColumnOffset
     };
   } catch (e) {
     return defaultLayout;
@@ -951,6 +964,9 @@ function createConfigurationSheet(ss, data) {
   sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.SCHOOL_NAME_ROW, CONFIG_LAYOUT.COLS.LABEL).setValue("School Name:");
   sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.SCHOOL_NAME_ROW, CONFIG_LAYOUT.COLS.VALUE).setValue(data.schoolName);
   
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.GRADE_RANGE_MODEL_ROW, CONFIG_LAYOUT.COLS.LABEL).setValue("Grade Range Model:");
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.GRADE_RANGE_MODEL_ROW, CONFIG_LAYOUT.COLS.VALUE).setValue(data.gradeRangeModel || "custom");
+  
   sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.GRADES_HEADER_ROW, CONFIG_LAYOUT.COLS.LABEL).setValue("Grades Served:");
   sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.GRADES_HEADER_ROW, CONFIG_LAYOUT.COLS.LABEL).setFontWeight("bold");
   
@@ -1008,9 +1024,17 @@ function createConfigurationSheet(ss, data) {
   sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.SC_CLASSROOM_ROW, 2)
     .setValue(data.sheetLayout ? data.sheetLayout.includeSCClassroom : false);
 
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.DATA_START_ROW_CONFIG_ROW, 1).setValue("Data Start Row:");
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.DATA_START_ROW_CONFIG_ROW, 2)
+    .setValue(data.sheetLayout ? (data.sheetLayout.dataStartRow || 6) : 6);
+
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.LESSON_COLUMN_OFFSET_ROW, 1).setValue("Lesson Column Offset:");
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.LESSON_COLUMN_OFFSET_ROW, 2)
+    .setValue(data.sheetLayout ? (data.sheetLayout.lessonColumnOffset || 5) : 5);
+
   sheet.setColumnWidth(1, 250);
   sheet.setColumnWidth(2, 300);
-  sheet.getRange(2, 1, 31, 2).setFontFamily("Calibri");
+  sheet.getRange(2, 1, 32, 2).setFontFamily("Calibri");
 
   protectSheet(sheet);
 }
