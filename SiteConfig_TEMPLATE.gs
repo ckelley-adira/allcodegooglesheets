@@ -26,6 +26,14 @@ const SITE_CONFIG = {
   schoolName: "Your School Name",
   systemVersion: "4.0",
   
+  /**
+   * GRADE RANGE MODEL
+   * Preset grade range for the school. Selecting a preset auto-populates
+   * the gradesServed list. Use "custom" for school-defined grade lists.
+   * Valid values: "prek_only", "k5", "k8", "prek_8", "custom"
+   */
+  gradeRangeModel: "custom",
+  
   // ═══════════════════════════════════════════════════════════════════════════
   // BRANDING
   // Visual identity and styling for all UI components
@@ -41,6 +49,20 @@ const SITE_CONFIG = {
     headerGradientStart: "#4A90E2",  // Setup wizard header gradient start
     headerGradientEnd: "#357ABD",  // Setup wizard header gradient end
     accentColor: "#4A90A4"  // Secondary accent for sidebars and highlights
+  },
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LAYOUT
+  // Sheet structure settings consumed by unified modules at runtime.
+  // dataStartRow: First row containing student data (= headerRowCount + 1).
+  // lessonColumnOffset: Column index where lesson data begins.
+  // ═══════════════════════════════════════════════════════════════════════════
+  layout: {
+    headerRowCount: 5,         // Number of header rows before data begins
+    dataStartRow: 6,           // First row containing student data
+    lessonColumnOffset: 5,     // Column where lesson data begins (1-based)
+    groupFormat: "standard",   // "standard", "condensed", "expanded", "sankofa", "prek"
+    includeSCClassroom: false  // Whether to include SC Classroom sheet
   },
   
   // ═══════════════════════════════════════════════════════════════════════════
@@ -335,7 +357,7 @@ const MIXED_GRADE_CONFIG = {
   // Note: Enable/disable is controlled via SITE_CONFIG.features.coTeachingSupport
   // Partner group column is defined by GROUP_CONFIG_COLS.PARTNER_GROUP in the unified module
   coTeaching: {
-    // Add additional configuration options here only if the main code is updated to use them
+    partnerGroupColumn: 0  // 1-based column index for partner group (0 = disabled)
   }
 };
 
