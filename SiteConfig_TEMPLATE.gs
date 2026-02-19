@@ -29,7 +29,13 @@ const SITE_CONFIG = {
   // ═══════════════════════════════════════════════════════════════════════════
   schoolName: "Your School Name",
   systemVersion: "7.0",
-  
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // GRADE RANGE MODEL (Phase 7)
+  // Determines which grades this school serves and Pre-K inclusion.
+  // Selecting a preset auto-populates the gradesServed list via the wizard.
+  // Valid values: "prek_only", "k5", "k8", "prek_8", "custom"
+  // ═══════════════════════════════════════════════════════════════════════════
   /**
    * GRADE RANGE MODEL
    * Preset grade range for the school. Selecting a preset auto-populates
@@ -37,14 +43,7 @@ const SITE_CONFIG = {
    * Valid values: "prek_only", "k5", "k8", "prek_8", "custom"
    */
   gradeRangeModel: "custom",
-  
-  // ═══════════════════════════════════════════════════════════════════════════
-  // GRADE RANGE MODEL (Phase 7)
-  // Determines which grades this school serves and Pre-K inclusion
-  // Options: "prek_only", "k5", "k8", "prek_8", "custom"
-  // ═══════════════════════════════════════════════════════════════════════════
-  gradeRangeModel: "custom",
-  
+
   /**
    * Explicit list of active grade codes (used when gradeRangeModel is "custom"
    * or to override model defaults).
@@ -56,13 +55,15 @@ const SITE_CONFIG = {
   // SHEET LAYOUT (Phase 7)
   // Controls how tracking sheets are structured. These values are resolved
   // by UnifiedConfig.gs into the LAYOUT object used by all modules.
+  // dataStartRow: First row containing student data (= headerRowCount + 1).
+  // lessonColumnOffset: 0-based column index where lesson data begins.
   // ═══════════════════════════════════════════════════════════════════════════
   layout: {
     headerRowCount: 5,          // Number of header rows (3-10)
     dataStartRow: 6,            // First data row = headerRowCount + 1
     lessonColumnOffset: 5,      // 0-based offset to first lesson column (default 5 = col F)
     lessonsPerGroupSheet: 12,   // Lesson columns shown on each group sheet
-    groupFormat: "standard",    // "standard", "condensed", "expanded", "sankofa"
+    groupFormat: "standard",    // "standard", "condensed", "expanded", "sankofa", "prek"
     includeSCClassroom: false   // Add Self-Contained Classroom column
   },
 
@@ -81,20 +82,6 @@ const SITE_CONFIG = {
     headerGradientStart: "#4A90E2",  // Setup wizard header gradient start
     headerGradientEnd: "#357ABD",  // Setup wizard header gradient end
     accentColor: "#4A90A4"  // Secondary accent for sidebars and highlights
-  },
-  
-  // ═══════════════════════════════════════════════════════════════════════════
-  // LAYOUT
-  // Sheet structure settings consumed by unified modules at runtime.
-  // dataStartRow: First row containing student data (= headerRowCount + 1).
-  // lessonColumnOffset: Column index where lesson data begins.
-  // ═══════════════════════════════════════════════════════════════════════════
-  layout: {
-    headerRowCount: 5,         // Number of header rows before data begins
-    dataStartRow: 6,           // First row containing student data
-    lessonColumnOffset: 5,     // Column where lesson data begins (1-based)
-    groupFormat: "standard",   // "standard", "condensed", "expanded", "sankofa", "prek"
-    includeSCClassroom: false  // Whether to include SC Classroom sheet
   },
   
   // ═══════════════════════════════════════════════════════════════════════════
@@ -515,6 +502,63 @@ const PROGRESS_TRACKING_CONFIG = {
   historyLookbackDays: 90
 };
 
+/**
+ * Sync & Queue Configuration
+ * Settings for UFLI MAP sync queue and nightly automation
+ * Only used if features.ufliMapQueue or features.syncQueueProcessing = true
+ */
+const SYNC_CONFIG = {
+  // UFLI MAP sync queue sheet name
+  syncQueueSheet: "UFLI Sync Queue",
+
+  // Hourly sync queue trigger interval (minutes)
+  syncIntervalMinutes: 60,
+
+  // Nightly full sync trigger hour (0-23, spreadsheet timezone)
+  nightlySyncHour: 2,
+
+  // Maximum entries to process per sync run
+  batchSize: 200,
+
+  // Status monitoring sheet name
+  statusSheet: "Sync Status"
+};
+
+/**
+ * Branding Configuration
+ * School-level visual identity settings (mirrors SITE_CONFIG.branding for
+ * standalone access by modules that do not read SITE_CONFIG directly).
+ * Only used if features.dynamicBranding = true
+ */
+const BRANDING_CONFIG = (function() {
+  const b = (typeof SITE_CONFIG !== 'undefined' && SITE_CONFIG.branding) || {};
+  return {
+    // School display name
+    schoolName: b.schoolName || "Your School Name",
+
+    // Short name used in menu titles
+    shortName: b.shortName || "",
+
+    // Tagline displayed in wizard and reports
+    tagline: b.tagline || "Innovate. Educate. Empower.",
+
+    // Google Drive file ID for the school logo
+    logoUrl: b.logoUrl || "",
+
+    // Primary header background color
+    primaryColor: b.primaryColor || "#B8E6DC",
+
+    // Wizard header gradient start
+    headerGradientStart: b.headerGradientStart || "#4A90E2",
+
+    // Wizard header gradient end
+    headerGradientEnd: b.headerGradientEnd || "#357ABD",
+
+    // Secondary accent color for sidebars and highlights
+    accentColor: b.accentColor || "#4A90A4"
+  };
+})();
+
 // ═══════════════════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════
@@ -559,7 +603,13 @@ function getFeatureConfig(featureName) {
     grantReporting: GRANT_CONFIG,
     growthHighlighter: GROWTH_CONFIG,
     adminImport: IMPORT_CONFIG,
-    unenrollmentAutomation: UNENROLLMENT_CONFIG
+    unenrollmentAutomation: UNENROLLMENT_CONFIG,
+    progressTracking: PROGRESS_TRACKING_CONFIG,
+    ufliMapQueue: SYNC_CONFIG,
+    syncQueueProcessing: SYNC_CONFIG,
+    nightlySyncAutomation: SYNC_CONFIG,
+    syncStatusMonitoring: SYNC_CONFIG,
+    dynamicBranding: BRANDING_CONFIG
   };
   
   return configMap[featureName] || {};

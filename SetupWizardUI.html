@@ -1211,12 +1211,6 @@
             }
           }
           
-          // Load grade range model
-          if (data.gradeRangeModel) {
-            wizardData.gradeRangeModel = data.gradeRangeModel;
-            document.getElementById('gradeRangeModel').value = data.gradeRangeModel;
-          }
-          
           if (data.gradesServed && data.gradesServed.length > 0) {
             data.gradesServed.forEach(grade => {
               const checkbox = document.getElementById('grade_' + grade);

@@ -95,6 +95,8 @@ function getUnifiedConfig() {
     LESSON_COLUMN_OFFSET: siteLayout.lessonColumnOffset || 5,
     TOTAL_LESSONS: 128,
     LESSONS_PER_GROUP_SHEET: siteLayout.lessonsPerGroupSheet || 12,
+    GROUP_FORMAT: siteLayout.groupFormat || 'standard',
+    INCLUDE_SC_CLASSROOM: siteLayout.includeSCClassroom === true,
 
     // Column indices (1-based for Sheet API)
     COL_STUDENT_NAME: 1,
@@ -204,23 +206,43 @@ function getDefaultGradesForModel(modelId) {
 /**
  * Validates that a unified config object has all required properties
  * @param {Object} config - Configuration object to validate
- * @returns {Object} Validation result {valid: boolean, missing: string[]}
+ * @returns {Object} Validation result {valid: boolean, missing: string[], errors: string[]}
  */
 function validateUnifiedConfig(config) {
+  const KEY_GUIDANCE = {
+    LAYOUT: 'Check SITE_CONFIG.layout in SiteConfig_TEMPLATE.gs or run the Setup Wizard (Step 8) to configure sheet layout.',
+    SHEET_NAMES_V2: 'Ensure getUnifiedConfig() is called after SITE_CONFIG is defined in SiteConfig_TEMPLATE.gs.',
+    PREK_CONFIG: 'Check SITE_CONFIG.layout.headerRowCount in SiteConfig_TEMPLATE.gs; PREK_CONFIG is derived from layout settings.',
+    COLORS: 'Check SITE_CONFIG.branding.primaryColor and branding.accentColor in SiteConfig_TEMPLATE.gs.'
+  };
+
   const requiredKeys = ['LAYOUT', 'SHEET_NAMES_V2', 'PREK_CONFIG', 'COLORS'];
   const missing = requiredKeys.filter(key => !config || !config[key]);
+  const errors = missing.map(key =>
+    'Missing required config key "' + key + '". ' + (KEY_GUIDANCE[key] || 'Ensure getUnifiedConfig() is called and SITE_CONFIG is defined.')
+  );
 
   const requiredLayoutKeys = ['DATA_START_ROW', 'HEADER_ROW_COUNT', 'LESSON_COLUMN_OFFSET', 'TOTAL_LESSONS'];
   if (config && config.LAYOUT) {
     requiredLayoutKeys.forEach(key => {
       if (config.LAYOUT[key] === undefined || config.LAYOUT[key] === null) {
         missing.push('LAYOUT.' + key);
+        errors.push(
+          'Missing LAYOUT.' + key + '. Check SITE_CONFIG.layout in SiteConfig_TEMPLATE.gs ' +
+          'or run the Setup Wizard (Step 8) to configure sheet layout settings.'
+        );
       }
     });
+  } else {
+    errors.push(
+      'LAYOUT object is missing entirely. Ensure UnifiedConfig.gs is loaded and ' +
+      'getUnifiedConfig() has been called before using this config.'
+    );
   }
 
   return {
     valid: missing.length === 0,
-    missing: missing
+    missing: missing,
+    errors: errors
   };
 }

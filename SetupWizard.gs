@@ -388,12 +388,6 @@ function onOpen() {
 
     // === MAINTENANCE ===
     .addSubMenu(ui.createMenu('🔧 System Tools')
-  
-  // === FEATURE-SPECIFIC MENUS (Dynamic, driven by SITE_CONFIG feature flags) ===
-  buildFeatureMenu(ui, baseMenu);
-  
-  // === CORE MAINTENANCE & SETTINGS (Always present) ===
-  baseMenu.addSeparator()
       // Unenrollment
       .addItem('📦 Manual Archive Student', 'manualArchiveStudent')
       .addItem('📄 View Archive', 'goToArchiveSheet')
