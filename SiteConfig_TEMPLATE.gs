@@ -143,7 +143,62 @@ const SITE_CONFIG = {
      * Adds: getPartnerGroup(), isCoTeachingGroup(), co-teaching pair management
      * Configuration: MIXED_GRADE_CONFIG.coTeaching
      */
-    coTeachingSupport: false
+    coTeachingSupport: false,
+    
+    /**
+     * DYNAMIC BRANDING
+     * Enables sheet logo insertion and custom color schemes
+     * Required for: Schools with strong brand identity (Adelante, CHAW)
+     * Adds: loadSchoolBranding(), insertSheetLogo(), applySheetBranding()
+     * Dependencies: Branding configuration in SITE_CONFIG.branding
+     * Extension: AdelanteBrandingExtensions.gs, CHAWBrandingExtensions.gs
+     */
+    dynamicBranding: false,
+    
+    /**
+     * SKILL AVERAGES ANALYTICS
+     * Adds skill-based performance metrics to dashboard
+     * Required for: Schools tracking skill mastery (CCA)
+     * Adds: calculateSkillAverages(), renderSkillAveragesRow()
+     * Dashboard: Additional "Skill Averages" row on School Summary
+     * Extension: CCASkillsExtensions.gs
+     */
+    skillAveragesAnalytics: false,
+    
+    /**
+     * DIAGNOSTIC TOOLS
+     * Testing and validation utilities for troubleshooting
+     * Required for: Schools needing advanced diagnostics
+     * Adds: testGroupSheetStructure(), validation utilities
+     * Menu: "System Tools" > "Run Diagnostics"
+     */
+    diagnosticTools: false,
+    
+    /**
+     * LESSON ARRAY TRACKING
+     * Tracks lessons as arrays for batch operations
+     * Required for: Most schools (default: ON)
+     * Adds: updateGroupArrayByLessonName()
+     * Performance: Optimizes multi-lesson updates
+     */
+    lessonArrayTracking: true,
+    
+    /**
+     * STUDENT NORMALIZATION
+     * Auto-normalize student name fields (capitalization, spacing)
+     * Required for: Schools with data quality needs (Adelante)
+     * Adds: normalizeStudent() validation
+     * Extension: AdelanteBrandingExtensions.gs (normalizeStudent function)
+     */
+    studentNormalization: false,
+    
+    /**
+     * DYNAMIC STUDENT ROSTER
+     * Allow dynamic addition of students to tracking sheets
+     * Required for: Schools managing rosters mid-year (Allegiant, GlobalPrep, CCA)
+     * Adds: addStudentToSheet() in Phase2 tracking
+     */
+    dynamicStudentRoster: false
   }
 };
 
@@ -277,6 +332,36 @@ const UNENROLLMENT_CONFIG = {
   
   // Audit logging
   enableAuditLog: true
+};
+
+/**
+ * Progress Tracking Configuration
+ * Settings for Phase2_ProgressTracking_Unified.gs module
+ */
+const PROGRESS_TRACKING_CONFIG = {
+  // Sheet names for progress tracking
+  schoolSummary: "School Summary",
+  smallGroupProgress: "Small Group Progress",
+  ufliMap: "UFLI MAP",
+  skillsTracker: "Skills Tracker",
+  gradeSummary: "Grade Summary",
+  pacingReport: "Pacing Report",
+  groupConfig: "Group Config",
+  
+  // Dashboard configuration
+  dashboardMetrics: {
+    showGrowthMetrics: true,
+    showDistributionBands: true,
+    showSkillAverages: false, // Controlled by skillAveragesAnalytics flag
+    showPacingAnalysis: true
+  },
+  
+  // Formula repair settings
+  autoRepairFormulas: false,  // Set to true to auto-repair on updates
+  
+  // Progress history settings
+  trackHistory: true,
+  historyLookbackDays: 90
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
