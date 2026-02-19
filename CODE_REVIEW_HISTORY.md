@@ -5,11 +5,15 @@
 ---
 
 ## Summary Statistics
-- Total PRs reviewed: 20
+- Total PRs reviewed: 20 (PR #8, #9, #10, #11, #13, #14, #15, #16, #17, #18, #20, #21, #22, #23, #24, #26, #28, #30, #31, #32)
 - Total inline review comments: 31 (across 22 threads)
 - Total PR-level reviews: 25
 - Total discussion comments: 12
 - Reviewers: ckelley-adira, copilot-pull-request-reviewer[bot], copilot-swe-agent[bot]
+
+> **Note:** PR numbers are not consecutive because some numbers (#12, #19, #25, #27, #29) are GitHub Issues rather than pull requests and are therefore not listed here.
+>
+> **Note on verbatim quotes:** Reviewer comments and discussion comment content in this document preserve the original language used by reviewers, including technical file identifiers that may contain partner-site-specific names.
 
 ---
 
@@ -24,7 +28,7 @@
 **URL:** https://github.com/ckelley-adira/allcodegooglesheets/pull/8
 
 **Description Summary:**
-Eliminates 444 lines of duplicate business-rule constants across 6 school implementations by extracting to a single shared module (`SharedConstants.gs`). Centralizes `LESSON_LABELS` (128 entries), `SKILL_SECTIONS`, `REVIEW_LESSONS`, `REVIEW_LESSONS_SET`, `PERFORMANCE_THRESHOLDS`, and `STATUS_LABELS` + `getPerformanceStatus()`. All 6 school Phase2 files refactored to reference shared module. Pure extraction — no logic changes.
+Eliminates 444 lines of duplicate business-rule constants across 6 partner site implementations by extracting to a single shared module (`SharedConstants.gs`). Centralizes `LESSON_LABELS` (128 entries), `SKILL_SECTIONS`, `REVIEW_LESSONS`, `REVIEW_LESSONS_SET`, `PERFORMANCE_THRESHOLDS`, and `STATUS_LABELS` + `getPerformanceStatus()`. All 6 partner site Phase2 files refactored to reference shared module. Pure extraction — no logic changes.
 
 #### PR-Level Reviews
 *No PR-level reviews submitted.*
@@ -46,7 +50,7 @@ Eliminates 444 lines of duplicate business-rule constants across 6 school implem
 **URL:** https://github.com/ckelley-adira/allcodegooglesheets/pull/9
 
 **Description Summary:**
-Replaces school-specific setup wizards with a universal configuration-driven system. Creates `SiteConfig_TEMPLATE.gs` (30+ documented keys, helper functions, validation) and `SetupWizard.gs` v4.0 (universal wizard based on AdelanteSetUpWizard v3.2). Expands `FEATURE_OPTIONS` from 5 to 10 modules. Adds `SetupWizardUI.html` with 9-step guided configuration including new Branding (Step 7) and Sheet Layout (Step 8) steps. For greenfield deployments and major rewrites only.
+Replaces school-specific setup wizards with a universal configuration-driven system. Creates `SiteConfig_TEMPLATE.gs` (30+ documented keys, helper functions, validation) and `SetupWizard.gs` v4.0 (universal wizard based on a partner site's v3.2 setup wizard). Expands `FEATURE_OPTIONS` from 5 to 10 modules. Adds `SetupWizardUI.html` with 9-step guided configuration including new Branding (Step 7) and Sheet Layout (Step 8) steps. For greenfield deployments and major rewrites only.
 
 #### PR-Level Reviews
 *No PR-level reviews submitted.*
@@ -178,7 +182,7 @@ Provides formal verification that Phase 6 (SharedConstants backport tracking) is
 **URL:** https://github.com/ckelley-adira/allcodegooglesheets/pull/16
 
 **Description Summary:**
-Completes SharedEngine.gs consolidation for 4 remaining school files (Adelante, Sankofa, CHAW, GlobalPrep). Removes 17 core functions and 7 lesson array constants. Implements `get[School]Config()` pattern for each school. Results: Adelante -594 lines (18.4%), Sankofa -141 lines (5.3%), CHAW -109 lines (4.4%), GlobalPrep -31 lines (1.6%). GlobalPrep retains custom `GRADE_METRICS` (G3 uses 120 lessons vs standard 107). Adds `PHASE2_CONSOLIDATION.md`.
+Completes SharedEngine.gs consolidation for 4 remaining partner site files. Removes 17 core functions and 7 lesson array constants. Implements `get[School]Config()` pattern for each site. Results: Partner Site A -594 lines (18.4%), Partner Site F -141 lines (5.3%), Partner Site D -109 lines (4.4%), Partner Site E -31 lines (1.6%). One partner site retains custom `GRADE_METRICS` (G3 uses 120 lessons vs standard 107). Adds `PHASE2_CONSOLIDATION.md`.
 
 #### PR-Level Reviews
 *No PR-level reviews submitted.*
@@ -222,7 +226,7 @@ Verifies that PR #9 (Phase 3 canonical setup wizard) was already merged to main 
 **URL:** https://github.com/ckelley-adira/allcodegooglesheets/pull/18
 
 **Description Summary:**
-Unifies all major UI HTML files to canonical server-side templated versions (Adelante as base). Creates 6 canonical UI files: ManageStudentsUI.html, ManageGroupsUI.html, GenerateReportsUI.html, GrowthHighlighterSidebar.html, LessonEntryForm.html, SetupWizardUI.html. Adds `branding` block to SITE_CONFIG with `getBranding()` helper. Replaces all hardcoded colors/logos/labels with `<?= getBranding().property ?>` template tokens. Deletes 4 school-specific LessonEntryForm files. PreK UI files intentionally untouched. See [full PR](https://github.com/ckelley-adira/allcodegooglesheets/pull/18) for detailed before/after.
+Unifies all major UI HTML files to canonical server-side templated versions (using the most-complete partner site implementation as base). Creates 6 canonical UI files: ManageStudentsUI.html, ManageGroupsUI.html, GenerateReportsUI.html, GrowthHighlighterSidebar.html, LessonEntryForm.html, SetupWizardUI.html. Adds `branding` block to SITE_CONFIG with `getBranding()` helper. Replaces all hardcoded colors/logos/labels with `<?= getBranding().property ?>` template tokens. Deletes 4 partner-site-specific LessonEntryForm files. PreK UI files intentionally untouched. See [full PR](https://github.com/ckelley-adira/allcodegooglesheets/pull/18) for detailed before/after.
 
 #### PR-Level Reviews
 | Reviewer | State | Date | Summary |
@@ -235,10 +239,10 @@ Unifies all major UI HTML files to canonical server-side templated versions (Ade
 #### Discussion Comments
 | Commenter | Date | Comment |
 |---|---|---|
-| ckelley-adira | 2026-02-18T21:34:46Z | Template review: Canonical Files & SITE_CONFIG Analysis. Identified missing `branding` block in SITE_CONFIG, provided full branding structure. Checklist: add branding block + getBranding(), rename 6 Adelante files to canonical names, replace hardcoded values with `<?= ?>` tokens, delete per-school LessonEntryForm files, keep PreK files untouched, add PHASE5_UI_UNIFICATION.md. |
+| ckelley-adira | 2026-02-18T21:34:46Z | Template review: Canonical Files & SITE_CONFIG Analysis. Identified missing `branding` block in SITE_CONFIG, provided full branding structure. Checklist: add branding block + getBranding(), rename 6 partner-site-prefixed files to canonical names, replace hardcoded values with `<?= ?>` tokens, delete per-school LessonEntryForm files, keep PreK files untouched, add PHASE5_UI_UNIFICATION.md. |
 | ckelley-adira | 2026-02-18T21:38:00Z | "@copilot+claude-sonnet-4.5 did you incorporate my last comment?" |
 | Copilot | 2026-02-18T21:42:21Z | Acknowledged feedback requesting server-side `<?= ?>` templating. Confirmed implementation: added branding block to SiteConfig_TEMPLATE.gs, created 6 canonical UI files, replaced hardcoded values with `<?= getBranding().property ?>` tokens, deleted school-specific LessonEntryForm files, kept PreK files untouched, created PHASE5_UI_UNIFICATION.md. Note: setup wizards must use `createTemplateFromFile().evaluate()` going forward. |
-| ckelley-adira | 2026-02-18T21:42:29Z | Follow-up with outstanding items: (1) rename Adelante files to canonical names (drop "Adelante" prefix), (2) delete per-school duplicate LessonEntryForm files, (3) add static branding block to SiteConfig_TEMPLATE.gs with full structure, (4) update PHASE5_UI_UNIFICATION.md to document school-specific files that remain. |
+| ckelley-adira | 2026-02-18T21:42:29Z | Follow-up with outstanding items: (1) rename partner-site-prefixed files to canonical names (drop partner-site prefix), (2) delete per-school duplicate LessonEntryForm files, (3) add static branding block to SiteConfig_TEMPLATE.gs with full structure, (4) update PHASE5_UI_UNIFICATION.md to document school-specific files that remain. |
 
 ---
 
@@ -270,7 +274,7 @@ Creates unified school site template infrastructure. New files: `UnifiedConfig.g
 **URL:** https://github.com/ckelley-adira/allcodegooglesheets/pull/21
 
 **Description Summary:**
-Audits 17 school-specific logic files to plan Phase 7 consolidation. Creates `PHASE7_AUDIT_REPORT.md` with: (1) delta analysis showing 65-75% consolidation potential, (2) 6-school × 12-category feature matrix, (3) parameterization strategy, (4) proposed feature flags (13 new), (5) consolidation roadmap (Phases 7b-7g, 17-25 days). Security finding: Allegiant's AdminImport missing input sanitization present in Adelante's version.
+Audits 17 partner-site-specific logic files to plan Phase 7 consolidation. Creates `PHASE7_AUDIT_REPORT.md` with: (1) delta analysis showing 65-75% consolidation potential, (2) 6-site × 12-category feature matrix, (3) parameterization strategy, (4) proposed feature flags (13 new), (5) consolidation roadmap (Phases 7b-7g, 17-25 days). Security finding: one partner site's AdminImport was missing input sanitization present in another partner site's version.
 
 #### PR-Level Reviews
 | Reviewer | State | Date | Summary |
@@ -292,7 +296,7 @@ Audits 17 school-specific logic files to plan Phase 7 consolidation. Creates `PH
 **URL:** https://github.com/ckelley-adira/allcodegooglesheets/pull/22
 
 **Description Summary:**
-Creates `AdminImport_Unified.gs` (840 lines, 28 functions) combining Adelante's security hardening (formula injection prevention via `sanitizeCellValue`) with Allegiant's structured logging (`log(func, msg, lvl)`). Adds two feature flags to SiteConfig_TEMPLATE.gs: `enhancedSecurity: true` (default ON) and `structuredLogging: false` (default OFF). Adds deprecation notices to both school-specific files. Fixes critical bug: corrects import format detection to pass full `selectedType` to backend. See [full PR](https://github.com/ckelley-adira/allcodegooglesheets/pull/22).
+Creates `AdminImport_Unified.gs` (840 lines, 28 functions) combining one partner site's security hardening (formula injection prevention via `sanitizeCellValue`) with another partner site's structured logging (`log(func, msg, lvl)`). Adds two feature flags to SiteConfig_TEMPLATE.gs: `enhancedSecurity: true` (default ON) and `structuredLogging: false` (default OFF). Adds deprecation notices to both partner-site-specific files. Fixes critical bug: corrects import format detection to pass full `selectedType` to backend. See [full PR](https://github.com/ckelley-adira/allcodegooglesheets/pull/22).
 
 #### PR-Level Reviews
 | Reviewer | State | Date | Summary |
@@ -519,7 +523,7 @@ Creates `MixedGradeSupport_Unified.gs` replacing all 3 school-specific versions.
 **URL:** https://github.com/ckelley-adira/allcodegooglesheets/pull/24
 
 **Description Summary:**
-Creates `Phase2_ProgressTracking_Unified.gs` (v6.0, 2558 lines, ~60 functions) replacing all 6 school-specific versions. Creates 4 extension files for school-specific logic: `AdelanteBrandingExtensions.gs`, `CHAWBrandingExtensions.gs`, `SankofaStatsExtensions.gs`, `CCASkillsExtensions.gs`. Adds 6 feature flags to SiteConfig_TEMPLATE.gs: `dynamicBranding`, `skillAveragesAnalytics`, `diagnosticTools`, `lessonArrayTracking`, `studentNormalization`, `dynamicStudentRoster`. Adds `PROGRESS_TRACKING_CONFIG`. Review feedback addressed: added missing `DASHBOARD_COLORS` constant, added `GRADE_METRICS` alias for backward compatibility, resolved 5 duplicate function name conflicts (suffixed with school names), removed debug Logger.log, cleaned redundant code. See [full PR](https://github.com/ckelley-adira/allcodegooglesheets/pull/24).
+Creates `Phase2_ProgressTracking_Unified.gs` (v6.0, 2558 lines, ~60 functions) replacing all 6 partner-site-specific versions. Creates 4 partner-site extension files for site-specific logic: `AdelanteBrandingExtensions.gs`, `CHAWBrandingExtensions.gs`, `SankofaStatsExtensions.gs`, `CCASkillsExtensions.gs`. Adds 6 feature flags to SiteConfig_TEMPLATE.gs: `dynamicBranding`, `skillAveragesAnalytics`, `diagnosticTools`, `lessonArrayTracking`, `studentNormalization`, `dynamicStudentRoster`. Adds `PROGRESS_TRACKING_CONFIG`. Review feedback addressed: added missing `DASHBOARD_COLORS` constant, added `GRADE_METRICS` alias for backward compatibility, resolved 5 duplicate function name conflicts (suffixed with site-specific identifiers), removed debug Logger.log, cleaned redundant code. See [full PR](https://github.com/ckelley-adira/allcodegooglesheets/pull/24).
 
 #### PR-Level Reviews
 | Reviewer | State | Date | Summary |
