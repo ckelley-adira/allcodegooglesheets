@@ -42,17 +42,16 @@
 //
 // SCHOOL-SPECIFIC EXTENSIONS:
 // @see AdelanteBrandingExtensions.gs - Logo insertion, color customization, branding cache
-//      Functions: loadSchoolBranding(), insertSheetLogo(), applySheetBranding(), 
-//                 lightenColor(), clearBrandingCache(), normalizeStudent()
+//      Functions: loadSchoolBranding(), insertSheetLogo(), applySheetBranding_Adelante(), 
+//                 lightenColor(), clearBrandingCache(), normalizeStudent_Adelante()
 // @see CHAWBrandingExtensions.gs - Logo insertion, color customization, branding cache
-//      Functions: loadSchoolBranding(), insertSheetLogo(), applySheetBranding(),
-//                 lightenColor(), clearBrandingCache(), getCHAWConfig()
+//      Functions: loadSchoolBranding(), insertSheetLogo(), applySheetBranding_CHAW(),
+//                 lightenColor(), clearBrandingCache(), getCHAWConfig(), createHeader_CHAW()
 // @see SankofaStatsExtensions.gs - Custom statistics calculation
-//      Functions: updateAllStats_Sankofa(), getSankofaConfig()
+//      Functions: updateAllStats_Sankofa(), goToSchoolSummary_Sankofa()
 // @see CCASkillsExtensions.gs - Skill analytics and averaging
 //      Feature flag: skillAveragesAnalytics
-//      Functions: calculateSkillAverages(), renderSkillAveragesRow()
-//      Note: Also contains buildStudentLookups() override for CCA historical compatibility
+//      Functions: calculateSkillAverages(), renderSkillAveragesRow(), buildStudentLookups_CCA()
 //
 // DEPENDENCIES:
 // - SharedEngine.gs: Core calculation functions (imported from Phase 5)
@@ -123,6 +122,29 @@ const COLORS = {
   PLACEHOLDER_FG: "#999999"
 };
 
+const DASHBOARD_COLORS = {
+  HEADER_BG: "#1a73e8",        // Google Blue - main header
+  HEADER_TEXT: "#ffffff",
+  GRADE_HEADER_BG: "#4285f4",  // Lighter blue for grade headers
+  GRADE_HEADER_TEXT: "#ffffff",
+  SECTION_LABEL: "#5f6368",    // Gray for section labels
+  TABLE_HEADER_BG: "#e8eaed",  // Light gray for table headers
+  TABLE_ALT_ROW: "#f8f9fa",    // Subtle alternating rows
+  CARD_BORDER: "#dadce0",      // Card border color
+
+  // Status colors
+  ON_TRACK: "#34a853",         // Green
+  ON_TRACK_BG: "#e6f4ea",
+  PROGRESSING: "#fbbc04",      // Yellow/Amber
+  PROGRESSING_BG: "#fef7e0",
+  AT_RISK: "#ea4335",          // Red
+  AT_RISK_BG: "#fce8e6",
+
+  // Progress bar
+  BAR_FILL: "#1a73e8",
+  BAR_EMPTY: "#e8eaed"
+};
+
 // ═══════════════════════════════════════════════════════════════════════════
 // CENTRALIZED SHEET COLUMN LAYOUTS (0-based indices for getValues() arrays)
 // All sheet-reading code should reference these instead of magic numbers.
@@ -188,6 +210,10 @@ var COLS = {
 // - getPerformanceStatus(): Helper function to determine status from percentage
 // - SHARED_GRADE_METRICS: Grade-level lesson benchmarks
 // ═══════════════════════════════════════════════════════════════════════════
+
+// Alias SHARED_GRADE_METRICS for backward compatibility with school-specific code
+// that references GRADE_METRICS directly (e.g., calculateGrowthMetrics)
+var GRADE_METRICS = typeof SHARED_GRADE_METRICS !== 'undefined' ? SHARED_GRADE_METRICS : {};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SHARED ENGINE - Core calculation functions imported from SharedEngine.gs
@@ -650,11 +676,6 @@ function updatePacingReports() {
 
 // Helpers for Pacing (kept for compatibility)
 /**
- * Builds student count and teacher lookups from Group Configuration sheet
- * Group Configuration is the single source of truth for group sizes
- * @returns {Object} { studentCountByGroup: Map, teacherByGroup: Map }
- */
-/**
  * Builds student count and teacher lookup maps from UFLI MAP or config sheets
  * Unified signature supporting optional mapSheet parameter (CCA approach)
  * 
@@ -820,25 +841,12 @@ function scanGradeSheetsForPacing(ss, lookups, progressMap) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// FIX: Absent Rate Calculation - Pacing Dashboard & School Summary
-//
-// ISSUE: Absent Rate showing 100x too high (e.g., 1500% instead of 15%)
-//
-// ROOT CAUSE: The Pacing Dashboard stores "Total Absent" as a raw count,
-// but the School Summary then divides by denominator AND applies "0%" format
-// which multiplies by 100 again.
-//
-// This file contains TWO fixes - apply both to GPProgressEngine.gs
-// ═══════════════════════════════════════════════════════════════════════════
-
-
-// ═══════════════════════════════════════════════════════════════════════════
-// FIX #1: Update buildDashboardRow() to store Absent Rate as DECIMAL
-// Replace the existing buildDashboardRow() function
+// PACING DASHBOARD HELPERS
+// Absent Rate stored as decimal; all rates use total responses (Y+N+A) as denominator
 // ═══════════════════════════════════════════════════════════════════════════
 
 function buildDashboardRow(group, teacher, count, dash) {
-  const MINUTES_PER_LESSON = 60;  // ADD THIS CONSTANT
+  const MINUTES_PER_LESSON = 60;
   
   // Calculate instructional time
   const expectedTime = dash.assigned * MINUTES_PER_LESSON;
@@ -859,8 +867,8 @@ function buildDashboardRow(group, teacher, count, dash) {
     dash.assigned > 0 ? dash.tracked / dash.assigned : 0,   // Col 6: Pacing % (decimal)
     dash.highestLessonName,                                 // Col 7: Highest Lesson
     dash.lastEntry,                                         // Col 8: Last Entry
-    expectedTime,                                           // Col 9: Expected Time (min) - NEW
-    actualTime,                                             // Col 10: Actual Time (min) - NEW
+    expectedTime,                                           // Col 9: Expected Time (min)
+    actualTime,                                             // Col 10: Actual Time (min)
     passRate,                                               // Col 11: Avg Pass % (decimal)
     notPassedRate,                                          // Col 12: Avg Not Passed % (decimal)
     absentRate                                              // Col 13: Absent % (decimal)
@@ -868,63 +876,15 @@ function buildDashboardRow(group, teacher, count, dash) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// FIX #2: Update formatPacingSheet() call to format Absent Rate as %
-// Find the call to formatPacingSheet() and update it
-// ═══════════════════════════════════════════════════════════════════════════
-
-// BEFORE (in updatePacingReports):
-//   formatPacingSheet(ss, SHEET_NAMES_PACING.DASHBOARD, [6, 9, 10], 11);
+// renderGroupTable() - 7-column simplified layout
 //
-// AFTER:
-//   formatPacingSheet(ss, SHEET_NAMES_PACING.DASHBOARD, [6, 9, 10, 11], 0);
-//
-// This adds column 11 (Absent Rate) to the percentage columns
-
-
-// ═══════════════════════════════════════════════════════════════════════════
-// FIX #3: Update renderGroupTable() in School Summary to read correctly
-// Replace the existing renderGroupTable() function
-// ═══════════════════════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════════════════════
-// FIXED: renderGroupTable() - Correct Column Indices & Simplified Layout
-// 
-// Pacing Dashboard Column Indices (0-based):
-//   0: Group, 1: Teacher, 2: Students, 3: Assigned Lessons, 4: Tracked Lessons
-//   5: Pacing %, 6: Highest Lesson, 7: Last Entry, 8: Expected Time, 9: Actual Time
-//   10: Avg Pass %, 11: Avg Not Passed %, 12: Absent Rate
-// ═══════════════════════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════════════════════
-// FIXED: renderGroupTable() - Correct Column Indices & Simplified Layout
-// 
-// Pacing Dashboard Column Indices (0-based, with hidden Teacher column):
-//   0: Group, 1: Teacher (hidden), 2: Students, 3: Assigned Lessons, 
-//   4: Tracked Lessons, 5: Pacing %, 6: Highest Lesson, 7: Last Entry, 
-//   8: Expected Time, 9: Actual Time, 10: Avg Pass %, 11: Avg Not Passed %, 
-//   12: Absent Rate
-// ═══════════════════════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════════════════════
-// renderGroupTable() - CORRECTED VERSION
-// Simplified to 7 columns: Group, Grade, Students, Pacing, Pass Rate, Absent Rate, Status
-//
-// Pacing Dashboard Array Indices (with Teacher column):
+// Pacing Dashboard Array Indices:
 //   [0]=Group, [1]=Teacher, [2]=Students, [3]=Assigned, [4]=Tracked,
 //   [5]=Pacing%, [6]=HighestLesson, [7]=LastEntry, [8]=ExpectedTime,
 //   [9]=ActualTime, [10]=AvgPass%, [11]=AvgNotPassed%, [12]=AbsentRate
 // ═══════════════════════════════════════════════════════════════════════════
 
 function renderGroupTable(sheet, row, groups) {
-// DEBUG
-  Logger.log("=== INSIDE renderGroupTable ===");
-  Logger.log("Number of groups: " + groups.length);
-  if (groups.length > 0) {
-    Logger.log("First group g[8]: " + groups[0][8]);
-    Logger.log("First group g[9]: " + groups[0][9]);
-    Logger.log("First group g[10]: " + groups[0][10]);
-    Logger.log("First group g[12]: " + groups[0][12]);
-  }
   // Section label
   sheet.getRange(row, 1).setValue("✅ Group Performance")
     .setFontWeight("bold")
@@ -1221,16 +1181,6 @@ if (lessonNum) {
   log(functionName, 'Sync Complete.');
 }
 
-/**
- * Updates Group Sheet by matching EXACT lesson name (not just lesson number)
- * This handles "Comprehension", "Fluency", and any other non-UFLI lessons
- * 
- * @param {Object} groupSheetsData - Cache of all group sheet data
- * @param {string} groupName - Name of the group (e.g., "G3 Group 1 Tutoring Galdamez")
- * @param {string} studentName - Student name
- * @param {string} lessonName - Full lesson name (e.g., "Comprehension", "UFLI L101")
- * @param {string} status - Y, N, or A
- */
 /**
  * Updates Group Sheet by matching EXACT lesson name (not just lesson number)
  * This handles "Comprehension", "Fluency", and any other non-UFLI lessons

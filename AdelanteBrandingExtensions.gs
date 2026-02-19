@@ -28,16 +28,46 @@
  * Functions Included:
  * 1. loadSchoolBranding() - Loads branding from Site Configuration
  * 2. insertSheetLogo() - Inserts school logo on sheets
- * 3. applySheetBranding() - Applies custom branding to sheets
+ * 3. applySheetBranding_Adelante() - Applies custom branding to sheets (school-specific override)
  * 4. clearBrandingCache() - Clears cached branding data
  * 5. lightenColor() - Color manipulation utility
- * 6. normalizeStudent() - Student data normalization
+ * 6. normalizeStudent_Adelante() - Student data normalization (school-specific override)
+ * 
+ * NOTE: Functions with _Adelante suffix are school-specific overrides that avoid
+ * naming conflicts with the default implementations in Phase2_ProgressTracking_Unified.gs.
+ * The unified module provides generic versions; these provide Adelante-branded behavior.
  * 
  * Usage:
  * These functions should be called from AdelantePhase2_ProgressTracking.gs
  * when the dynamicBranding or studentNormalization feature flags are enabled.
  * =============================================================================
  */
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BRANDING CONSTANTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+// SCHOOL_BRANDING object with lazy-loaded values from Site Configuration
+const SCHOOL_BRANDING = {
+  // Font settings (static)
+  FONT_FAMILY: "Calibri",
+  HEADER_FONT_SIZE: 14,
+  SUBHEADER_FONT_SIZE: 10,
+  LOGO_WIDTH: 100,
+  LOGO_HEIGHT: 50,
+
+  // Dynamic getters that load from config sheet
+  get PRIMARY_COLOR() { return loadSchoolBranding().PRIMARY_COLOR; },
+  get SECONDARY_COLOR() { return loadSchoolBranding().SECONDARY_COLOR; },
+  get LOGO_FILE_ID() { return loadSchoolBranding().LOGO_FILE_ID; },
+
+  // Derived colors
+  get HEADER_BG() { return this.PRIMARY_COLOR; },
+  get HEADER_FG() { return "#FFFFFF"; },
+  get TITLE_BG() { return lightenColor(this.PRIMARY_COLOR, 0.7); },
+  get TITLE_FG() { return "#000000"; },
+  get ACCENT_BG() { return this.SECONDARY_COLOR; }
+};
 
 // ═══════════════════════════════════════════════════════════════════════════
 // BRANDING CACHE
@@ -124,12 +154,13 @@ function lightenColor(hex, factor) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Normalizes student data object
- * Ensures all fields are properly trimmed and converted to strings
+ * Normalizes student data object (Adelante-specific version)
+ * Ensures all fields are properly trimmed and converted to strings.
+ * Renamed to avoid conflict with the default normalizeStudent() in the unified module.
  * @param {Object} student - Student object with name, grade, teacher, group fields
  * @returns {Object} Normalized student object
  */
-function normalizeStudent(student) {
+function normalizeStudent_Adelante(student) {
   return {
     name: (student && student.name) ? student.name.toString().trim() : "",
     grade: (student && student.grade) ? student.grade.toString().trim() : "",
@@ -191,21 +222,22 @@ function insertSheetLogo(sheet) {
 }
 
 /**
- * Sets up standard sheet formatting with logo and headers
- * Call this when creating new sheets for consistent branding
+ * Sets up standard sheet formatting with logo and headers (Adelante-branded version)
+ * Call this when creating new sheets for consistent Adelante branding.
+ * Renamed to avoid conflict with the default applySheetBranding() in the unified module.
  * @param {Sheet} sheet - The sheet to format
  * @param {string} title - Main title text
  * @param {string} subtitle - Subtitle/description text
  * @param {number} width - Number of columns
  */
-function applySheetBranding(sheet, title, subtitle, width) {
+function applySheetBranding_Adelante(sheet, title, subtitle, width) {
   // Insert logo (if configured)
   insertSheetLogo(sheet);
 
   // Row 1: Title header
   createHeader(sheet, 1, title, width, {
-    background: COLORS.TITLE_BG,
-    fontColor: COLORS.TITLE_FG,
+    background: SCHOOL_BRANDING.TITLE_BG,
+    fontColor: SCHOOL_BRANDING.TITLE_FG,
     fontWeight: "bold",
     fontSize: SCHOOL_BRANDING.HEADER_FONT_SIZE
   });

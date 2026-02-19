@@ -26,7 +26,8 @@
 //
 // FUNCTIONS:
 // 1. updateAllStats_Sankofa() - Wrapper for updateAllStats with Sankofa config
-// 2. goToSchoolSummary() - Navigation helper to School Summary dashboard
+// 2. goToSchoolSummary_Sankofa() - Navigation helper to School Summary dashboard
+//    (renamed to avoid conflict with goToSchoolSummary() in the unified module)
 //
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -46,8 +47,13 @@ function updateAllStats_Sankofa(ss, mapData) {
  * Navigates to the School Summary dashboard sheet.
  * Creates the School Summary sheet if it doesn't exist.
  * This is a helper function for menu items and UI navigation.
+ * 
+ * NOTE: This function is also available in Phase2_ProgressTracking_Unified.gs.
+ * This Sankofa-specific version is provided for backward compatibility with
+ * Sankofa menu items and can be removed once all Sankofa references point
+ * to the unified module version.
  */
-function goToSchoolSummary() {
+function goToSchoolSummary_Sankofa() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(SHEET_NAMES_V2.SCHOOL_SUMMARY);
   

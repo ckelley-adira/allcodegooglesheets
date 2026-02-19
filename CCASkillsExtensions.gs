@@ -21,8 +21,8 @@
 // - School Summary sheet: Dashboard rendering location
 //
 // FUNCTIONS:
-// 1. buildStudentLookups(mapSheet) - CCA override for historical compatibility
-//    (unified version in Phase2_ProgressTracking_Unified.gs has identical functionality)
+// 1. buildStudentLookups_CCA(mapSheet) - CCA override for historical compatibility
+//    (renamed to avoid conflict with buildStudentLookups() in the unified module)
 // 2. calculateSkillAverages(students) - Skill-based performance analytics
 // 3. renderSkillAveragesRow(sheet, row, skills, grade, pace) - Dashboard visualization
 //
@@ -37,10 +37,13 @@
  * for historical compatibility and to allow future CCA-specific customizations
  * without affecting the unified codebase.
  * 
+ * Renamed to avoid duplicate function conflict in Google Apps Script global scope.
+ * Call this instead of buildStudentLookups() when CCA-specific behavior is needed.
+ * 
  * @param {Sheet} mapSheet - The UFLI MAP sheet
  * @returns {Object} { studentCountByGroup: Map, teacherByGroup: Map }
  */
-function buildStudentLookups(mapSheet) {
+function buildStudentLookups_CCA(mapSheet) {
   const studentCountByGroup = new Map();
   const teacherByGroup = new Map();
   const lastRow = mapSheet.getLastRow();

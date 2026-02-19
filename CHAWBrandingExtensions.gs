@@ -27,11 +27,15 @@
  * Functions Included:
  * 1. loadSchoolBranding() - Loads branding from Site Configuration
  * 2. insertSheetLogo() - Inserts school logo on sheets
- * 3. applySheetBranding() - Applies custom branding to sheets
+ * 3. applySheetBranding_CHAW() - Applies custom branding to sheets (school-specific override)
  * 4. lightenColor() - Color manipulation utility
  * 5. getCHAWConfig() - CHAW-specific configuration retrieval
- * 6. createHeader() - Helper function for creating non-merged headers
+ * 6. createHeader_CHAW() - Header with logo positioning support (school-specific override)
  * 7. clearBrandingCache() - Clears cached branding data
+ * 
+ * NOTE: Functions with _CHAW suffix are school-specific overrides that avoid
+ * naming conflicts with the default implementations in Phase2_ProgressTracking_Unified.gs.
+ * The unified module provides generic versions; these provide CHAW-branded behavior.
  * 
  * Constants Defined:
  * - SCHOOL_BRANDING: Branding configuration object with static and dynamic properties
@@ -184,14 +188,16 @@ const COLORS = {
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Creates a header row without merging cells (for better performance)
+ * Creates a header row without merging cells (CHAW-branded version)
+ * Accounts for logo positioning in row 1 by offsetting text to column B.
+ * Renamed to avoid conflict with the default createHeader() in the unified module.
  * @param {Sheet} sheet - The sheet to format
  * @param {number} row - Row number for the header
  * @param {string} text - Header text
  * @param {number} width - Number of columns to apply background to
  * @param {Object} options - Formatting options (background, fontColor, fontWeight, fontSize, fontFamily, fontStyle, horizontalAlignment)
  */
-function createHeader(sheet, row, text, width, options = {}) {
+function createHeader_CHAW(sheet, row, text, width, options = {}) {
   // Set background across the full width (no merge)
   const fullRange = sheet.getRange(row, 1, 1, width);
   if (options.background) fullRange.setBackground(options.background);
@@ -259,19 +265,20 @@ function insertSheetLogo(sheet) {
 }
 
 /**
- * Sets up standard sheet formatting with logo and headers
- * Call this when creating new sheets for consistent branding
+ * Sets up standard sheet formatting with logo and headers (CHAW-branded version)
+ * Call this when creating new sheets for consistent CHAW branding.
+ * Renamed to avoid conflict with the default applySheetBranding() in the unified module.
  * @param {Sheet} sheet - The sheet to format
  * @param {string} title - Main title text
  * @param {string} subtitle - Subtitle/description text
  * @param {number} width - Number of columns
  */
-function applySheetBranding(sheet, title, subtitle, width) {
+function applySheetBranding_CHAW(sheet, title, subtitle, width) {
   // Insert logo (if configured)
   insertSheetLogo(sheet);
 
   // Row 1: Title header
-  createHeader(sheet, 1, title, width, {
+  createHeader_CHAW(sheet, 1, title, width, {
     background: COLORS.TITLE_BG,
     fontColor: COLORS.TITLE_FG,
     fontWeight: "bold",
@@ -279,7 +286,7 @@ function applySheetBranding(sheet, title, subtitle, width) {
   });
 
   // Row 2: Subtitle
-  createHeader(sheet, 2, subtitle, width, {
+  createHeader_CHAW(sheet, 2, subtitle, width, {
     fontFamily: SCHOOL_BRANDING.FONT_FAMILY,
     fontSize: SCHOOL_BRANDING.SUBHEADER_FONT_SIZE,
     fontStyle: "italic"
