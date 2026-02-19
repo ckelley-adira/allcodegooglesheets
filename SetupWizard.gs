@@ -140,7 +140,8 @@ const FEATURE_OPTIONS = [
     id: "enhancedSecurity", 
     name: "Enhanced Security", 
     description: "Input sanitization and formula injection prevention for all user inputs (recommended ON)",
-    category: "system"
+    category: "system",
+    defaultOn: true
   },
   { 
     id: "structuredLogging", 
