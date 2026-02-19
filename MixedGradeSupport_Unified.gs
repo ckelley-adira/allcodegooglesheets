@@ -294,7 +294,7 @@ function getGradeForGroup(groupName) {
  */
 function isGradeRangeGroup(groupName, gradeRange) {
   // First check if the name contains a pattern that matches the range
-  const rangePattern = gradeRange.join("|").replace(/G/g, "G");
+  const rangePattern = gradeRange.join("|");
   if (new RegExp(rangePattern).test(groupName)) {
     return true;
   }

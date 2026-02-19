@@ -125,7 +125,25 @@ const SITE_CONFIG = {
      * Adds: Automatic student archival, Monday.com task creation, "Student Archive" sheet
      * File: modules/UnenrollmentAutomation.gs
      */
-    unenrollmentAutomation: false
+    unenrollmentAutomation: false,
+    
+    /**
+     * SC CLASSROOM GROUPS
+     * Special needs classroom with wide grade range
+     * Required for: Schools with SC programs (Adelante, Sankofa)
+     * Adds: SC Classroom sheet generation and tracking
+     * Configuration: MIXED_GRADE_CONFIG.scClassroom
+     */
+    scClassroomGroups: false,
+    
+    /**
+     * CO-TEACHING SUPPORT
+     * Partner group tracking for co-taught classes
+     * Required for: Schools with co-teaching model (Sankofa)
+     * Adds: getPartnerGroup(), isCoTeachingGroup(), co-teaching pair management
+     * Configuration: MIXED_GRADE_CONFIG.coTeaching
+     */
+    coTeachingSupport: false
   }
 };
 
@@ -150,7 +168,21 @@ const MIXED_GRADE_CONFIG = {
   combinations: "",
   
   // Group naming pattern
-  namingPattern: "NUMBERED_TEACHER" // "NUMBERED_TEACHER", "NUMBERED", or "ALPHA"
+  namingPattern: "NUMBERED_TEACHER", // "NUMBERED_TEACHER", "NUMBERED", or "ALPHA"
+  
+  // SC Classroom configuration (special needs classroom)
+  scClassroom: {
+    enabled: false,
+    gradeRange: [], // e.g., ["G1", "G2", "G3", "G4"] or ["G1", "G2", "G3", "G4", "G5"]
+    hasSubGroups: true,
+    sheetName: "SC Classroom"
+  },
+  
+  // Co-teaching configuration (partner group tracking)
+  coTeaching: {
+    enabled: false, // Sankofa only by default
+    partnerGroupColumn: 3 // Column index in Group Config sheet
+  }
 };
 
 /**
