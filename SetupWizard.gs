@@ -323,7 +323,7 @@ function onOpen() {
   }
   
   // 2. Configured State (Full Menu)
-  ui.createMenu('Adira Reads Progress Report')
+  const baseMenu = ui.createMenu('Adira Reads Progress Report')
     // === PRIMARY ACTIONS (Daily Use) ===
     .addItem('📊 View School Summary', 'goToSchoolSummary')
     .addItem('📈 Generate Reports', 'generateReports')
@@ -344,25 +344,13 @@ function onOpen() {
       .addSeparator()
       .addItem('✅ Enable Nightly Full Sync', 'setupNightlySyncTrigger')
       .addItem('❌ Disable Nightly Full Sync', 'removeNightlySyncTrigger')
-      .addItem('ℹ️ Check Sync Status', 'showSyncStatus'))
-
-    // === TUTORING (Optional Module) ===
-    .addSubMenu(ui.createMenu('📚 Tutoring')
-      .addItem('📋 View Tutoring Summary', 'goToTutoringSummary')
-      .addItem('📝 View Tutoring Log', 'goToTutoringLog')
-      .addSeparator()
-      .addItem('🔄 Sync Tutoring Data', 'syncTutoringProgress'))
-    
-    // === ADMIN & MAINTENANCE (Consolidated) ===
-    .addSubMenu(ui.createMenu('🔐 Admin Tools')
-        .addItem('📂 Open Import Dialog...', 'showImportDialog')
-        .addSeparator()
-        .addItem('✅ Validate Import Data', 'validateImportData')
-        .addItem('▶️ Process Import to UFLI MAP', 'processImportData')
-    .addSeparator()
-        .addItem('🗑️ Clear Import Staging', 'clearImportStaging')
-        .addItem('📋 View Import Exceptions', 'goToExceptionsSheet'))
-    .addSeparator()
+      .addItem('ℹ️ Check Sync Status', 'showSyncStatus'));
+  
+  // === FEATURE-SPECIFIC MENUS (Dynamic, driven by SITE_CONFIG feature flags) ===
+  buildFeatureMenu(ui, baseMenu);
+  
+  // === CORE MAINTENANCE & SETTINGS (Always present) ===
+  baseMenu.addSeparator()
       // Unenrollment
       .addItem('📦 Manual Archive Student', 'manualArchiveStudent')
       .addItem('📄 View Archive', 'goToArchiveSheet')
@@ -1788,12 +1776,21 @@ function getLessonsForGrade(grade) {
  * Gets existing Y/N/A/U data for a specific lesson
  * IMPROVED: Derives correct sheet name from group name + tolerant matching
  * 
- * @param {string} gradeSheet - The sheet name passed by the form (may be wrong)
+ * @param {string} [gradeSheet] - The sheet name passed by the form (may be wrong).
+ *   Optional: if only two arguments are provided, they are treated as (groupName, lessonName)
+ *   to maintain backward compatibility with callers that omit gradeSheet.
  * @param {string} groupName - The group name (e.g., "KG Group 1 - T. Smith")
  * @param {string} lessonName - The lesson name (e.g., "UFLI L5 VC&CVC Words")
  * @returns {Object} Map of studentName -> Y/N/A/U value
  */
 function getExistingLessonData(gradeSheet, groupName, lessonName) {
+  // Support 2-arg calling convention: getExistingLessonData(groupName, lessonName)
+  // When called with 2 args, shift parameters so gradeSheet becomes null.
+  if (arguments.length === 2) {
+    lessonName = groupName;
+    groupName = gradeSheet;
+    gradeSheet = null;
+  }
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
   // ═══════════════════════════════════════════════════════════════
@@ -1997,6 +1994,12 @@ function saveLessonData(formData) {
   
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const { gradeSheet, groupName, lessonName, teacherName, studentStatuses, unenrolledStudents } = formData;
+
+  // Co-teaching support: extract co-teaching metadata (guarded by feature flag)
+  const isCoTeaching = SITE_CONFIG.features.coTeachingSupport && (formData.isCoTeaching || false);
+  const partnerGroup = formData.partnerGroup || null;
+  const primaryGroup = formData.primaryGroup || groupName;
+
   const grade = groupName.split(' ')[0];
 
   try {
@@ -2036,7 +2039,7 @@ function saveLessonData(formData) {
     }
 
     // ═══════════════════════════════════════════════════════════
-    // K-8 FAST SAVE LOGIC (Optimized)
+    // K-8 FAST SAVE LOGIC (Optimized, with Co-Teaching Support)
     // ═══════════════════════════════════════════════════════════
     else {
       const progressSheet = ss.getSheetByName("Small Group Progress");
@@ -2053,20 +2056,47 @@ function saveLessonData(formData) {
         return { success: true, message: 'No active students to record.' };
       }
 
-      // STEP 1: Log to "Small Group Progress" (Fast)
-      const progressRows = activeStatuses.map(student => [
-        timestamp,
-        teacherName || 'Unknown',
-        groupName,
-        student.name,
-        lessonName,
-        student.status
-      ]);
-      progressSheet.getRange(progressSheet.getLastRow() + 1, 1, progressRows.length, 6).setValues(progressRows);
+      // STEP 1: Log to "Small Group Progress" (with Source Group for co-teaching)
+      const progressRows = activeStatuses.map(student => {
+        const row = [
+          timestamp,
+          teacherName || 'Unknown',
+          isCoTeaching ? primaryGroup : groupName,
+          student.name,
+          lessonName,
+          student.status
+        ];
+        if (isCoTeaching) {
+          row.push(student.sourceGroup || groupName);
+        }
+        return row;
+      });
 
-      // STEP 2: Update Group Sheet (TARGETED BATCH)
-      // This is immediate so teachers see the update on their grade sheet
-      updateGroupSheetTargeted(ss, gradeSheet, groupName, lessonName, activeStatuses);
+      const numCols = isCoTeaching ? 7 : 6;
+      progressSheet.getRange(progressSheet.getLastRow() + 1, 1, progressRows.length, numCols).setValues(progressRows);
+
+      if (isCoTeaching) {
+        Logger.log(`[${functionName}] Co-teaching mode: ${primaryGroup} + ${partnerGroup}`);
+      }
+
+      // STEP 2: Update Group Sheet(s) - Dual write for co-teaching
+      if (isCoTeaching) {
+        const studentsByGroup = {};
+        activeStatuses.forEach(student => {
+          const sourceGroup = student.sourceGroup || groupName;
+          if (!studentsByGroup[sourceGroup]) {
+            studentsByGroup[sourceGroup] = [];
+          }
+          studentsByGroup[sourceGroup].push(student);
+        });
+
+        for (const [srcGroup, students] of Object.entries(studentsByGroup)) {
+          Logger.log(`[${functionName}] Updating group sheet for: ${srcGroup} (${students.length} students)`);
+          updateGroupSheetTargeted(ss, gradeSheet, srcGroup, lessonName, students);
+        }
+      } else {
+        updateGroupSheetTargeted(ss, gradeSheet, groupName, lessonName, activeStatuses);
+      }
 
       // STEP 3: Queue UFLI MAP Update (DEFERRED - processed every 60 min)
       // This dramatically reduces save time from ~16s to ~3-4s
@@ -2081,11 +2111,13 @@ function saveLessonData(formData) {
       }
 
       const elapsed = (new Date() - startTime) / 1000;
-      Logger.log(`[${functionName}] Fast Save Complete: ${elapsed.toFixed(2)}s`);
+      Logger.log(`[${functionName}] ${isCoTeaching ? 'Co-Teaching ' : ''}Fast Save Complete: ${elapsed.toFixed(2)}s`);
       
       return { 
         success: true, 
-        message: `Saved successfully in ${elapsed.toFixed(1)}s`
+        message: isCoTeaching
+          ? `Co-teaching data saved for ${primaryGroup} + ${partnerGroup} in ${elapsed.toFixed(1)}s`
+          : `Saved successfully in ${elapsed.toFixed(1)}s`
       };
     }
 
