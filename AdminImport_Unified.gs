@@ -1,22 +1,23 @@
-/**
- * ⚠️ DEPRECATED - Phase 7b
- * This file has been consolidated into AdminImport_Unified.gs
- * See: PHASE7_AUDIT_REPORT.md § 3.4
- * This file is retained for reference only and should not be modified.
- * Migration date: February 18, 2026
- */
-
 // ═══════════════════════════════════════════════════════════════════════════
-// UFLI MASTER SYSTEM - ADMIN IMPORT UTILITY
+// UFLI MASTER SYSTEM - ADMIN IMPORT UTILITY (UNIFIED)
 // Historical Data Import with Validation and Exception Reporting
 // ═══════════════════════════════════════════════════════════════════════════
-// Version: 3.0 - PERFORMANCE COMPATIBLE
-// Last Updated: January 2026
+// Version: 4.0 - PHASE 7B UNIFIED
+// Created: February 2026
+// Phase 7 Consolidation: AdminImport module
 //
-// CHANGES FROM v2.0:
-// - Removed formula generation logic (now handled by Phase 2 static calc)
-// - Updated refreshGradeSummaryFormulas to use updateAllStats()
-// - Imports now trigger auto-recalculation of stats
+// LINEAGE:
+// This file consolidates:
+// - AdelanteAdminImport.gs (security hardening with sanitizeCellValue)
+// - AllegiantAdminImport.gs (structured logging with log function)
+// See: PHASE7_AUDIT_REPORT.md § 1.4 and § 3.4
+//
+// CHANGES FROM v3.0:
+// - Unified Adelante + Allegiant versions into single parameterized module
+// - Adopted Adelante's formula injection prevention (sanitizeCellValue)
+// - Adopted Allegiant's structured logging (log function)
+// - Added feature flags: enhancedSecurity, structuredLogging
+// - All 26 shared functions now in one file
 //
 // PURPOSE:
 // - Import Initial Assessment data (baseline) to establish starting point
@@ -25,8 +26,13 @@
 // - Generate exception reports for data issues
 // - Archive imported data to historical sheets
 //
+// FEATURE FLAGS (from SiteConfig_TEMPLATE.gs):
+// - features.enhancedSecurity: Formula injection prevention (default: ON)
+// - features.structuredLogging: Structured diagnostic logging (default: OFF)
+//
 // DEPENDENCIES:
 // - Phase2_ProgressTracking.js (for updateAllStats, extractLessonNumber, etc.)
+// - SiteConfig_TEMPLATE.gs (for feature flags)
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -63,6 +69,62 @@ const STATUS_PRIORITY = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
+// SECURITY & DIAGNOSTICS
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Sanitizes cell values to prevent formula injection attacks
+ * Adopted from Adelante's security hardening (PHASE7_AUDIT_REPORT.md § 1.4)
+ * 
+ * Security features:
+ * - Formula injection prevention (strips =, +, -, @ prefixes)
+ * - Null byte removal
+ * - String length limit enforcement (32,767 chars max)
+ * - Whitespace normalization
+ * 
+ * @param {*} value - The value to sanitize
+ * @returns {string} - Sanitized value safe for spreadsheet insertion
+ */
+function sanitizeCellValue(value) {
+  if (value === null || value === undefined) return '';
+  if (typeof value !== 'string') value = value.toString();
+
+  // Limit string length to prevent excessively long inputs (max 32767 chars for Google Sheets cell)
+  const MAX_CELL_LENGTH = 32767;
+  if (value.length > MAX_CELL_LENGTH) {
+    value = value.substring(0, MAX_CELL_LENGTH);
+  }
+
+  // Prevent formula injection - escape cells starting with dangerous characters
+  // These characters can trigger formula execution in spreadsheet applications
+  if (/^[=+\-@\t\r]/.test(value)) {
+    return "'" + value; // Prefix with single quote to treat as text
+  }
+
+  // Remove null bytes which could cause issues
+  value = value.replace(/\x00/g, '');
+
+  return value;
+}
+
+/**
+ * Structured logging function for diagnostics and auditing
+ * Adopted from Allegiant's structured logging (PHASE7_AUDIT_REPORT.md § 1.4)
+ * 
+ * @param {string} func - Function name
+ * @param {string} msg - Log message
+ * @param {string} lvl - Log level (INFO, WARN, ERROR)
+ */
+function log(func, msg, lvl='INFO') {
+  // Only log if structured logging is enabled
+  if (typeof SITE_CONFIG !== 'undefined' && 
+      SITE_CONFIG.features && 
+      SITE_CONFIG.features.structuredLogging) {
+    Logger.log(`[${lvl}] [${func}] ${msg}`);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // MENU INTEGRATION
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -91,6 +153,7 @@ function addAdminMenu() {
 // ═══════════════════════════════════════════════════════════════════════════
 
 function showImportDialog() {
+  log('showImportDialog', 'Opening import dialog', 'INFO');
   const html = HtmlService.createHtmlOutput(getImportDialogHtml())
     .setWidth(650)
     .setHeight(600)
@@ -207,74 +270,86 @@ function getImportDialogHtml() {
     
     <div class="actions">
       <button class="btn btn-secondary" onclick="google.script.host.close()">Cancel</button>
-      <button class="btn btn-primary" id="importBtn" onclick="processImport()">Import to Staging</button>
+      <button class="btn btn-primary" id="importBtn" onclick="processImport()">Import Data</button>
     </div>
   </div>
-  
+
   <script>
-    let csvData = '';
-    let selectedImportType = 'initial-grid';
-    
     function selectImportType(type) {
-      selectedImportType = type;
-      document.getElementById('typeInitialGrid').checked = (type === 'initial-grid');
-      document.getElementById('typeProgress').checked = (type === 'progress');
-      document.getElementById('typeInitialRow').checked = (type === 'initial-row');
+      // Update radio buttons
+      document.querySelectorAll('input[name="importType"]').forEach(radio => {
+        radio.checked = (radio.value === type);
+      });
       
-      document.querySelectorAll('.import-type-option').forEach(opt => opt.classList.remove('selected'));
-      event.currentTarget.classList.add('selected');
+      // Update visual selection
+      document.querySelectorAll('.import-type-option').forEach(option => {
+        option.classList.remove('selected');
+      });
+      const selectedRadio = document.querySelector('input[name="importType"][value="' + type + '"]:checked');
+      if (selectedRadio) {
+        const selectedOption = selectedRadio.closest('.import-type-option');
+        if (selectedOption) {
+          selectedOption.classList.add('selected');
+        }
+      }
       
+      // Update format info boxes
       const isGrid = (type === 'initial-grid');
-      document.getElementById('gridFormatInfo').style.display = isGrid ? 'block' : 'none';
-      document.getElementById('rowFormatInfo').style.display = isGrid ? 'none' : 'block';
-      document.getElementById('gridFormatExample').style.display = isGrid ? 'block' : 'none';
-      document.getElementById('rowFormatExample').style.display = isGrid ? 'none' : 'block';
+      const isProgress = (type === 'progress');
+      const isInitial = (type.startsWith('initial'));
       
-      const isInitial = (type === 'initial-grid' || type === 'initial-row');
+      document.getElementById('gridFormatInfo').style.display = isGrid ? 'block' : 'none';
+      document.getElementById('rowFormatInfo').style.display = !isGrid ? 'block' : 'none';
       document.getElementById('initialWarning').style.display = isInitial ? 'block' : 'none';
-      document.getElementById('progressInfo').style.display = isInitial ? 'none' : 'block';
+      document.getElementById('progressInfo').style.display = isProgress ? 'block' : 'none';
+      document.getElementById('gridFormatExample').style.display = isGrid ? 'block' : 'none';
+      document.getElementById('rowFormatExample').style.display = !isGrid ? 'block' : 'none';
     }
-    
+
     function handleFileUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
+      
       const reader = new FileReader();
       reader.onload = function(e) {
-        csvData = e.target.result;
-        document.getElementById('pasteArea').value = csvData;
-        showStatus('File loaded: ' + file.name, 'info');
+        document.getElementById('pasteArea').value = e.target.result;
       };
       reader.readAsText(file);
     }
-    
+
     function processImport() {
-      const pasteData = document.getElementById('pasteArea').value.trim();
-      if (!pasteData) { showStatus('Please upload or paste data.', 'error'); return; }
+      const csvData = document.getElementById('pasteArea').value.trim();
+      const selectedType = document.querySelector('input[name="importType"]:checked').value;
       
+      if (!csvData) {
+        showStatus('error', 'Please upload a file or paste data.');
+        return;
+      }
+      
+      showStatus('info', 'Processing import...');
       document.getElementById('importBtn').disabled = true;
-      showStatus('Importing to staging...', 'info');
       
       google.script.run
         .withSuccessHandler(function(result) {
           if (result.success) {
-            showStatus(result.message, 'success');
+            showStatus('success', result.message);
             setTimeout(() => google.script.host.close(), 2000);
           } else {
-            showStatus(result.message, 'error');
+            showStatus('error', result.message);
             document.getElementById('importBtn').disabled = false;
           }
         })
         .withFailureHandler(function(error) {
-          showStatus('Error: ' + error.message, 'error');
+          showStatus('error', 'Import failed: ' + error.message);
           document.getElementById('importBtn').disabled = false;
         })
-        .importCsvToStaging(pasteData, selectedImportType);
+        .importCsvToStaging(csvData, selectedType);
     }
-    
-    function showStatus(message, type) {
-      const el = document.getElementById('statusMessage');
-      el.textContent = message;
-      el.className = 'status ' + type;
+
+    function showStatus(type, message) {
+      const statusDiv = document.getElementById('statusMessage');
+      statusDiv.className = 'status ' + type;
+      statusDiv.textContent = message;
     }
   </script>
 </body>
@@ -283,11 +358,12 @@ function getImportDialogHtml() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// STAGING SHEET FUNCTIONS
+// CSV PARSING & STAGING
 // ═══════════════════════════════════════════════════════════════════════════
 
 function importCsvToStaging(csvData, importType) {
   const functionName = 'importCsvToStaging';
+  log(functionName, `Starting import, type: ${importType}`, 'INFO');
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = getOrCreateAdminSheet(ss, ADMIN_SHEET_NAMES.IMPORT_STAGING);
@@ -301,7 +377,10 @@ function importCsvToStaging(csvData, importType) {
       dataRows = parseRowFormat(csvData);
     }
     
-    if (!dataRows || dataRows.length === 0) return { success: false, message: 'No valid data rows found.' };
+    if (!dataRows || dataRows.length === 0) {
+      log(functionName, 'No valid data rows found', 'WARN');
+      return { success: false, message: 'No valid data rows found.' };
+    }
     
     sheet.clear();
     const actualImportType = isGridFormat ? 'initial' : (importType === 'initial-row' ? 'initial' : 'progress');
@@ -311,8 +390,17 @@ function importCsvToStaging(csvData, importType) {
     sheet.getRange(1, 1, 1, stagingHeaders.length).setValues([stagingHeaders])
       .setBackground(COLORS.HEADER_BG).setFontColor(COLORS.HEADER_FG).setFontWeight("bold");
     
-    const dataWithStatus = dataRows.map(row => [...row, importTypeLabel, "Pending"]);
-    sheet.getRange(2, 1, dataWithStatus.length, dataWithStatus[0].length).setValues(dataWithStatus);
+    // Add import type and status columns, ensuring consistent row lengths (Adelante's data padding)
+    const expectedCols = 7; // 5 data cols + Import Type + Validation Status
+    const dataWithStatus = dataRows.map(row => {
+      const baseRow = Array.isArray(row) ? row.slice(0, 5) : [row, '', '', '', ''];
+      while (baseRow.length < 5) baseRow.push(''); // Pad if needed
+      return [...baseRow, importTypeLabel, "Pending"];
+    });
+
+    if (dataWithStatus.length > 0) {
+      sheet.getRange(2, 1, dataWithStatus.length, expectedCols).setValues(dataWithStatus);
+    }
     
     sheet.setColumnWidth(1, 180); sheet.setColumnWidth(6, 140); sheet.setColumnWidth(7, 120);
     sheet.setFrozenRows(1);
@@ -320,6 +408,7 @@ function importCsvToStaging(csvData, importType) {
     PropertiesService.getDocumentProperties().setProperty('CURRENT_IMPORT_TYPE', actualImportType);
     ss.setActiveSheet(sheet);
     
+    log(functionName, `Imported ${dataRows.length} rows to staging`, 'INFO');
     return { success: true, message: `Imported ${dataRows.length} rows to staging. Run "Validate Import Data" next.` };
     
   } catch (error) {
@@ -396,13 +485,22 @@ function parseRowFormat(csvData) {
 function parseCSVLine(line) {
   const values = [];
   let current = '', inQuotes = false;
+  
+  // Apply security sanitization if feature is enabled
+  const useSanitization = typeof SITE_CONFIG !== 'undefined' && 
+                          SITE_CONFIG.features && 
+                          SITE_CONFIG.features.enhancedSecurity !== false; // Default to ON
+  
   for (let i = 0; i < line.length; i++) {
     const char = line[i];
     if (char === '"') inQuotes = !inQuotes;
-    else if ((char === ',' || char === '\t') && !inQuotes) { values.push(current.trim()); current = ''; }
+    else if ((char === ',' || char === '\t') && !inQuotes) { 
+      values.push(useSanitization ? sanitizeCellValue(current.trim()) : current.trim()); 
+      current = ''; 
+    }
     else current += char;
   }
-  values.push(current.trim());
+  values.push(useSanitization ? sanitizeCellValue(current.trim()) : current.trim());
   return values;
 }
 
@@ -417,6 +515,9 @@ function getOrCreateAdminSheet(ss, sheetName) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 function validateImportData() {
+  const functionName = 'validateImportData';
+  log(functionName, 'Starting validation', 'INFO');
+  
   const ui = SpreadsheetApp.getUi();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const stagingSheet = ss.getSheetByName(ADMIN_SHEET_NAMES.IMPORT_STAGING);
@@ -451,6 +552,7 @@ function validateImportData() {
   applyValidationFormatting(stagingSheet, lastRow);
   createExceptionsReport(ss, exceptions);
   
+  log(functionName, `Validation complete: ${validCount} valid, ${errorCount} errors`, 'INFO');
   const msg = `✓ Valid: ${validCount}\n✗ Errors: ${errorCount}\n\n` + (errorCount > 0 ? 'Review "Import Exceptions".' : 'Ready to Process Import.');
   ui.alert('Validation Results', msg, ui.ButtonSet.OK);
 }
@@ -515,6 +617,9 @@ function goToExceptionsSheet() {
 // ═══════════════════════════════════════════════════════════════════════════
 
 function processImportData() {
+  const functionName = 'processImportData';
+  log(functionName, 'Starting import processing', 'INFO');
+  
   const ui = SpreadsheetApp.getUi();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const stagingSheet = ss.getSheetByName(ADMIN_SHEET_NAMES.IMPORT_STAGING);
@@ -539,10 +644,14 @@ function processImportData() {
   
   archiveToHistorical(ss, validRows, studentLookup, importType);
   
+  log(functionName, `Import complete: ${result.processedCount} processed, ${result.skippedCount} skipped`, 'INFO');
   ui.alert('Import Complete', `Processed: ${result.processedCount}\nSkipped: ${result.skippedCount}`, ui.ButtonSet.OK);
 }
 
 function processInitialAssessmentImport(ss, bestEntries, studentLookup) {
+  const functionName = 'processInitialAssessmentImport';
+  log(functionName, 'Processing initial assessment import', 'INFO');
+  
   const mapSheet = ss.getSheetByName(SHEET_NAMES_V2.UFLI_MAP);
   let initialSheet = ss.getSheetByName(ADMIN_SHEET_NAMES.INITIAL_ASSESSMENT);
   if (!initialSheet) initialSheet = createInitialAssessmentSheet(ss, mapSheet);
@@ -580,6 +689,9 @@ function processInitialAssessmentImport(ss, bestEntries, studentLookup) {
 }
 
 function processLessonProgressImport(ss, bestEntries, studentLookup) {
+  const functionName = 'processLessonProgressImport';
+  log(functionName, 'Processing lesson progress import', 'INFO');
+  
   const mapSheet = ss.getSheetByName(SHEET_NAMES_V2.UFLI_MAP);
   const mapRowLookup = buildStudentRowLookup(mapSheet);
   
@@ -712,6 +824,9 @@ function clearImportStaging() {
  * instead of building volatile formulas.
  */
 function refreshGradeSummaryFormulas() {
+  const functionName = 'refreshGradeSummaryFormulas';
+  log(functionName, 'Refreshing grade summary formulas', 'INFO');
+  
   const ui = SpreadsheetApp.getUi();
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -725,11 +840,7 @@ function refreshGradeSummaryFormulas() {
       throw new Error('updateAllStats function not found. Please ensure Phase2_ProgressTracking.js is updated.');
     }
   } catch (error) {
+    log(functionName, `Error: ${error.toString()}`, 'ERROR');
     ui.alert('Error', error.toString(), ui.ButtonSet.OK);
   }
-}
-
-// Helper to log if not defined globally
-function log(func, msg, lvl='INFO') {
-  Logger.log(`[${lvl}] [${func}] ${msg}`);
 }

@@ -820,6 +820,18 @@
           <div class="small-text">Add a column to track SC Classroom assignment for each student.</div>
         </div>
         
+        <div class="form-group">
+          <label for="dataStartRow">Data Start Row</label>
+          <input type="number" id="dataStartRow" min="2" max="20" value="6" style="width: 120px;" />
+          <div class="small-text">First row containing student data (typically headerRowCount + 1). Default: 6.</div>
+        </div>
+        
+        <div class="form-group">
+          <label for="lessonColumnOffset">Lesson Column Offset</label>
+          <input type="number" id="lessonColumnOffset" min="2" max="20" value="5" style="width: 120px;" />
+          <div class="small-text">Column number (1-based) where lesson data begins. Default: 5.</div>
+        </div>
+        
         <div class="alert alert-info">
           <strong>💡 Tip:</strong> Start with default settings. You can manually adjust individual sheets after setup if needed.
         </div>
@@ -877,7 +889,9 @@
       sheetLayout: {
         headerRowCount: 5,
         groupFormat: 'standard',
-        includeSCClassroom: false
+        includeSCClassroom: false,
+        dataStartRow: 6,
+        lessonColumnOffset: 5
       }
     };
     
@@ -960,6 +974,33 @@
         name: "Monday.com Integration", 
         description: "Export progress data to Monday.com project management boards",
         category: "integration"
+      },
+      
+      // === SYSTEM & SECURITY (Phase 7b/7c) ===
+      { 
+        id: "enhancedSecurity", 
+        name: "Enhanced Security", 
+        description: "Input sanitization and formula injection prevention for all user inputs (recommended ON)",
+        category: "system",
+        defaultOn: true
+      },
+      { 
+        id: "structuredLogging", 
+        name: "Structured Logging", 
+        description: "Detailed logging for troubleshooting and auditing (useful for schools needing audit trails)",
+        category: "system"
+      },
+      { 
+        id: "scClassroomGroups", 
+        name: "SC Classroom Groups", 
+        description: "Special needs classroom with wide grade range support (SC programs)",
+        category: "system"
+      },
+      { 
+        id: "coTeachingSupport", 
+        name: "Co-Teaching Support", 
+        description: "Partner group tracking for co-taught classes (co-teaching model)",
+        category: "system"
       }
     ];
 
@@ -1012,11 +1053,50 @@
         const div = document.createElement('div');
         div.className = 'checkbox-item';
         div.innerHTML = `
-          <input type="checkbox" id="grade_${grade.value}" value="${grade.value}" onchange="updateGradesServed()" />
+          <input type="checkbox" id="grade_${grade.value}" value="${grade.value}" onchange="onGradeCheckboxChange()" />
           <label for="grade_${grade.value}">${grade.label}</label>
         `;
         container.appendChild(div);
       });
+    }
+    
+    /**
+     * Grade Range Model presets – maps model key to grade values
+     */
+    const GRADE_RANGE_PRESETS = {
+      prek_only: ['PreK'],
+      k5: ['KG', 'G1', 'G2', 'G3', 'G4', 'G5'],
+      k8: ['KG', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8'],
+      prek_8: ['PreK', 'KG', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8']
+    };
+
+    function applyGradeRangePreset() {
+      const model = document.getElementById('gradeRangeModel').value;
+      wizardData.gradeRangeModel = model;
+
+      if (model === 'custom') return; // leave checkboxes untouched
+
+      const preset = GRADE_RANGE_PRESETS[model] || [];
+      // Uncheck all, then check the preset grades
+      document.querySelectorAll('#gradesCheckboxes input[type="checkbox"]').forEach(cb => {
+        cb.checked = preset.includes(cb.value);
+      });
+      updateGradesServed();
+    }
+
+    function onGradeCheckboxChange() {
+      updateGradesServed();
+      // If the user manually toggles a checkbox, switch to "custom"
+      const model = document.getElementById('gradeRangeModel').value;
+      if (model !== 'custom') {
+        const preset = GRADE_RANGE_PRESETS[model] || [];
+        const currentGrades = wizardData.gradesServed.slice().sort();
+        const presetSorted = preset.slice().sort();
+        if (JSON.stringify(currentGrades) !== JSON.stringify(presetSorted)) {
+          document.getElementById('gradeRangeModel').value = 'custom';
+          wizardData.gradeRangeModel = 'custom';
+        }
+      }
     }
     
     function initializeFeaturesList() {
@@ -1026,6 +1106,22 @@
       const advanced = FEATURE_OPTIONS.filter(f => f.category === 'advanced');
       const standard = FEATURE_OPTIONS.filter(f => f.category === 'standard');
       const integration = FEATURE_OPTIONS.filter(f => f.category === 'integration');
+      const system = FEATURE_OPTIONS.filter(f => f.category === 'system');
+      
+      // Helper to render a feature checkbox
+      function renderFeature(feature, container) {
+        const div = document.createElement('div');
+        div.className = 'feature-item';
+        const checked = feature.defaultOn ? 'checked' : '';
+        div.innerHTML = `
+          <input type="checkbox" id="feature_${feature.id}" value="${feature.id}" ${checked} onchange="updateFeatures()" />
+          <div class="feature-info">
+            <div class="feature-name">${feature.name}</div>
+            <div class="feature-description">${feature.description}</div>
+          </div>
+        `;
+        container.appendChild(div);
+      }
       
       // Add Advanced Modules section
       if (advanced.length > 0) {
@@ -1033,19 +1129,7 @@
         categoryHeader.style.cssText = 'font-weight: 600; font-size: 14px; margin-top: 16px; margin-bottom: 8px; color: <?= getBranding().headerGradientStart ?>;';
         categoryHeader.textContent = '🚀 Advanced Modules';
         container.appendChild(categoryHeader);
-        
-        advanced.forEach(feature => {
-          const div = document.createElement('div');
-          div.className = 'feature-item';
-          div.innerHTML = `
-            <input type="checkbox" id="feature_${feature.id}" value="${feature.id}" onchange="updateFeatures()" />
-            <div class="feature-info">
-              <div class="feature-name">${feature.name}</div>
-              <div class="feature-description">${feature.description}</div>
-            </div>
-          `;
-          container.appendChild(div);
-        });
+        advanced.forEach(f => renderFeature(f, container));
       }
       
       // Add Standard Features section
@@ -1054,19 +1138,7 @@
         categoryHeader.style.cssText = 'font-weight: 600; font-size: 14px; margin-top: 20px; margin-bottom: 8px; color: #2E7D32;';
         categoryHeader.textContent = '✓ Standard Features (Recommended)';
         container.appendChild(categoryHeader);
-        
-        standard.forEach(feature => {
-          const div = document.createElement('div');
-          div.className = 'feature-item';
-          div.innerHTML = `
-            <input type="checkbox" id="feature_${feature.id}" value="${feature.id}" onchange="updateFeatures()" />
-            <div class="feature-info">
-              <div class="feature-name">${feature.name}</div>
-              <div class="feature-description">${feature.description}</div>
-            </div>
-          `;
-          container.appendChild(div);
-        });
+        standard.forEach(f => renderFeature(f, container));
       }
       
       // Add Integration section
@@ -1075,20 +1147,20 @@
         categoryHeader.style.cssText = 'font-weight: 600; font-size: 14px; margin-top: 20px; margin-bottom: 8px; color: #F57C00;';
         categoryHeader.textContent = '🔗 Integrations';
         container.appendChild(categoryHeader);
-        
-        integration.forEach(feature => {
-          const div = document.createElement('div');
-          div.className = 'feature-item';
-          div.innerHTML = `
-            <input type="checkbox" id="feature_${feature.id}" value="${feature.id}" onchange="updateFeatures()" />
-            <div class="feature-info">
-              <div class="feature-name">${feature.name}</div>
-              <div class="feature-description">${feature.description}</div>
-            </div>
-          `;
-          container.appendChild(div);
-        });
+        integration.forEach(f => renderFeature(f, container));
       }
+      
+      // Add System & Security section
+      if (system.length > 0) {
+        const categoryHeader = document.createElement('div');
+        categoryHeader.style.cssText = 'font-weight: 600; font-size: 14px; margin-top: 20px; margin-bottom: 8px; color: #1565C0;';
+        categoryHeader.textContent = '🔧 System & Security';
+        container.appendChild(categoryHeader);
+        system.forEach(f => renderFeature(f, container));
+      }
+      
+      // Sync default-on features into wizardData
+      updateFeatures();
     }
     
     // Grade Range Model presets (Phase 7)
@@ -1137,6 +1209,12 @@
             if (modelSelect) {
               modelSelect.value = data.gradeRangeModel;
             }
+          }
+          
+          // Load grade range model
+          if (data.gradeRangeModel) {
+            wizardData.gradeRangeModel = data.gradeRangeModel;
+            document.getElementById('gradeRangeModel').value = data.gradeRangeModel;
           }
           
           if (data.gradesServed && data.gradesServed.length > 0) {
@@ -1214,6 +1292,12 @@
             if (data.sheetLayout.includeSCClassroom !== undefined) {
               document.getElementById('includeSCClassroom').checked = data.sheetLayout.includeSCClassroom;
             }
+            if (data.sheetLayout.dataStartRow) {
+              document.getElementById('dataStartRow').value = data.sheetLayout.dataStartRow;
+            }
+            if (data.sheetLayout.lessonColumnOffset) {
+              document.getElementById('lessonColumnOffset').value = data.sheetLayout.lessonColumnOffset;
+            }
           }
         })
         .getWizardData();
@@ -1276,6 +1360,7 @@
           return { valid: true };
 
         case 2:
+          wizardData.gradeRangeModel = document.getElementById('gradeRangeModel').value;
           if (wizardData.gradesServed.length === 0) {
             return { valid: false, message: 'Please select at least one grade level.' };
           }
@@ -1365,6 +1450,8 @@
           wizardData.sheetLayout.headerRowCount = parseInt(document.getElementById('headerRowCount').value) || 5;
           wizardData.sheetLayout.groupFormat = document.getElementById('groupFormat').value || 'standard';
           wizardData.sheetLayout.includeSCClassroom = document.getElementById('includeSCClassroom').checked || false;
+          wizardData.sheetLayout.dataStartRow = parseInt(document.getElementById('dataStartRow').value) || 6;
+          wizardData.sheetLayout.lessonColumnOffset = parseInt(document.getElementById('lessonColumnOffset').value) || 5;
           return { valid: true };
           
         default:
@@ -1738,6 +1825,8 @@ function normalizeGrade(grade) {
       html += `<div class="summary-item"><span class="summary-label">Header Rows:</span><span class="summary-value">${wizardData.sheetLayout.headerRowCount}</span></div>`;
       html += `<div class="summary-item"><span class="summary-label">Group Format:</span><span class="summary-value">${wizardData.sheetLayout.groupFormat.charAt(0).toUpperCase() + wizardData.sheetLayout.groupFormat.slice(1)}</span></div>`;
       html += `<div class="summary-item"><span class="summary-label">SC Classroom Column:</span><span class="summary-value">${wizardData.sheetLayout.includeSCClassroom ? 'Yes' : 'No'}</span></div>`;
+      html += `<div class="summary-item"><span class="summary-label">Data Start Row:</span><span class="summary-value">${wizardData.sheetLayout.dataStartRow}</span></div>`;
+      html += `<div class="summary-item"><span class="summary-label">Lesson Column Offset:</span><span class="summary-value">${wizardData.sheetLayout.lessonColumnOffset}</span></div>`;
       html += '</div>';
 
       document.getElementById('confirmationSummary').innerHTML = html;

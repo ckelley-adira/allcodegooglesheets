@@ -133,6 +133,33 @@ const FEATURE_OPTIONS = [
     name: "Monday.com Integration", 
     description: "Export progress data to Monday.com project management boards",
     category: "integration"
+  },
+  
+  // === SYSTEM & SECURITY (Phase 7b/7c) ===
+  { 
+    id: "enhancedSecurity", 
+    name: "Enhanced Security", 
+    description: "Input sanitization and formula injection prevention for all user inputs (recommended ON)",
+    category: "system",
+    defaultOn: true
+  },
+  { 
+    id: "structuredLogging", 
+    name: "Structured Logging", 
+    description: "Detailed logging for troubleshooting and auditing (useful for schools needing audit trails)",
+    category: "system"
+  },
+  { 
+    id: "scClassroomGroups", 
+    name: "SC Classroom Groups", 
+    description: "Special needs classroom with wide grade range support (SC programs)",
+    category: "system"
+  },
+  { 
+    id: "coTeachingSupport", 
+    name: "Co-Teaching Support", 
+    description: "Partner group tracking for co-taught classes (co-teaching model)",
+    category: "system"
   }
 ];
 
@@ -168,6 +195,11 @@ const SHEET_LAYOUT_OPTIONS = [
     value: "sankofa", 
     label: "Sankofa Format", 
     description: "Co-teaching format with 'Student Name' header rows and group name in column D" 
+  },
+  { 
+    value: "prek", 
+    label: "Pre-K Only", 
+    description: "Pre-K–specific layout using Pre-K Data, Pre-K Pacing, and Pre-K Summary sheets" 
   }
 ];
 
@@ -192,11 +224,13 @@ const CONFIG_LAYOUT = {
     PRIMARY_COLOR_ROW: 24,
     SECONDARY_COLOR_ROW: 25,
     LOGO_FILE_ID_ROW: 26,
-    // Sheet Layout Options (rows 28-31)
+    // Sheet Layout Options (rows 28-33)
     LAYOUT_HEADER_ROW: 28,
     HEADER_ROW_COUNT_ROW: 29,
     GROUP_FORMAT_ROW: 30,
-    SC_CLASSROOM_ROW: 31
+    SC_CLASSROOM_ROW: 31,
+    DATA_START_ROW_CONFIG_ROW: 32,
+    LESSON_COLUMN_OFFSET_ROW: 33
   },
   ROSTER: {
     TITLE_ROW: 1,
@@ -354,6 +388,17 @@ function onOpen() {
 
     // === MAINTENANCE ===
     .addSubMenu(ui.createMenu('🔧 System Tools')
+  
+  // === FEATURE-SPECIFIC MENUS (Dynamic, driven by SITE_CONFIG feature flags) ===
+  buildFeatureMenu(ui, baseMenu);
+  
+  // === CORE MAINTENANCE & SETTINGS (Always present) ===
+  baseMenu.addSeparator()
+      // Unenrollment
+      .addItem('📦 Manual Archive Student', 'manualArchiveStudent')
+      .addItem('📄 View Archive', 'goToArchiveSheet')
+      .addSeparator()
+      // Repairs (Only the essential ones)
       .addItem('🔧 Repair All Formulas', 'repairAllFormulas')
       .addItem('⚠️ Fix Missing Teachers', 'fixMissingTeachers')
       .addItem('🎨 Repair Formatting', 'repairUFLIMapFormatting'))
@@ -451,7 +496,9 @@ function getWizardData() {
       sheetLayout: {
         headerRowCount: 5,
         groupFormat: "standard",
-        includeSCClassroom: false
+        includeSCClassroom: false,
+        dataStartRow: 6,
+        lessonColumnOffset: 5
       }
     };
   }
@@ -508,7 +555,9 @@ function getExistingSheetLayout(configSheet) {
   const defaultLayout = {
     headerRowCount: 5,
     groupFormat: "standard",
-    includeSCClassroom: false
+    includeSCClassroom: false,
+    dataStartRow: 6,
+    lessonColumnOffset: 5
   };
 
   if (!configSheet) return defaultLayout;
@@ -517,11 +566,15 @@ function getExistingSheetLayout(configSheet) {
     const headerRowCount = configSheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.HEADER_ROW_COUNT_ROW, CONFIG_LAYOUT.COLS.VALUE).getValue();
     const groupFormat = configSheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.GROUP_FORMAT_ROW, CONFIG_LAYOUT.COLS.VALUE).getValue();
     const includeSCClassroom = configSheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.SC_CLASSROOM_ROW, CONFIG_LAYOUT.COLS.VALUE).getValue();
+    const dataStartRow = configSheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.DATA_START_ROW_CONFIG_ROW, CONFIG_LAYOUT.COLS.VALUE).getValue();
+    const lessonColumnOffset = configSheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.LESSON_COLUMN_OFFSET_ROW, CONFIG_LAYOUT.COLS.VALUE).getValue();
 
     return {
       headerRowCount: headerRowCount || defaultLayout.headerRowCount,
       groupFormat: groupFormat || defaultLayout.groupFormat,
-      includeSCClassroom: includeSCClassroom === true || includeSCClassroom === "TRUE"
+      includeSCClassroom: includeSCClassroom === true || includeSCClassroom === "TRUE",
+      dataStartRow: dataStartRow || defaultLayout.dataStartRow,
+      lessonColumnOffset: lessonColumnOffset || defaultLayout.lessonColumnOffset
     };
   } catch (e) {
     return defaultLayout;
@@ -711,7 +764,16 @@ function calculateGroupRecommendations(wizardData) {
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Automatically distributes students evenly across groups
+ * Automatically distributes students evenly across groups.
+ *
+ * Supports three layout scenarios:
+ * 1. Standard single-grade groups (default round-robin).
+ * 2. Mixed-grade groups — when mixedGradeSupport is enabled,
+ *    students whose grade falls within a MIXED_GRADE_CONFIG combination
+ *    are pooled together and distributed across the combined group.
+ * 3. Pre-K groups — treated identically to single-grade groups
+ *    (group names prefixed with "PreK").
+ *
  * @param {Object} wizardData - Current wizard data
  * @returns {Object} Updated wizard data with balanced assignments
  */
@@ -719,7 +781,29 @@ function autoBalanceStudents(wizardData) {
   const result = { ...wizardData };
   
   result.students = (result.students || []).map(s => ({ ...s, group: "" }));
-  
+
+  // Build a lookup of mixed-grade combinations when the feature is on.
+  // Maps each grade code to the array of grades it is combined with.
+  var mixedGradeLookup = {};
+  if (typeof isFeatureEnabled === 'function' && isFeatureEnabled('mixedGradeSupport')) {
+    var mixedCfg = (typeof MIXED_GRADE_CONFIG !== 'undefined') ? MIXED_GRADE_CONFIG : {};
+    var combos = mixedCfg.combinations || {};
+    // combinations may be an object { sheetName: [grades] } or a comma-separated string
+    if (typeof combos === 'string') {
+      combos.split(',').map(function(c) { return c.trim(); }).forEach(function(combo) {
+        var grades = combo.split('+').map(function(g) { return g.trim(); });
+        grades.forEach(function(g) { mixedGradeLookup[g] = grades; });
+      });
+    } else if (typeof combos === 'object') {
+      Object.keys(combos).forEach(function(key) {
+        var grades = combos[key];
+        if (Array.isArray(grades)) {
+          grades.forEach(function(g) { mixedGradeLookup[g] = grades; });
+        }
+      });
+    }
+  }
+
   (wizardData.groups || []).forEach(groupConfig => {
     const grade = groupConfig.grade;
     const groupCount = groupConfig.count;
@@ -728,8 +812,11 @@ function autoBalanceStudents(wizardData) {
       logMessage('autoBalanceStudents', `Skipping invalid group config: ${JSON.stringify(groupConfig)}`, 'WARN');
       return;
     }
-    
-    const studentsInGrade = result.students.filter(s => s.grade === grade && !s.group);
+
+    // Determine which grades to pool for this group config
+    var poolGrades = mixedGradeLookup[grade] || [grade];
+
+    const studentsInGrade = result.students.filter(s => poolGrades.indexOf(s.grade) !== -1 && !s.group);
     
     if (studentsInGrade.length === 0) return;
     
@@ -916,10 +1003,10 @@ function createConfigurationSheet(ss, data) {
   
   sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.SCHOOL_NAME_ROW, CONFIG_LAYOUT.COLS.LABEL).setValue("School Name:");
   sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.SCHOOL_NAME_ROW, CONFIG_LAYOUT.COLS.VALUE).setValue(data.schoolName);
-
+  
   sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.GRADE_RANGE_MODEL_ROW, CONFIG_LAYOUT.COLS.LABEL).setValue("Grade Range Model:");
   sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.GRADE_RANGE_MODEL_ROW, CONFIG_LAYOUT.COLS.VALUE).setValue(data.gradeRangeModel || "custom");
-
+  
   sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.GRADES_HEADER_ROW, CONFIG_LAYOUT.COLS.LABEL).setValue("Grades Served:");
   sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.GRADES_HEADER_ROW, CONFIG_LAYOUT.COLS.LABEL).setFontWeight("bold");
   
@@ -977,9 +1064,17 @@ function createConfigurationSheet(ss, data) {
   sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.SC_CLASSROOM_ROW, 2)
     .setValue(data.sheetLayout ? data.sheetLayout.includeSCClassroom : false);
 
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.DATA_START_ROW_CONFIG_ROW, 1).setValue("Data Start Row:");
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.DATA_START_ROW_CONFIG_ROW, 2)
+    .setValue(data.sheetLayout ? (data.sheetLayout.dataStartRow || 6) : 6);
+
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.LESSON_COLUMN_OFFSET_ROW, 1).setValue("Lesson Column Offset:");
+  sheet.getRange(CONFIG_LAYOUT.SITE_CONFIG.LESSON_COLUMN_OFFSET_ROW, 2)
+    .setValue(data.sheetLayout ? (data.sheetLayout.lessonColumnOffset || 5) : 5);
+
   sheet.setColumnWidth(1, 250);
   sheet.setColumnWidth(2, 300);
-  sheet.getRange(2, 1, 31, 2).setFontFamily("Calibri");
+  sheet.getRange(2, 1, 32, 2).setFontFamily("Calibri");
 
   protectSheet(sheet);
 }
@@ -1745,12 +1840,21 @@ function getLessonsForGrade(grade) {
  * Gets existing Y/N/A/U data for a specific lesson
  * IMPROVED: Derives correct sheet name from group name + tolerant matching
  * 
- * @param {string} gradeSheet - The sheet name passed by the form (may be wrong)
+ * @param {string} [gradeSheet] - The sheet name passed by the form (may be wrong).
+ *   Optional: if only two arguments are provided, they are treated as (groupName, lessonName)
+ *   to maintain backward compatibility with callers that omit gradeSheet.
  * @param {string} groupName - The group name (e.g., "KG Group 1 - T. Smith")
  * @param {string} lessonName - The lesson name (e.g., "UFLI L5 VC&CVC Words")
  * @returns {Object} Map of studentName -> Y/N/A/U value
  */
 function getExistingLessonData(gradeSheet, groupName, lessonName) {
+  // Support 2-arg calling convention: getExistingLessonData(groupName, lessonName)
+  // When called with 2 args, shift parameters so gradeSheet becomes null.
+  if (arguments.length === 2) {
+    lessonName = groupName;
+    groupName = gradeSheet;
+    gradeSheet = null;
+  }
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
   // ═══════════════════════════════════════════════════════════════
@@ -1954,6 +2058,12 @@ function saveLessonData(formData) {
   
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const { gradeSheet, groupName, lessonName, teacherName, studentStatuses, unenrolledStudents } = formData;
+
+  // Co-teaching support: extract co-teaching metadata (guarded by feature flag)
+  const isCoTeaching = SITE_CONFIG.features.coTeachingSupport && (formData.isCoTeaching || false);
+  const partnerGroup = formData.partnerGroup || null;
+  const primaryGroup = formData.primaryGroup || groupName;
+
   const grade = groupName.split(' ')[0];
 
   try {
@@ -1993,7 +2103,7 @@ function saveLessonData(formData) {
     }
 
     // ═══════════════════════════════════════════════════════════
-    // K-8 FAST SAVE LOGIC (Optimized)
+    // K-8 FAST SAVE LOGIC (Optimized, with Co-Teaching Support)
     // ═══════════════════════════════════════════════════════════
     else {
       const progressSheet = ss.getSheetByName("Small Group Progress");
@@ -2010,20 +2120,47 @@ function saveLessonData(formData) {
         return { success: true, message: 'No active students to record.' };
       }
 
-      // STEP 1: Log to "Small Group Progress" (Fast)
-      const progressRows = activeStatuses.map(student => [
-        timestamp,
-        teacherName || 'Unknown',
-        groupName,
-        student.name,
-        lessonName,
-        student.status
-      ]);
-      progressSheet.getRange(progressSheet.getLastRow() + 1, 1, progressRows.length, 6).setValues(progressRows);
+      // STEP 1: Log to "Small Group Progress" (with Source Group for co-teaching)
+      const progressRows = activeStatuses.map(student => {
+        const row = [
+          timestamp,
+          teacherName || 'Unknown',
+          isCoTeaching ? primaryGroup : groupName,
+          student.name,
+          lessonName,
+          student.status
+        ];
+        if (isCoTeaching) {
+          row.push(student.sourceGroup || groupName);
+        }
+        return row;
+      });
 
-      // STEP 2: Update Group Sheet (TARGETED BATCH)
-      // This is immediate so teachers see the update on their grade sheet
-      updateGroupSheetTargeted(ss, gradeSheet, groupName, lessonName, activeStatuses);
+      const numCols = isCoTeaching ? 7 : 6;
+      progressSheet.getRange(progressSheet.getLastRow() + 1, 1, progressRows.length, numCols).setValues(progressRows);
+
+      if (isCoTeaching) {
+        Logger.log(`[${functionName}] Co-teaching mode: ${primaryGroup} + ${partnerGroup}`);
+      }
+
+      // STEP 2: Update Group Sheet(s) - Dual write for co-teaching
+      if (isCoTeaching) {
+        const studentsByGroup = {};
+        activeStatuses.forEach(student => {
+          const sourceGroup = student.sourceGroup || groupName;
+          if (!studentsByGroup[sourceGroup]) {
+            studentsByGroup[sourceGroup] = [];
+          }
+          studentsByGroup[sourceGroup].push(student);
+        });
+
+        for (const [srcGroup, students] of Object.entries(studentsByGroup)) {
+          Logger.log(`[${functionName}] Updating group sheet for: ${srcGroup} (${students.length} students)`);
+          updateGroupSheetTargeted(ss, gradeSheet, srcGroup, lessonName, students);
+        }
+      } else {
+        updateGroupSheetTargeted(ss, gradeSheet, groupName, lessonName, activeStatuses);
+      }
 
       // STEP 3: Queue UFLI MAP Update (DEFERRED - processed every 60 min)
       // This dramatically reduces save time from ~16s to ~3-4s
@@ -2038,11 +2175,13 @@ function saveLessonData(formData) {
       }
 
       const elapsed = (new Date() - startTime) / 1000;
-      Logger.log(`[${functionName}] Fast Save Complete: ${elapsed.toFixed(2)}s`);
+      Logger.log(`[${functionName}] ${isCoTeaching ? 'Co-Teaching ' : ''}Fast Save Complete: ${elapsed.toFixed(2)}s`);
       
       return { 
         success: true, 
-        message: `Saved successfully in ${elapsed.toFixed(1)}s`
+        message: isCoTeaching
+          ? `Co-teaching data saved for ${primaryGroup} + ${partnerGroup} in ${elapsed.toFixed(1)}s`
+          : `Saved successfully in ${elapsed.toFixed(1)}s`
       };
     }
 

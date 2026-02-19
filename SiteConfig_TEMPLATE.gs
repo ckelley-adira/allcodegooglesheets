@@ -30,6 +30,14 @@ const SITE_CONFIG = {
   schoolName: "Your School Name",
   systemVersion: "7.0",
   
+  /**
+   * GRADE RANGE MODEL
+   * Preset grade range for the school. Selecting a preset auto-populates
+   * the gradesServed list. Use "custom" for school-defined grade lists.
+   * Valid values: "prek_only", "k5", "k8", "prek_8", "custom"
+   */
+  gradeRangeModel: "custom",
+  
   // ═══════════════════════════════════════════════════════════════════════════
   // GRADE RANGE MODEL (Phase 7)
   // Determines which grades this school serves and Pre-K inclusion
@@ -61,6 +69,8 @@ const SITE_CONFIG = {
   // ═══════════════════════════════════════════════════════════════════════════
   // BRANDING
   // Visual identity and styling for all UI components
+  // Defaults are applied automatically during onboarding if values are empty.
+  // Schools may configure full branding or rely on these defaults.
   // ═══════════════════════════════════════════════════════════════════════════
   branding: {
     schoolName: "Your School Name",
@@ -74,10 +84,66 @@ const SITE_CONFIG = {
   },
   
   // ═══════════════════════════════════════════════════════════════════════════
+  // LAYOUT
+  // Sheet structure settings consumed by unified modules at runtime.
+  // dataStartRow: First row containing student data (= headerRowCount + 1).
+  // lessonColumnOffset: Column index where lesson data begins.
+  // ═══════════════════════════════════════════════════════════════════════════
+  layout: {
+    headerRowCount: 5,         // Number of header rows before data begins
+    dataStartRow: 6,           // First row containing student data
+    lessonColumnOffset: 5,     // Column where lesson data begins (1-based)
+    groupFormat: "standard",   // "standard", "condensed", "expanded", "sankofa", "prek"
+    includeSCClassroom: false  // Whether to include SC Classroom sheet
+  },
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // VERSION TRACKING
+  // Tracks upgrade history for schools migrating from legacy configurations.
+  // previousVersions: Array of prior systemVersion values before upgrade.
+  // upgradeDate: ISO date string of last upgrade.
+  // legacyConfigFormat: Set to the legacy format name if migrated (e.g., "v3.2").
+  // ═══════════════════════════════════════════════════════════════════════════
+  versionTracking: {
+    previousVersions: [],    // e.g., ["3.0", "3.2"]
+    upgradeDate: "",         // e.g., "2026-02-19"
+    legacyConfigFormat: ""   // e.g., "v3.2" if migrated from older config
+  },
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MENU CUSTOMIZATION
+  // Override default menu labels and icons per school.
+  // If a key is omitted or empty, the built-in default is used.
+  // ═══════════════════════════════════════════════════════════════════════════
+  menuCustomization: {
+    // Override the top-level menu name (default: school short name or "UFLI Tools")
+    menuName: "",
+    // Override individual feature menu labels/icons
+    // Keys match feature flag names; values are { label, icon } objects
+    featureLabels: {}
+    // Example:
+    // featureLabels: {
+    //   coachingDashboard: { label: "Coaching", icon: "📋" },
+    //   adminImport:       { label: "Data Import", icon: "📂" }
+    // }
+  },
+  
+  // ═══════════════════════════════════════════════════════════════════════════
   // FEATURE FLAGS
   // Set to true to enable, false to disable
   // ═══════════════════════════════════════════════════════════════════════════
   features: {
+    /**
+     * PRE-K ONLY MODE
+     * Selects the Pre-K–specific sheet layout (Pre-K Data, Pre-K Pacing,
+     * Pre-K Summary) and skips UFLI lesson-based sheets during onboarding.
+     * For mixed-grade sites that include Pre-K alongside K–8 grades, leave
+     * this false and add "PreK" to the grade list instead.
+     * Required for: Sites serving only Pre-K students
+     * Adds: Pre-K–only sheet generation and dashboard
+     */
+    preKOnlyMode: false,
+    
     /**
      * MIXED GRADE SUPPORT
      * Enables grouping students across multiple grade levels
@@ -133,13 +199,157 @@ const SITE_CONFIG = {
     adminImport: false,
     
     /**
+     * ENHANCED SECURITY
+     * Input sanitization and formula injection prevention
+     * Required for: All schools (default: ON)
+     * Adds: sanitizeCellValue() for all user inputs
+     * Security: Prevents formula injection, null bytes, enforces length limits
+     */
+    enhancedSecurity: true,
+    
+    /**
+     * STRUCTURED LOGGING
+     * Detailed logging for troubleshooting and auditing
+     * Required for: Schools needing audit trails (Allegiant)
+     * Adds: log(func, msg, lvl) structured logging
+     * Usage: Set to true to enable diagnostic logging in AdminImport
+     */
+    structuredLogging: false,
+    
+    /**
      * UNENROLLMENT AUTOMATION
      * Automatic archival and Monday.com integration for unenrolled students
      * Required for: Schools using Monday.com workflow tracking
      * Adds: Automatic student archival, Monday.com task creation, "Student Archive" sheet
      * File: modules/UnenrollmentAutomation.gs
      */
-    unenrollmentAutomation: false
+    unenrollmentAutomation: false,
+    
+    /**
+     * SC CLASSROOM GROUPS
+     * Special needs classroom with wide grade range
+     * Required for: Schools with SC programs (Adelante, Sankofa)
+     * Adds: SC Classroom sheet generation and tracking
+     * Configuration: MIXED_GRADE_CONFIG.scClassroom
+     */
+    scClassroomGroups: false,
+    
+    /**
+     * CO-TEACHING SUPPORT
+     * Partner group tracking for co-taught classes
+     * Required for: Schools with co-teaching model (Sankofa)
+     * Adds: getPartnerGroup(), isCoTeachingGroup(), co-teaching pair management
+     * Configuration: MIXED_GRADE_CONFIG.coTeaching
+     */
+    coTeachingSupport: false,
+    
+    /**
+     * DYNAMIC BRANDING
+     * Enables sheet logo insertion and custom color schemes
+     * Required for: Schools with strong brand identity (Adelante, CHAW)
+     * Adds: loadSchoolBranding(), insertSheetLogo(), applySheetBranding()
+     * Dependencies: Branding configuration in SITE_CONFIG.branding
+     * Extension: AdelanteBrandingExtensions.gs, CHAWBrandingExtensions.gs
+     */
+    dynamicBranding: false,
+    
+    /**
+     * SKILL AVERAGES ANALYTICS
+     * Adds skill-based performance metrics to dashboard
+     * Required for: Schools tracking skill mastery (CCA)
+     * Adds: calculateSkillAverages(), renderSkillAveragesRow()
+     * Dashboard: Additional "Skill Averages" row on School Summary
+     * Extension: CCASkillsExtensions.gs
+     */
+    skillAveragesAnalytics: false,
+    
+    /**
+     * DIAGNOSTIC TOOLS
+     * Testing and validation utilities for troubleshooting
+     * Required for: Schools needing advanced diagnostics
+     * Adds: testGroupSheetStructure(), validation utilities
+     * Menu: "System Tools" > "Run Diagnostics"
+     */
+    diagnosticTools: false,
+    
+    /**
+     * LESSON ARRAY TRACKING
+     * Tracks lessons as arrays for batch operations
+     * Required for: Most schools (default: ON)
+     * Adds: updateGroupArrayByLessonName()
+     * Performance: Optimizes multi-lesson updates
+     */
+    lessonArrayTracking: true,
+    
+    /**
+     * STUDENT NORMALIZATION
+     * Auto-normalize student name fields (capitalization, spacing)
+     * Required for: Schools with data quality needs (Adelante)
+     * Adds: normalizeStudent() validation
+     * Extension: AdelanteBrandingExtensions.gs (normalizeStudent function)
+     */
+    studentNormalization: false,
+    
+    /**
+     * DYNAMIC STUDENT ROSTER
+     * Allow dynamic addition of students to tracking sheets
+     * Required for: Schools managing rosters mid-year (Allegiant, GlobalPrep, CCA)
+     * Adds: addStudentToSheet() in Phase2 tracking
+     */
+    dynamicStudentRoster: false,
+    
+    /**
+     * UFLI MAP QUEUE
+     * Deferred UFLI MAP updates via sync queue for faster form submissions
+     * Required for: Schools using queued UFLI MAP processing (most schools)
+     * Adds: addToSyncQueue(), processSyncQueue() workflow
+     * Menu: "Sync & Performance" > "Process UFLI MAP Queue Now"
+     */
+    ufliMapQueue: true,
+    
+    /**
+     * SYNC QUEUE PROCESSING
+     * Periodic processing of queued UFLI MAP updates (hourly trigger)
+     * Required for: Schools using queued sync (most schools)
+     * Adds: setupSyncQueueTrigger(), disableSyncQueueTrigger()
+     * Menu: "Sync & Performance" > "Enable/Disable Hourly UFLI Sync"
+     */
+    syncQueueProcessing: true,
+    
+    /**
+     * NIGHTLY SYNC AUTOMATION
+     * Full nightly sync trigger for complete data reconciliation
+     * Required for: Schools needing overnight data refresh (Adelante, Allegiant, Sankofa, CHAW)
+     * Adds: setupNightlySyncTrigger(), removeNightlySyncTrigger()
+     * Menu: "Sync & Performance" > "Enable/Disable Nightly Full Sync"
+     */
+    nightlySyncAutomation: true,
+    
+    /**
+     * SYNC STATUS MONITORING
+     * Dashboard for viewing sync queue status and trigger health
+     * Required for: Schools needing sync visibility (Adelante, CHAW)
+     * Adds: showSyncStatus() dialog
+     * Menu: "Sync & Performance" > "Check Sync Status"
+     */
+    syncStatusMonitoring: false,
+    
+    /**
+     * FORMULA REPAIR TOOLS
+     * Grade Summary formula refresh and student formula update utilities
+     * Required for: Schools with complex formula dependencies (CCA)
+     * Adds: refreshGradeSummaryFormulas(), updateFormulasForNewStudents()
+     * Menu: "System Tools" > "Repair All Formulas"
+     */
+    formulaRepairTools: false,
+    
+    /**
+     * STUDENT EDIT CAPABILITY
+     * In-sheet student record editing (name, grade, status changes)
+     * Required for: Schools managing student data directly (Allegiant, GlobalPrep, CCA)
+     * Adds: editStudentRecord(), updateStudentStatus() in student management
+     */
+    studentEditCapability: false
   }
 };
 
@@ -159,12 +369,28 @@ const MIXED_GRADE_CONFIG = {
   // Sheet format type
   sheetFormat: "STANDARD", // "STANDARD" or "SANKOFA"
   
-  // Mixed grade combinations (comma-separated)
-  // Example: "G6+G7+G8, G1+G2+G3+G4"
-  combinations: "",
+  // Mixed grade combinations (object mapping sheet names to grade arrays)
+  // Example: { "G6 to G8 Groups": ["G6", "G7", "G8"], "KG and G1 Groups": ["KG", "G1"] }
+  combinations: {},
   
   // Group naming pattern
-  namingPattern: "NUMBERED_TEACHER" // "NUMBERED_TEACHER", "NUMBERED", or "ALPHA"
+  namingPattern: "NUMBERED_TEACHER", // "NUMBERED_TEACHER", "NUMBERED", or "ALPHA"
+  
+  // SC Classroom configuration (special needs classroom)
+  // Note: Enable/disable is controlled via SITE_CONFIG.features.scClassroomGroups
+  // Current implementation uses a fixed "SC Classroom" sheet name
+  scClassroom: {
+    gradeRange: [], // e.g., ["G1", "G2", "G3", "G4"] or ["G1", "G2", "G3", "G4", "G5"]
+    hasSubGroups: true,
+    sheetName: "SC Classroom"
+  },
+  
+  // Co-teaching configuration (partner group tracking)
+  // Note: Enable/disable is controlled via SITE_CONFIG.features.coTeachingSupport
+  // Partner group column is defined by GROUP_CONFIG_COLS.PARTNER_GROUP in the unified module
+  coTeaching: {
+    partnerGroupColumn: 0  // 1-based column index for partner group (0 = disabled)
+  }
 };
 
 /**
@@ -259,6 +485,36 @@ const UNENROLLMENT_CONFIG = {
   enableAuditLog: true
 };
 
+/**
+ * Progress Tracking Configuration
+ * Settings for Phase2_ProgressTracking_Unified.gs module
+ */
+const PROGRESS_TRACKING_CONFIG = {
+  // Sheet names for progress tracking
+  schoolSummary: "School Summary",
+  smallGroupProgress: "Small Group Progress",
+  ufliMap: "UFLI MAP",
+  skillsTracker: "Skills Tracker",
+  gradeSummary: "Grade Summary",
+  pacingReport: "Pacing Report",
+  groupConfig: "Group Config",
+  
+  // Dashboard configuration
+  dashboardMetrics: {
+    showGrowthMetrics: true,
+    showDistributionBands: true,
+    showSkillAverages: false, // Controlled by skillAveragesAnalytics flag
+    showPacingAnalysis: true
+  },
+  
+  // Formula repair settings
+  autoRepairFormulas: false,  // Set to true to auto-repair on updates
+  
+  // Progress history settings
+  trackHistory: true,
+  historyLookbackDays: 90
+};
+
 // ═══════════════════════════════════════════════════════════════════════════
 // HELPER FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════
@@ -317,4 +573,60 @@ function getEnabledFeatures() {
   return Object.keys(SITE_CONFIG.features).filter(feature => 
     SITE_CONFIG.features[feature] === true
   );
+}
+
+/**
+ * Returns the effective menu name for the top-level UFLI menu.
+ * Uses menuCustomization.menuName if set, otherwise falls back to
+ * the school short name or "UFLI Tools".
+ * @returns {string} Menu name
+ */
+function getMenuName() {
+  const custom = (SITE_CONFIG.menuCustomization || {}).menuName;
+  if (custom) return custom;
+  const short = (SITE_CONFIG.branding || {}).shortName;
+  return short || "UFLI Tools";
+}
+
+/**
+ * Returns the display label and icon for a feature menu item.
+ * Checks menuCustomization.featureLabels first, then uses the provided defaults.
+ * @param {string} featureName - Feature flag name
+ * @param {string} defaultLabel - Default label text
+ * @param {string} defaultIcon - Default emoji icon
+ * @returns {{label: string, icon: string}}
+ */
+function getFeatureMenuLabel(featureName, defaultLabel, defaultIcon) {
+  const overrides = ((SITE_CONFIG.menuCustomization || {}).featureLabels || {})[featureName];
+  return {
+    label: (overrides && overrides.label) || defaultLabel,
+    icon: (overrides && overrides.icon) || defaultIcon
+  };
+}
+
+/**
+ * Detects whether the current site is a Pre-K–only deployment.
+ * A site is Pre-K–only when the preKOnlyMode feature flag is true.
+ * @returns {boolean}
+ */
+function isPreKOnlySite() {
+  return SITE_CONFIG.features.preKOnlyMode === true;
+}
+
+/**
+ * Returns true when the site was migrated from a legacy configuration format.
+ * Useful for gating backward-compatible behavior.
+ * @returns {boolean}
+ */
+function isLegacyUpgrade() {
+  var tracking = SITE_CONFIG.versionTracking || {};
+  return !!(tracking.legacyConfigFormat);
+}
+
+/**
+ * Returns the version tracking metadata for this site.
+ * @returns {{previousVersions: Array<string>, upgradeDate: string, legacyConfigFormat: string}}
+ */
+function getVersionTracking() {
+  return SITE_CONFIG.versionTracking || { previousVersions: [], upgradeDate: "", legacyConfigFormat: "" };
 }

@@ -1,50 +1,69 @@
-/**
- * ⚠️ DEPRECATED - Phase 7d
- * This file has been consolidated into Phase2_ProgressTracking_Unified.gs
- * School-specific extensions are in: SankofaStatsExtensions.gs
- * See: PHASE7_AUDIT_REPORT.md § 1.1 and § 3.1
- * This file is retained for reference only and should not be modified.
- * Migration date: 2026-02-19
- */
-
 // ═══════════════════════════════════════════════════════════════════════════
-// UFLI MASTER SYSTEM - SYSTEM SHEETS (PHASE 2)
+// UFLI MASTER SYSTEM - PROGRESS TRACKING MODULE (UNIFIED)
 // Sheet Generation, Progress Tracking, Sync, and Pacing Engine
 // ═══════════════════════════════════════════════════════════════════════════
-// Core calculation functions are imported from SharedEngine.gs
-// Version: 5.2 - WEIGHTED REVIEW LESSONS
-// Last Updated: January 2026
+// Version: 6.0 - PHASE 7D UNIFIED
+// Created: February 2026
+// Phase 7 Consolidation: Phase2_ProgressTracking module
 //
-// ARCHITECTURE:
-// - SetupWizard_v3.gs owns: Config constants, menu, wizard, manage UI, reports, web app
-// - This file owns: System constants, sheet generation, sync, pacing, repair
+// LINEAGE:
+// This file consolidates:
+// - AdelantePhase2_ProgressTracking.gs (v5.2, 2792 lines - most comprehensive)
+// - AllegiantPhase2_ProgressTracking.gs (v5.1, 1995 lines)
+// - SankofaPhase2_ProgressTracking.gs (v5.2, 2503 lines)
+// - GlobalPrepPhase2_ProgressTracking.gs (v5.5, 1953 lines - bulletproof formatting)
+// - CCAPhase2_ProgressTracking.gs (v5.1, 1672 lines)
+// - CHAWPhase2_ProgressTracking.gs (v5.2, 2397 lines)
+// See: PHASE7_AUDIT_REPORT.md § 1.1 and § 3.1
 //
-// MAJOR CHANGES v5.0:
-// - Removed volatile spreadsheet formulas (INDIRECT, COUNTIF, MAXIFS)
-// - Implemented "Big Gulp" pattern: Batch Read -> In-Memory Calc -> Batch Write
-// - "Current Lesson" is now calculated in script and written as static text
-// - Skills & Grade Summary percentages are calculated in script
-// - Sync speed improved by ~90%
+// CHANGES FROM v5.x:
+// - Unified 6 school-specific versions into single parameterized module
+// - Removed school-specific branding functions (see extension files below)
+// - Removed school-specific config functions (getXXXConfig moved to extension files)
+// - Adopted GlobalPrep's v5.5 bulletproof formatting for granular column formatting
+// - Adopted CCA's mapSheet parameter support in buildStudentLookups()
+// - Standardized function signatures with optional parameters
+// - Added feature flag guards for advanced functions
+// - All 45+ shared functions now in one file
 //
-// CHANGES v5.1:
-// - Fixed PreK duplicate entries (skip PreK in UFLI loop)
-// - Fixed PreK metric mapping (Form→Foundational, Name+Sound→MinGrade, All→FullGrade)
-// - Fixed PreK denominators to use fixed benchmark-style (26/52/78)
+// PURPOSE:
+// This module provides core progress tracking functionality for the UFLI Master System:
+// - System sheet generation (UFLI MAP, Skills, Grade Summary, etc.)
+// - Progress syncing from Small Group Progress log to master sheets
+// - Pacing report generation and dashboard updates
+// - School summary dashboard with grade cards
+// - Repair and maintenance utilities
 //
-// CHANGES v5.2:
-// - Added weighted review lesson logic for skill section calculations
-// - Review lessons act as "gateway tests" - passing ALL grants 100% section credit
-// - Logic: If ANY review populated → check if ALL passed → 100%, else non-review calc
-// - If student fails any review, falls back to non-review lesson calculation
-// - Initial Assessment excludes review lessons (they aren't assessed initially)
-// - New function: calculateSectionPercentage(mapRow, sectionLessons, isInitialAssessment)
+// FEATURE FLAGS (from SiteConfig_TEMPLATE.gs):
+// - features.diagnosticTools: Test functions for sheet structure validation (default: OFF)
+// - features.lessonArrayTracking: Group sheet array tracking by lesson name (default: ON)
+// - features.dynamicStudentRoster: Dynamic student addition to sheets (default: OFF)
+// - features.studentNormalization: Field normalization for student objects (default: ON)
+//
+// SCHOOL-SPECIFIC EXTENSIONS:
+// @see AdelanteBrandingExtensions.gs - Logo insertion, color customization, branding cache
+//      Functions: loadSchoolBranding(), insertSheetLogo(), applySheetBranding_Adelante(), 
+//                 lightenColor(), clearBrandingCache(), normalizeStudent_Adelante()
+// @see CHAWBrandingExtensions.gs - Logo insertion, color customization, branding cache
+//      Functions: loadSchoolBranding(), insertSheetLogo(), applySheetBranding_CHAW(),
+//                 lightenColor(), clearBrandingCache(), getCHAWConfig(), createHeader_CHAW()
+// @see SankofaStatsExtensions.gs - Custom statistics calculation
+//      Functions: updateAllStats_Sankofa(), goToSchoolSummary_Sankofa()
+// @see CCASkillsExtensions.gs - Skill analytics and averaging
+//      Feature flag: skillAveragesAnalytics
+//      Functions: calculateSkillAverages(), renderSkillAveragesRow(), buildStudentLookups_CCA()
+//
+// DEPENDENCIES:
+// - SharedEngine.gs: Core calculation functions (imported from Phase 5)
+// - SharedConstants.gs: LESSON_LABELS, SKILL_SECTIONS, REVIEW_LESSONS, etc.
+// - SiteConfig_TEMPLATE.gs: Feature flags and configuration
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CONSTANTS - SYSTEM SHEETS
 // ═══════════════════════════════════════════════════════════════════════════
 
-var SHEET_NAMES_V2 = {
+const SHEET_NAMES_V2 = {
   SMALL_GROUP_PROGRESS: "Small Group Progress",
   UFLI_MAP: "UFLI MAP",
   SKILLS: "Skills Tracker",
@@ -65,25 +84,24 @@ const PREK_CONFIG = {
   TOTAL_LETTERS: 26,
   HEADER_ROW: 5,
   DATA_START_ROW: 6,
-  // Fixed denominators for benchmark-style calculations:
   FORM_DENOMINATOR: 26,        // 26 letters for Form (motor integration)
   NAME_SOUND_DENOMINATOR: 52,  // 26 Name + 26 Sound (literacy knowledge)
   FULL_DENOMINATOR: 78         // 26 Name + 26 Sound + 26 Form (K-readiness)
 };
 
-var SHEET_NAMES_PACING = {
+const SHEET_NAMES_PACING = {
   DASHBOARD: "Pacing Dashboard",
   LOG: "Pacing Log"
 };
 
-var LAYOUT = {
-  DATA_START_ROW: 6,           // First row of actual data (1-based)
+const LAYOUT = {
+  DATA_START_ROW: 6,           // First row of actual data
   HEADER_ROW_COUNT: 5,         // Number of header rows
   LESSON_COLUMN_OFFSET: 5,     // Lessons start at column F (6), so offset is 5 (Index 5 in 0-based array)
   TOTAL_LESSONS: 128,          // Total number of UFLI lessons
   LESSONS_PER_GROUP_SHEET: 12, // Lesson columns per group sheet
-
-  // UFLI MAP column indices (1-based for Sheet API)
+  
+  // Column indices (1-based for Sheet API, 0-based for Arrays)
   COL_STUDENT_NAME: 1,
   COL_GRADE: 2,
   COL_TEACHER: 3,
@@ -92,9 +110,45 @@ var LAYOUT = {
   COL_FIRST_LESSON: 6
 };
 
+const COLORS = {
+  Y: "#d4edda",        // Light green - Yes/Pass
+  N: "#f8d7da",        // Light red - No/Fail
+  A: "#fff3cd",        // Light yellow - Absent
+  HEADER_BG: "#4A90E2",
+  HEADER_FG: "#FFFFFF",
+  TITLE_BG: "#ADD8E6",
+  TITLE_FG: "#000000",
+  SUB_HEADER_BG: "#f8f9fa",
+  PLACEHOLDER_FG: "#999999"
+};
+
+const DASHBOARD_COLORS = {
+  HEADER_BG: "#1a73e8",        // Google Blue - main header
+  HEADER_TEXT: "#ffffff",
+  GRADE_HEADER_BG: "#4285f4",  // Lighter blue for grade headers
+  GRADE_HEADER_TEXT: "#ffffff",
+  SECTION_LABEL: "#5f6368",    // Gray for section labels
+  TABLE_HEADER_BG: "#e8eaed",  // Light gray for table headers
+  TABLE_ALT_ROW: "#f8f9fa",    // Subtle alternating rows
+  CARD_BORDER: "#dadce0",      // Card border color
+
+  // Status colors
+  ON_TRACK: "#34a853",         // Green
+  ON_TRACK_BG: "#e6f4ea",
+  PROGRESSING: "#fbbc04",      // Yellow/Amber
+  PROGRESSING_BG: "#fef7e0",
+  AT_RISK: "#ea4335",          // Red
+  AT_RISK_BG: "#fce8e6",
+
+  // Progress bar
+  BAR_FILL: "#1a73e8",
+  BAR_EMPTY: "#e8eaed"
+};
+
 // ═══════════════════════════════════════════════════════════════════════════
 // CENTRALIZED SHEET COLUMN LAYOUTS (0-based indices for getValues() arrays)
 // All sheet-reading code should reference these instead of magic numbers.
+// Adopted from Sankofa's enhanced column layout system.
 // ═══════════════════════════════════════════════════════════════════════════
 
 var COLS = {
@@ -106,59 +160,40 @@ var COLS = {
     STUDENT: 3,        // Column D - Student name
     LESSON: 4,         // Column E - Lesson name
     STATUS: 5,         // Column F - Status (Y/N/A)
-    SOURCE_GROUP: 6,   // Column G - Source group (co-teaching only)
-    TOTAL_COLS: 7      // Total columns when co-teaching
+    SOURCE_GROUP: 6    // Column G - Source group (co-teaching only)
   },
 
-  // Pacing Dashboard: group-level pacing metrics
-  PACING_DASHBOARD: {
-    GROUP: 0,           // Column A
-    TEACHER: 1,         // Column B
-    STUDENTS: 2,        // Column C
-    ASSIGNED: 3,        // Column D - Assigned lessons
-    TRACKED: 4,         // Column E - Tracked lessons
-    PACING_PCT: 5,      // Column F - Pacing % (decimal 0-1)
-    HIGHEST_LESSON: 6,  // Column G
-    LAST_ENTRY: 7,      // Column H
-    EXPECTED_TIME: 8,   // Column I - Minutes
-    ACTUAL_TIME: 9,     // Column J - Minutes
-    PASS_PCT: 10,       // Column K - Avg Pass % (decimal 0-1)
-    NOT_PASSED_PCT: 11, // Column L - Avg Not Passed % (decimal 0-1)
-    ABSENT_RATE: 12,    // Column M - Absent Rate (decimal 0-1)
-    DATA_START_ROW: 6   // 1-based row where data begins
+  // UFLI MAP: comprehensive lesson tracking grid (master sheet)
+  UFLI_MAP: {
+    STUDENT_NAME: 0,   // Column A
+    GRADE: 1,          // Column B
+    TEACHER: 2,        // Column C
+    GROUP: 3,          // Column D
+    CURRENT_LESSON: 4, // Column E
+    FIRST_LESSON: 5    // Column F - Start of 128 lesson columns
   },
 
-  // Group Configuration: group definitions and grade assignments
-  GROUP_CONFIG: {
-    GROUP_NAME: 0,      // Column A
-    GRADE: 1,           // Column B (may be multi-grade like "KG, G1")
-    PARTNER_GROUP: 2,   // Column C - Partner group for co-teaching
-    STUDENTS: 3,        // Column D - Student count
-    DATA_START_ROW: 8   // 1-based row where group data begins (rows 1-7 are headers/totals/spacer)
+  // Skills Tracker: section-level mastery percentages
+  SKILLS: {
+    STUDENT_NAME: 0,   // Column A
+    GRADE: 1,          // Column B
+    TEACHER: 2,        // Column C
+    GROUP: 3,          // Column D
+    FIRST_SKILL: 4     // Column E - Start of skill section columns
   },
 
-  // Grade Summary: per-student current scores
+  // Grade Summary: benchmark tracking and growth metrics
   GRADE_SUMMARY: {
-    NAME: 0,            // Column A - Student name
-    GRADE: 1,           // Column B - Grade code
-    TEACHER: 2,         // Column C - Teacher name
-    GROUP: 3,           // Column D - Group name
-    FOUNDATIONAL: 4,    // Column E - Foundational Skills %
-    MIN_GRADE: 5,       // Column F - Min Grade Skills %
-    FULL_GRADE: 6       // Column G - Full Grade Skills %
+    STUDENT_NAME: 0,         // Column A
+    GRADE: 1,                // Column B
+    TEACHER: 2,              // Column C
+    GROUP: 3,                // Column D
+    FOUNDATIONAL_PCT: 4,     // Column E - Foundational Skills %
+    MIN_GRADE_PCT: 5,        // Column F - Min Grade Skills %
+    FULL_GRADE_PCT: 6,       // Column G - Full Grade Skills %
+    BENCHMARK_STATUS: 7,     // Column H - Benchmark Status
+    FIRST_SKILL_INITIAL: 8   // Column I - Start of skill section details
   }
-};
-
-var COLORS = {
-  Y: "#d4edda",        // Light green - Yes/Pass
-  N: "#f8d7da",        // Light red - No/Fail
-  A: "#fff3cd",        // Light yellow - Absent
-  HEADER_BG: "#4A90E2",
-  HEADER_FG: "#FFFFFF",
-  TITLE_BG: "#ADD8E6",
-  TITLE_FG: "#000000",
-  SUB_HEADER_BG: "#f8f9fa",
-  PLACEHOLDER_FG: "#999999"
 };
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -173,30 +208,58 @@ var COLORS = {
 // - PERFORMANCE_THRESHOLDS: Score thresholds (ON_TRACK, NEEDS_SUPPORT)
 // - STATUS_LABELS: Performance status text labels
 // - getPerformanceStatus(): Helper function to determine status from percentage
+// - SHARED_GRADE_METRICS: Grade-level lesson benchmarks
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Alias SHARED_GRADE_METRICS for backward compatibility with school-specific code
+// that references GRADE_METRICS directly (e.g., calculateGrowthMetrics)
+var GRADE_METRICS = typeof SHARED_GRADE_METRICS !== 'undefined' ? SHARED_GRADE_METRICS : {};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SHARED ENGINE - Core calculation functions imported from SharedEngine.gs
+// ═══════════════════════════════════════════════════════════════════════════
+// SharedEngine.gs provides:
+// - getLessonStatus(mapRow, lessonNum, layout): Get lesson status from UFLI MAP row
+// - calculateSectionPercentage(mapRow, sectionLessons, isInitialAssessment, layout): 
+//   Calculate skill section percentage with weighted review logic
+// - extractLessonNumber(lessonText): Extract numeric lesson ID from lesson text
+// - getOrCreateSheet(ss, sheetName, clearIfExists): Get or create sheet helper
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════════════════
-// CONFIGURATION FUNCTION FOR SharedEngine.gs
+// FORMATTING & DISPLAY HELPERS
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Returns configuration object containing Sankofa-specific constants for SharedEngine.gs
- * @returns {Object} Configuration object with all necessary constants
+ * Creates a non-merged header row with consistent formatting
+ * @param {Sheet} sheet - The sheet to add header to
+ * @param {number} row - Row number for the header
+ * @param {string} text - Header text
+ * @param {number} width - Number of columns to span (background only, no merge)
+ * @param {Object} options - Formatting options (background, fontColor, fontWeight, fontSize, fontFamily, fontStyle, horizontalAlignment)
  */
-function getSankofaConfig() {
-  return {
-    SHEET_NAMES_V2: SHEET_NAMES_V2,
-    SHEET_NAMES_PREK: SHEET_NAMES_PREK,
-    LAYOUT: LAYOUT,
-    PREK_CONFIG: PREK_CONFIG,
-    GRADE_METRICS: SHARED_GRADE_METRICS
-  };
+function createHeader(sheet, row, text, width, options = {}) {
+  // Set background across the full width (no merge)
+  const fullRange = sheet.getRange(row, 1, 1, width);
+  if (options.background) fullRange.setBackground(options.background);
+
+  // Set text in first column
+  const textRange = sheet.getRange(row, 1);
+  textRange.setValue(text);
+
+  // Apply font styling to the text cell
+  textRange.setFontFamily(options.fontFamily || "Calibri");
+  if (options.fontColor) textRange.setFontColor(options.fontColor);
+  if (options.fontWeight) textRange.setFontWeight(options.fontWeight);
+  if (options.fontSize) textRange.setFontSize(options.fontSize);
+  if (options.fontStyle) textRange.setFontStyle(options.fontStyle);
+  if (options.horizontalAlignment) textRange.setHorizontalAlignment(options.horizontalAlignment);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// UTILITY FUNCTIONS
-// ═══════════════════════════════════════════════════════════════════════════
-
+/**
+ * DEPRECATED: Use createHeader() instead - this function merges cells
+ * Kept for backward compatibility during transition
+ */
 function createMergedHeader(sheet, row, text, width, options = {}) {
   const values = [text];
   for (let i = 1; i < width; i++) values.push("");
@@ -211,6 +274,14 @@ function createMergedHeader(sheet, row, text, width, options = {}) {
   if (options.horizontalAlignment) range.setHorizontalAlignment(options.horizontalAlignment);
 }
 
+/**
+ * Applies conditional formatting for lesson status cells (Y/N/A)
+ * @param {Sheet} sheet - Target sheet
+ * @param {number} startRow - First row to format
+ * @param {number} startCol - First column to format
+ * @param {number} numRows - Number of rows to format
+ * @param {number} numCols - Number of columns to format
+ */
 function applyStatusConditionalFormatting(sheet, startRow, startCol, numRows, numCols) {
   if (numRows <= 0 || numCols <= 0) return;
   const range = sheet.getRange(startRow, startCol, numRows, numCols);
@@ -231,6 +302,58 @@ function applyStatusConditionalFormatting(sheet, startRow, startCol, numRows, nu
   sheet.setConditionalFormatRules(filteredRules.concat(newRules));
 }
 
+/**
+ * Sets up basic sheet formatting with title and subtitle headers
+ * Unified implementation without school-specific branding
+ * @see AdelanteBrandingExtensions.gs - For logo insertion and custom branding
+ * @see CHAWBrandingExtensions.gs - For logo insertion and custom branding
+ * 
+ * @param {Sheet} sheet - The sheet to format
+ * @param {string} title - Main title text
+ * @param {string} subtitle - Subtitle/description text
+ * @param {number} width - Number of columns
+ */
+function applySheetBranding(sheet, title, subtitle, width) {
+  // Row 1: Title header
+  createHeader(sheet, 1, title, width, {
+    background: COLORS.TITLE_BG,
+    fontColor: COLORS.TITLE_FG,
+    fontWeight: "bold",
+    fontSize: 14
+  });
+
+  // Row 2: Subtitle
+  createHeader(sheet, 2, subtitle, width, {
+    fontFamily: "Calibri",
+    fontSize: 10,
+    fontStyle: "italic"
+  });
+
+  // Apply Calibri font to entire sheet (affects new data)
+  sheet.getRange(1, 1, sheet.getMaxRows(), sheet.getMaxColumns())
+    .setFontFamily("Calibri");
+}
+
+/**
+ * Normalizes student object fields (feature-flagged)
+ * @feature studentNormalization - Auto-enabled, placed in extension file for school customization
+ * @see AdelanteBrandingExtensions.gs - normalizeStudent() with custom field mapping
+ * 
+ * @param {Object} student - Student object
+ * @returns {Object} Student with normalized fields
+ */
+function normalizeStudent(student) {
+  if (typeof SITE_CONFIG !== 'undefined' && SITE_CONFIG.features && SITE_CONFIG.features.studentNormalization === false) {
+    return student;
+  }
+  return {
+    name: (student && student.name) ? student.name.toString().trim() : "",
+    grade: (student && student.grade) ? student.grade.toString().trim() : "",
+    teacher: (student && student.teacher) ? student.teacher.toString().trim() : "",
+    group: (student && student.group) ? student.group.toString().trim() : ""
+  };
+}
+
 function setColumnHeaders(sheet, row, headers) {
   const range = sheet.getRange(row, 1, 1, headers.length);
   range.setValues([headers])
@@ -247,32 +370,28 @@ function setColumnHeaders(sheet, row, headers) {
 /**
  * Calculates percentage of lessons passed ('Y') out of attempted ('Y' or 'N')
  * FIXED: Removed 'A' (Absent) from the denominator so absence doesn't lower the score.
+ *
+ * @param {Array} mapRow - Student's row data
+ * @param {Array<number>} lessonIndices - Lesson numbers to check
+ * @returns {number|string} Percentage integer or "" if nothing attempted
  */
 function calculatePercentage(mapRow, lessonIndices) {
   let passed = 0;
   let attempted = 0;
-  
-  lessonIndices.forEach(lessonNum => {
-    // Convert Lesson # to Array Index
-    const idx = LAYOUT.LESSON_COLUMN_OFFSET + lessonNum - 1;
-    
-    if (idx < mapRow.length) {
-      const status = mapRow[idx] ? mapRow[idx].toString().toUpperCase().trim() : "";
-      
-      if (status === 'Y') {
-        passed++;
-        attempted++;
-      } else if (status === 'N') {
-        attempted++; // Only count attempts if they were present to take it
-      }
-      // Ignored: 'A' (Absent) or "" (Blank)
+
+  for (const lessonNum of lessonIndices) {
+    const status = getLessonStatus(mapRow, lessonNum, LAYOUT);
+    if (status === 'Y') {
+      passed++;
+      attempted++;
+    } else if (status === 'N') {
+      attempted++;
     }
-  });
-  
+    // Ignored: 'A' (Absent) or "" (Blank)
+  }
+
   return attempted > 0 ? Math.round((passed / attempted) * 100) : "";
 }
-
-
 
 // ═══════════════════════════════════════════════════════════════════════════
 // SYSTEM SHEET GENERATION
@@ -303,12 +422,11 @@ function generateSystemSheets(ss, wizardData) {
 
 function createSmallGroupProgressSheet(ss) {
   const sheet = getOrCreateSheet(ss, SHEET_NAMES_V2.SMALL_GROUP_PROGRESS);
-  createMergedHeader(sheet, 1, "SMALL GROUP PROGRESS - DATA LOG", 6, {
-    background: COLORS.TITLE_BG, fontColor: COLORS.TITLE_FG, fontWeight: "bold", fontSize: 14
-  });
-  createMergedHeader(sheet, 2, "Data from the Web App is saved here. Do not manually edit.", 6, {
-    fontFamily: "Calibri", fontSize: 10, fontStyle: "italic"
-  });
+  applySheetBranding(sheet,
+    "SMALL GROUP PROGRESS - DATA LOG",
+    "Data from the Web App is saved here. Do not manually edit.",
+    6
+  );
   setColumnHeaders(sheet, 5, ["Date", "Teacher", "Group Name", "Student Name", "Lesson Number", "Status"]);
   sheet.setColumnWidth(1, 100); sheet.setColumnWidth(2, 150); sheet.setColumnWidth(3, 150);
   sheet.setColumnWidth(4, 200); sheet.setColumnWidth(5, 120); sheet.setColumnWidth(6, 80);
@@ -318,12 +436,11 @@ function createSmallGroupProgressSheet(ss) {
 function createUFLIMapSheet(ss, wizardData) {
   const sheet = getOrCreateSheet(ss, SHEET_NAMES_V2.UFLI_MAP);
   const headerWidth = LAYOUT.COL_CURRENT_LESSON + LAYOUT.TOTAL_LESSONS;
-  createMergedHeader(sheet, 1, "UFLI MAP - MASTER PROGRESS REPORT", headerWidth, {
-    background: COLORS.TITLE_BG, fontColor: COLORS.TITLE_FG, fontWeight: "bold", fontSize: 14
-  });
-  createMergedHeader(sheet, 2, "Master tracking grid for all UFLI lessons by student", headerWidth, {
-    fontFamily: "Calibri", fontSize: 10, fontStyle: "italic"
-  });
+  applySheetBranding(sheet,
+    "UFLI MAP - MASTER PROGRESS REPORT",
+    "Master tracking grid for all UFLI lessons by student",
+    headerWidth
+  );
   // Rows 3-4 are spacers
   const headers = ["Student Name", "Grade", "Teacher", "Group", "Current Lesson"];
   for (let i = 1; i <= LAYOUT.TOTAL_LESSONS; i++) headers.push(LESSON_LABELS[i] || `Lesson ${i}`);
@@ -346,12 +463,11 @@ function createUFLIMapSheet(ss, wizardData) {
 function createSkillsSheet(ss, wizardData) {
   const sheet = getOrCreateSheet(ss, SHEET_NAMES_V2.SKILLS);
   const headerWidth = 4 + Object.keys(SKILL_SECTIONS).length;
-  createMergedHeader(sheet, 1, "SKILLS TRACKER", headerWidth, {
-    background: COLORS.TITLE_BG, fontColor: COLORS.TITLE_FG, fontWeight: "bold", fontSize: 14
-  });
-  createMergedHeader(sheet, 2, "Skill section mastery percentages by student", headerWidth, {
-    fontFamily: "Calibri", fontSize: 10, fontStyle: "italic"
-  });
+  applySheetBranding(sheet,
+    "SKILLS TRACKER",
+    "Skill section mastery percentages by student",
+    headerWidth
+  );
   // Rows 3-4 are spacers
   const skillSectionNames = Object.keys(SKILL_SECTIONS);
   const headers = ["Student Name", "Grade", "Teacher", "Group"];
@@ -384,12 +500,11 @@ function createGradeSummarySheet(ss, wizardData) {
     headers.push(`${section} (Total %)`);
   });
   const headerWidth = headers.length;
-  createMergedHeader(sheet, 1, "GRADE SUMMARY - BENCHMARK TRACKING", headerWidth, {
-    background: COLORS.TITLE_BG, fontColor: COLORS.TITLE_FG, fontWeight: "bold", fontSize: 14
-  });
-  createMergedHeader(sheet, 2, "Student progress metrics and benchmark status", headerWidth, {
-    fontFamily: "Calibri", fontSize: 10, fontStyle: "italic"
-  });
+  applySheetBranding(sheet,
+    "GRADE SUMMARY - BENCHMARK TRACKING",
+    "Student progress metrics and benchmark status",
+    headerWidth
+  );
   // Rows 3-4 are spacers
   setColumnHeaders(sheet, 5, headers);
   
@@ -443,10 +558,10 @@ function createSingleGradeSheet(ss, sheetName, groupNames, allStudents) {
   
   groupNames.forEach(groupName => {
     const groupStudents = allStudents.filter(s => s && s.group === groupName);
-    
-    // Group Name Header
-    createMergedHeader(sheet, currentRow, groupName, columnCount, {
-      background: COLORS.HEADER_BG, fontColor: COLORS.HEADER_FG, fontWeight: "bold", fontSize: 12, horizontalAlignment: "center"
+
+    // Group Name Header (no merge - just background across row)
+    createHeader(sheet, currentRow, groupName, columnCount, {
+      background: COLORS.HEADER_BG, fontColor: COLORS.HEADER_FG, fontWeight: "bold", fontSize: 12, horizontalAlignment: "left"
     });
     currentRow++;
     
@@ -492,29 +607,27 @@ function createSingleGradeSheet(ss, sheetName, groupNames, allStudents) {
 function createPacingReports(ss) {
   // Dashboard Sheet
   const dashboardSheet = getOrCreateSheet(ss, SHEET_NAMES_PACING.DASHBOARD);
-  createMergedHeader(dashboardSheet, 1, "PACING DASHBOARD", 13, {  // Changed from 11 to 13
-    background: COLORS.TITLE_BG, fontColor: COLORS.TITLE_FG, fontWeight: "bold", fontSize: 14
-  });
-  createMergedHeader(dashboardSheet, 2, "Group pacing progress and performance metrics", 13, {  // Changed from 11 to 13
-    fontFamily: "Calibri", fontSize: 10, fontStyle: "italic"
-  });
+  applySheetBranding(dashboardSheet,
+    "PACING DASHBOARD",
+    "Group pacing progress and performance metrics",
+    13
+  );
   // Rows 3-4 are spacers
   setColumnHeaders(dashboardSheet, 5, [
-    "Group", "Teacher", "Students", "Assigned Lessons", "Tracked Lessons", 
-    "Pacing %", "Highest Lesson", "Last Entry", 
-    "Expected Time (min)", "Actual Time (min)",  // NEW COLUMNS
+    "Group", "Teacher", "Students", "Assigned Lessons", "Tracked Lessons",
+    "Pacing %", "Highest Lesson", "Last Entry",
+    "Expected Time (min)", "Actual Time (min)",
     "Avg Pass %", "Avg Not Passed %", "Absent %"
   ]);
   dashboardSheet.setFrozenRows(5);
-  
+
   // Log Sheet
   const logSheet = getOrCreateSheet(ss, SHEET_NAMES_PACING.LOG);
-  createMergedHeader(logSheet, 1, "PACING LOG", 12, {
-    background: COLORS.TITLE_BG, fontColor: COLORS.TITLE_FG, fontWeight: "bold", fontSize: 14
-  });
-  createMergedHeader(logSheet, 2, "Detailed lesson-by-lesson pacing data", 12, {
-    fontFamily: "Calibri", fontSize: 10, fontStyle: "italic"
-  });
+  applySheetBranding(logSheet,
+    "PACING LOG",
+    "Detailed lesson-by-lesson pacing data",
+    12
+  );
   // Rows 3-4 are spacers
   setColumnHeaders(logSheet, 5, ["Group", "Teacher", "Lesson Slot", "UFLI Lesson", "Student Count", "Y Count", "N Count", "A Count", "Pass %", "Not Passed %", "Absent %", "Last Date"]);
   logSheet.setFrozenRows(5);
@@ -525,24 +638,21 @@ function updatePacingReports() {
   const mapSheet = ss.getSheetByName(SHEET_NAMES_V2.UFLI_MAP);
   const progressSheet = ss.getSheetByName(SHEET_NAMES_V2.SMALL_GROUP_PROGRESS);
   if (!mapSheet || !progressSheet) return;
-
+  
   const lookups = buildStudentLookups();
   const progressMap = buildProgressHistory(progressSheet);
 
-  // Use mixed-grade scanner when enabled (handles both standard AND mixed-grade sheets);
-  // fall back to standard scanner otherwise
+  // Use mixed-grade scanner if enabled, otherwise use standard scanner
   let dashboardRows, logRows;
-  if (typeof ENABLE_MIXED_GRADES !== 'undefined' && ENABLE_MIXED_GRADES &&
-      typeof scanGradeSheetsForPacing_MixedGrade === 'function') {
+  if (typeof ENABLE_MIXED_GRADES !== 'undefined' && ENABLE_MIXED_GRADES && typeof scanGradeSheetsForPacing_MixedGrade === 'function') {
+    Logger.log('updatePacingReports: Using mixed-grade scanner');
     ({ dashboardRows, logRows } = scanGradeSheetsForPacing_MixedGrade(ss, lookups, progressMap));
   } else {
     ({ dashboardRows, logRows } = scanGradeSheetsForPacing(ss, lookups, progressMap));
   }
-
-  Logger.log(`updatePacingReports: ${dashboardRows.length} dashboard rows, ${logRows.length} log rows`);
-
-  writeDataToSheet(ss, SHEET_NAMES_PACING.DASHBOARD, dashboardRows, COLS.PACING_DASHBOARD.DATA_START_ROW);
-  writeDataToSheet(ss, SHEET_NAMES_PACING.LOG, logRows, COLS.PACING_DASHBOARD.DATA_START_ROW);
+  
+  writeDataToSheet(ss, SHEET_NAMES_PACING.DASHBOARD, dashboardRows, 6);
+  writeDataToSheet(ss, SHEET_NAMES_PACING.LOG, logRows, 6);
   
   // Format Pacing Dashboard
   const dashboardSheet = ss.getSheetByName(SHEET_NAMES_PACING.DASHBOARD);
@@ -566,31 +676,50 @@ function updatePacingReports() {
 
 // Helpers for Pacing (kept for compatibility)
 /**
- * Builds student count and teacher lookups from Group Configuration sheet
- * Group Configuration is the single source of truth for group sizes
+ * Builds student count and teacher lookup maps from UFLI MAP or config sheets
+ * Unified signature supporting optional mapSheet parameter (CCA approach)
+ * 
+ * @param {Sheet} mapSheet - Optional UFLI MAP sheet (if not provided, will fetch from active spreadsheet)
  * @returns {Object} { studentCountByGroup: Map, teacherByGroup: Map }
+ * @see CCASkillsExtensions.gs - CCA maintains a custom override with identical functionality for historical compatibility
  */
-function buildStudentLookups() {
+function buildStudentLookups(mapSheet = null) {
   const studentCountByGroup = new Map();
   const teacherByGroup = new Map();
   
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   
+  // If mapSheet provided, use it directly (CCA approach)
+  if (mapSheet) {
+    const lastRow = mapSheet.getLastRow();
+    if (lastRow < LAYOUT.DATA_START_ROW) return { studentCountByGroup, teacherByGroup };
+    
+    const data = mapSheet.getRange(LAYOUT.DATA_START_ROW, 1, lastRow - LAYOUT.DATA_START_ROW + 1, 4).getValues();
+    data.forEach(row => {
+      if (!row[0] || !row[3]) return;
+      const groupKey = row[3].toString().trim();
+      studentCountByGroup.set(groupKey, (studentCountByGroup.get(groupKey) || 0) + 1);
+      if (row[2]) teacherByGroup.set(groupKey, row[2]);
+    });
+    return { studentCountByGroup, teacherByGroup };
+  }
+  
+  // Original approach: read from Group Configuration and Grade Summary
   // === READ STUDENT COUNTS FROM GROUP CONFIGURATION ===
   const groupConfigSheet = ss.getSheetByName(SHEET_NAMES.GROUP_CONFIG);
   
   if (groupConfigSheet) {
     const lastRow = groupConfigSheet.getLastRow();
     // Group data starts at row 8 (after headers on row 5, totals on row 6, spacer on row 7)
-    const GROUP_DATA_START = COLS.GROUP_CONFIG.DATA_START_ROW;
+    const GROUP_DATA_START = 8;
     
     if (lastRow >= GROUP_DATA_START) {
       // Columns: A=Group Name, B=Grade, C=# of Groups, D=Students
       const configData = groupConfigSheet.getRange(GROUP_DATA_START, 1, lastRow - GROUP_DATA_START + 1, 4).getValues();
       
       configData.forEach(row => {
-        const groupName = row[COLS.GROUP_CONFIG.GROUP_NAME] ? row[COLS.GROUP_CONFIG.GROUP_NAME].toString().trim() : "";
-        const studentCount = parseInt(row[COLS.GROUP_CONFIG.STUDENTS]) || 0;
+        const groupName = row[0] ? row[0].toString().trim() : "";
+        const studentCount = parseInt(row[3]) || 0;
         
         if (groupName && groupName !== "Total Groups") {
           studentCountByGroup.set(groupName, studentCount);
@@ -613,8 +742,8 @@ function buildStudentLookups() {
       const summaryData = summarySheet.getRange(LAYOUT.DATA_START_ROW, 1, lastRow - LAYOUT.DATA_START_ROW + 1, 4).getValues();
       
       summaryData.forEach(row => {
-        const teacher = row[COLS.GRADE_SUMMARY.TEACHER] ? row[COLS.GRADE_SUMMARY.TEACHER].toString().trim() : "";
-        const groupName = row[COLS.GRADE_SUMMARY.GROUP] ? row[COLS.GRADE_SUMMARY.GROUP].toString().trim() : "";
+        const teacher = row[2] ? row[2].toString().trim() : "";
+        const groupName = row[3] ? row[3].toString().trim() : "";
         
         // Store teacher for group (uses last teacher found for each group)
         if (groupName && teacher) {
@@ -631,26 +760,20 @@ function buildProgressHistory(progressSheet) {
   const progressMap = new Map();
   const lastRow = progressSheet.getLastRow();
   if (lastRow < LAYOUT.DATA_START_ROW) return progressMap;
-  // Read up to 7 columns to include Source Group (Column G) for co-teaching support
-  const numCols = Math.min(COLS.SMALL_GROUP_PROGRESS.TOTAL_COLS, progressSheet.getLastColumn());
-  const data = progressSheet.getRange(LAYOUT.DATA_START_ROW, 1, lastRow - LAYOUT.DATA_START_ROW + 1, numCols).getValues();
+  const data = progressSheet.getRange(LAYOUT.DATA_START_ROW, 1, lastRow - LAYOUT.DATA_START_ROW + 1, 6).getValues();
   data.forEach(row => {
-    if (!row[COLS.SMALL_GROUP_PROGRESS.GROUP] || !row[COLS.SMALL_GROUP_PROGRESS.LESSON] || !row[COLS.SMALL_GROUP_PROGRESS.STATUS]) return;
-    const lessonNum = extractLessonNumber(row[COLS.SMALL_GROUP_PROGRESS.LESSON]);
+    if (!row[2] || !row[4] || !row[5]) return;
+    const lessonNum = extractLessonNumber(row[4]);
     if (!lessonNum) return;
-    // For co-teaching entries, use sourceGroup (Column G) when available;
-    // otherwise fall back to Teaching Group (Column C)
-    const sourceGroup = (numCols >= COLS.SMALL_GROUP_PROGRESS.TOTAL_COLS && row[COLS.SMALL_GROUP_PROGRESS.SOURCE_GROUP]) ? row[COLS.SMALL_GROUP_PROGRESS.SOURCE_GROUP].toString().trim() : "";
-    const groupName = sourceGroup || row[COLS.SMALL_GROUP_PROGRESS.GROUP].toString().trim();
-    const key = `${groupName}|${lessonNum}`;
+    const key = `${row[2].toString().trim()}|${lessonNum}`;
     if (!progressMap.has(key)) progressMap.set(key, { Y: 0, N: 0, A: 0, lastDate: new Date(0), recentTeacher: "" });
     const entry = progressMap.get(key);
-    const statusKey = row[COLS.SMALL_GROUP_PROGRESS.STATUS].toString().toUpperCase();
+    const statusKey = row[5].toString().toUpperCase();
     if (entry[statusKey] !== undefined) entry[statusKey]++;
-    const rowDate = new Date(row[COLS.SMALL_GROUP_PROGRESS.DATE]);
+    const rowDate = new Date(row[0]);
     if (!isNaN(rowDate) && rowDate > entry.lastDate) {
       entry.lastDate = rowDate;
-      if (row[COLS.SMALL_GROUP_PROGRESS.TEACHER]) entry.recentTeacher = row[COLS.SMALL_GROUP_PROGRESS.TEACHER];
+      if (row[1]) entry.recentTeacher = row[1];
     }
   });
   return progressMap;
@@ -718,25 +841,12 @@ function scanGradeSheetsForPacing(ss, lookups, progressMap) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// FIX: Absent Rate Calculation - Pacing Dashboard & School Summary
-//
-// ISSUE: Absent Rate showing 100x too high (e.g., 1500% instead of 15%)
-//
-// ROOT CAUSE: The Pacing Dashboard stores "Total Absent" as a raw count,
-// but the School Summary then divides by denominator AND applies "0%" format
-// which multiplies by 100 again.
-//
-// This file contains TWO fixes - apply both to GPProgressEngine.gs
-// ═══════════════════════════════════════════════════════════════════════════
-
-
-// ═══════════════════════════════════════════════════════════════════════════
-// FIX #1: Update buildDashboardRow() to store Absent Rate as DECIMAL
-// Replace the existing buildDashboardRow() function
+// PACING DASHBOARD HELPERS
+// Absent Rate stored as decimal; all rates use total responses (Y+N+A) as denominator
 // ═══════════════════════════════════════════════════════════════════════════
 
 function buildDashboardRow(group, teacher, count, dash) {
-  const MINUTES_PER_LESSON = 60;  // ADD THIS CONSTANT
+  const MINUTES_PER_LESSON = 60;
   
   // Calculate instructional time
   const expectedTime = dash.assigned * MINUTES_PER_LESSON;
@@ -757,8 +867,8 @@ function buildDashboardRow(group, teacher, count, dash) {
     dash.assigned > 0 ? dash.tracked / dash.assigned : 0,   // Col 6: Pacing % (decimal)
     dash.highestLessonName,                                 // Col 7: Highest Lesson
     dash.lastEntry,                                         // Col 8: Last Entry
-    expectedTime,                                           // Col 9: Expected Time (min) - NEW
-    actualTime,                                             // Col 10: Actual Time (min) - NEW
+    expectedTime,                                           // Col 9: Expected Time (min)
+    actualTime,                                             // Col 10: Actual Time (min)
     passRate,                                               // Col 11: Avg Pass % (decimal)
     notPassedRate,                                          // Col 12: Avg Not Passed % (decimal)
     absentRate                                              // Col 13: Absent % (decimal)
@@ -766,63 +876,15 @@ function buildDashboardRow(group, teacher, count, dash) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// FIX #2: Update formatPacingSheet() call to format Absent Rate as %
-// Find the call to formatPacingSheet() and update it
-// ═══════════════════════════════════════════════════════════════════════════
-
-// BEFORE (in updatePacingReports):
-//   formatPacingSheet(ss, SHEET_NAMES_PACING.DASHBOARD, [6, 9, 10], 11);
+// renderGroupTable() - 7-column simplified layout
 //
-// AFTER:
-//   formatPacingSheet(ss, SHEET_NAMES_PACING.DASHBOARD, [6, 9, 10, 11], 0);
-//
-// This adds column 11 (Absent Rate) to the percentage columns
-
-
-// ═══════════════════════════════════════════════════════════════════════════
-// FIX #3: Update renderGroupTable() in School Summary to read correctly
-// Replace the existing renderGroupTable() function
-// ═══════════════════════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════════════════════
-// FIXED: renderGroupTable() - Correct Column Indices & Simplified Layout
-// 
-// Pacing Dashboard Column Indices (0-based):
-//   0: Group, 1: Teacher, 2: Students, 3: Assigned Lessons, 4: Tracked Lessons
-//   5: Pacing %, 6: Highest Lesson, 7: Last Entry, 8: Expected Time, 9: Actual Time
-//   10: Avg Pass %, 11: Avg Not Passed %, 12: Absent Rate
-// ═══════════════════════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════════════════════
-// FIXED: renderGroupTable() - Correct Column Indices & Simplified Layout
-// 
-// Pacing Dashboard Column Indices (0-based, with hidden Teacher column):
-//   0: Group, 1: Teacher (hidden), 2: Students, 3: Assigned Lessons, 
-//   4: Tracked Lessons, 5: Pacing %, 6: Highest Lesson, 7: Last Entry, 
-//   8: Expected Time, 9: Actual Time, 10: Avg Pass %, 11: Avg Not Passed %, 
-//   12: Absent Rate
-// ═══════════════════════════════════════════════════════════════════════════
-
-// ═══════════════════════════════════════════════════════════════════════════
-// renderGroupTable() - CORRECTED VERSION
-// Simplified to 7 columns: Group, Grade, Students, Pacing, Pass Rate, Absent Rate, Status
-//
-// Pacing Dashboard Array Indices (with Teacher column):
+// Pacing Dashboard Array Indices:
 //   [0]=Group, [1]=Teacher, [2]=Students, [3]=Assigned, [4]=Tracked,
 //   [5]=Pacing%, [6]=HighestLesson, [7]=LastEntry, [8]=ExpectedTime,
 //   [9]=ActualTime, [10]=AvgPass%, [11]=AvgNotPassed%, [12]=AbsentRate
 // ═══════════════════════════════════════════════════════════════════════════
 
 function renderGroupTable(sheet, row, groups) {
-// DEBUG
-  Logger.log("=== INSIDE renderGroupTable ===");
-  Logger.log("Number of groups: " + groups.length);
-  if (groups.length > 0) {
-    Logger.log("First group g[EXPECTED_TIME]: " + groups[0][COLS.PACING_DASHBOARD.EXPECTED_TIME]);
-    Logger.log("First group g[ACTUAL_TIME]: " + groups[0][COLS.PACING_DASHBOARD.ACTUAL_TIME]);
-    Logger.log("First group g[PASS_PCT]: " + groups[0][COLS.PACING_DASHBOARD.PASS_PCT]);
-    Logger.log("First group g[ABSENT_RATE]: " + groups[0][COLS.PACING_DASHBOARD.ABSENT_RATE]);
-  }
   // Section label
   sheet.getRange(row, 1).setValue("✅ Group Performance")
     .setFontWeight("bold")
@@ -845,20 +907,20 @@ function renderGroupTable(sheet, row, groups) {
   
   const tableData = groups.map((g) => {
     // READ VALUES FROM CORRECT INDICES
-    const studentCount = parseInt(g[COLS.PACING_DASHBOARD.STUDENTS]) || 0;    // Students
-    const pacingPct = parseFloat(g[COLS.PACING_DASHBOARD.PACING_PCT]) || 0;     // Pacing %
-    const passRate = parseFloat(g[COLS.PACING_DASHBOARD.PASS_PCT]) || 0;     // Avg Pass %
-    const absentRate = parseFloat(g[COLS.PACING_DASHBOARD.ABSENT_RATE]) || 0;   // Absent Rate
-
+    const studentCount = parseInt(g[2]) || 0;    // Index 2 = Students
+    const pacingPct = parseFloat(g[5]) || 0;     // Index 5 = Pacing %
+    const passRate = parseFloat(g[10]) || 0;     // Index 10 = Avg Pass %
+    const absentRate = parseFloat(g[12]) || 0;   // Index 12 = Absent Rate
+    
     // Extract grade from group name
-    const gradeMatch = g[COLS.PACING_DASHBOARD.GROUP].toString().match(/^(PreK|KG|G[1-8])/);
+    const gradeMatch = g[0].toString().match(/^(PreK|KG|G[1-8])/);
     const grade = gradeMatch ? gradeMatch[1] : "";
     
     // Determine status
     let status = "✅ Good";
     if (passRate < 0.50 || absentRate > 0.15) {
       status = "🔴 Alert";
-      flaggedGroups.push(g[COLS.PACING_DASHBOARD.GROUP]);
+      flaggedGroups.push(g[0]);
     } else if (passRate < 0.70 || absentRate > 0.10) {
       status = "🟡 Watch";
     } else if (passRate >= 0.85) {
@@ -866,7 +928,7 @@ function renderGroupTable(sheet, row, groups) {
     }
     
     // Return 7 values - NO actualTime
-    return [g[COLS.PACING_DASHBOARD.GROUP].toString(), grade, studentCount, pacingPct, passRate, absentRate, status];
+    return [g[0].toString(), grade, studentCount, pacingPct, passRate, absentRate, status];
   });
   
   // Write table data
@@ -893,17 +955,21 @@ function renderGroupTable(sheet, row, groups) {
     row += tableData.length;
   }
   
-  // Flags summary
-  if (flaggedGroups.length > 0) {
-    sheet.getRange(row, 1, 1, 7).merge()
-      .setValue(`⚠️ ${flaggedGroups.length} group(s) need attention: ${flaggedGroups.join(", ")}`)
-      .setFontColor(DASHBOARD_COLORS.AT_RISK)
-      .setFontSize(10)
-      .setFontStyle("italic")
-      .setWrap(true);
-    sheet.setRowHeight(row, 36);
-    row++;
-  }
+// Flags summary (MERGED)
+if (flaggedGroups.length > 0) {
+  const flagRange = sheet.getRange(row, 1, 1, 7);
+  flagRange.merge();  // ✅ MERGE cells A:G for this row
+  flagRange.setValue(`⚠️ ${flaggedGroups.length} group(s) need attention: ${flaggedGroups.join(", ")}`)
+    .setBackground("#fff8e1")
+    .setFontColor(DASHBOARD_COLORS.AT_RISK)
+    .setFontSize(10)
+    .setFontStyle("italic")
+    .setFontFamily("Calibri")
+    .setVerticalAlignment("middle")
+    .setWrap(true);
+  sheet.setRowHeight(row, 36);
+  row++;
+}
   
   // Spacer
   sheet.setRowHeight(row, 8);
@@ -913,39 +979,7 @@ function renderGroupTable(sheet, row, groups) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// FIX #4: Update the Pacing Dashboard headers to reflect the change
-// Replace the headers in createPacingReports() or updatePacingReports()
-// ═══════════════════════════════════════════════════════════════════════════
-
-// Change header from "Total Absent" to "Absent Rate" since it's now a percentage:
-//
-// BEFORE:
-//   setColumnHeaders(dashboardSheet, 1, ["Group", "Teacher", "Students", "Assigned Lessons", 
-//     "Tracked Lessons", "Pacing %", "Highest Lesson", "Last Entry", "Avg Pass %", 
-//     "Avg Not Passed %", "Total Absent"]);
-//
-// AFTER:
-//   setColumnHeaders(dashboardSheet, 1, ["Group", "Teacher", "Students", "Assigned Lessons", 
-//     "Tracked Lessons", "Pacing %", "Highest Lesson", "Last Entry", "Avg Pass %", 
-//     "Avg Not Passed %", "Absent Rate"]);
-
-
-// ═══════════════════════════════════════════════════════════════════════════
-// SUMMARY OF CHANGES TO MAKE IN GPProgressEngine.gs:
-// ═══════════════════════════════════════════════════════════════════════════
-//
-// 1. Replace buildDashboardRow() with the version above
-//
-// 2. In updatePacingReports(), change:
-//      formatPacingSheet(ss, SHEET_NAMES_PACING.DASHBOARD, [6, 9, 10], 11);
-//    To:
-//      formatPacingSheet(ss, SHEET_NAMES_PACING.DASHBOARD, [6, 9, 10, 11], 0);
-//
-// 3. Replace renderGroupTable() with the version above
-//
-// 4. In createPacingReports(), change "Total Absent" to "Absent Rate" in headers
-//
-// 5. After making changes, run "Update Progress Data" from the menu to refresh
+// DATA WRITING & FORMATTING UTILITIES
 // ═══════════════════════════════════════════════════════════════════════════
 
 function writeDataToSheet(ss, sheetName, data, startRow) {
@@ -965,25 +999,9 @@ function formatPacingSheet(ss, sheetName, percentCols, absCol, dataStartRow = 6)
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SYNC & UPDATE FUNCTIONS (OPTIMIZED)
+// SYNC ENGINE - SMALL GROUP PROGRESS → MASTER SHEETS
 // ═══════════════════════════════════════════════════════════════════════════
 
-// ═══════════════════════════════════════════════════════════════════════════
-// FIXED: syncSmallGroupProgress() - Handles Comprehension & Non-UFLI Lessons
-// 
-// Replace syncSmallGroupProgress() in GPProgressEngine.gs with this version
-//
-// CHANGES:
-// - Group Sheets now update by EXACT lesson name match (not just lesson number)
-// - "Comprehension", "Fluency", etc. will now show Y/N/A colors on Group Sheets
-// - UFLI MAP still only updates for valid UFLI lesson numbers (1-128)
-// ═══════════════════════════════════════════════════════════════════════════
-
-/**
- * Optimized Sync: Reads all data, updates in memory, calculates current lesson, writes all back.
- * UPDATED: Now handles non-UFLI lessons (Comprehension, etc.) for Group Sheet updates
- * FIXED: Variable declaration order for groupSheetsData
- */
 function syncSmallGroupProgress() {
   const functionName = 'syncSmallGroupProgress';
   log(functionName, 'Starting Optimized Sync (with Comprehension support)...');
@@ -997,11 +1015,10 @@ function syncSmallGroupProgress() {
     return;
   }
 
-  // 1. BIG GULP: Read everything (7 columns to include Source Group for co-teaching)
+  // 1. BIG GULP: Read everything
   const lastProgressRow = progressSheet.getLastRow();
-  const progressNumCols = Math.min(COLS.SMALL_GROUP_PROGRESS.TOTAL_COLS, progressSheet.getLastColumn());
-  const progressData = lastProgressRow >= LAYOUT.DATA_START_ROW ?
-    progressSheet.getRange(LAYOUT.DATA_START_ROW, 1, lastProgressRow - LAYOUT.DATA_START_ROW + 1, progressNumCols).getValues() : [];
+  const progressData = lastProgressRow >= LAYOUT.DATA_START_ROW ? 
+    progressSheet.getRange(LAYOUT.DATA_START_ROW, 1, lastProgressRow - LAYOUT.DATA_START_ROW + 1, 6).getValues() : [];
     
   const lastMapRow = Math.max(mapSheet.getLastRow(), LAYOUT.DATA_START_ROW);
   const mapData = mapSheet.getRange(1, 1, lastMapRow, LAYOUT.COL_FIRST_LESSON + LAYOUT.TOTAL_LESSONS - 1).getValues();
@@ -1012,32 +1029,38 @@ function syncSmallGroupProgress() {
   const groupSheetsData = {};
 
   // First, scan progress data to find which grades/sheets are actually needed
-  // Check both groupName (Col C) and sourceGroup (Col G) for co-teaching support
   const neededSheets = new Set();
-  progressData.forEach(row => {
-    const groupName = row[COLS.SMALL_GROUP_PROGRESS.GROUP];
-    const sourceGroup = (row.length >= COLS.SMALL_GROUP_PROGRESS.TOTAL_COLS && row[COLS.SMALL_GROUP_PROGRESS.SOURCE_GROUP]) ? row[COLS.SMALL_GROUP_PROGRESS.SOURCE_GROUP].toString().trim() : "";
-    // Collect sheets for both the teaching group and the source group (co-teaching)
-    const groupsToCheck = [groupName];
-    if (sourceGroup) groupsToCheck.push(sourceGroup);
-    groupsToCheck.forEach(gn => {
-      if (gn) {
-        const gradeMatch = gn.toString().match(/^(PreK|KG|G[1-8])/);
-        if (gradeMatch) {
-          neededSheets.add(gradeMatch[1] + ' Groups');
-        }
-        // Check if it's a mixed-grade group
-        if (typeof ENABLE_MIXED_GRADES !== 'undefined' && ENABLE_MIXED_GRADES && typeof MIXED_GRADE_CONFIG !== 'undefined') {
-          for (const sheetName of Object.keys(MIXED_GRADE_CONFIG)) {
-            const config = MIXED_GRADE_CONFIG[sheetName];
-            if (config.groups && config.groups.some(g => gn.toString().includes(g))) {
-              neededSheets.add(sheetName);
-            }
-          }
-        }
-      }
-    });
-  });
+
+  // For mixed-grade sites, add all configured mixed-grade sheets
+  if (typeof ENABLE_MIXED_GRADES !== 'undefined' && ENABLE_MIXED_GRADES && typeof MIXED_GRADE_CONFIG !== 'undefined') {
+    for (const sheetName of Object.keys(MIXED_GRADE_CONFIG)) {
+      neededSheets.add(sheetName);
+    }
+    // Also add SC Classroom if it exists (self-contained classroom with flat structure)
+    if (ss.getSheetByName("SC Classroom")) {
+      neededSheets.add("SC Classroom");
+    }
+    Logger.log('syncSmallGroupProgress: Mixed grades enabled, added sheets: ' + Array.from(neededSheets).join(', '));
+  }
+
+progressData.forEach(row => {
+  const groupName = row[2];
+  if (groupName) {
+    const groupStr = groupName.toString().trim();
+
+    // SC Classroom groups → load "SC Classroom" sheet
+    if (groupStr.startsWith("SC Classroom")) {
+      neededSheets.add("SC Classroom");
+      return; // continue to next row
+    }
+
+    // Standard grade-based groups → load grade sheet
+    const gradeMatch = groupStr.match(/^(PreK|KG|G[1-8])/);
+    if (gradeMatch) {
+      neededSheets.add(gradeMatch[1] + ' Groups');
+    }
+  }
+});
 
   // Only load the sheets we actually need
   neededSheets.forEach(sheetName => {
@@ -1067,14 +1090,12 @@ function syncSmallGroupProgress() {
   // 3. PROCESS LOGS
   progressData.forEach(row => {
     const [date, teacher, groupName, studentName, lessonName, status] = row;
-    // Column G (index 6) = sourceGroup for co-teaching entries
-    const sourceGroup = (row.length >= COLS.SMALL_GROUP_PROGRESS.TOTAL_COLS && row[COLS.SMALL_GROUP_PROGRESS.SOURCE_GROUP]) ? row[COLS.SMALL_GROUP_PROGRESS.SOURCE_GROUP].toString().trim() : "";
     if (!studentName || !lessonName || !status) return;
-
+    
     const lessonNum = extractLessonNumber(lessonName);
     const cleanName = studentName.toString().trim().toUpperCase();
     const lessonNameStr = lessonName.toString().trim();
-
+    
     // A. Update UFLI MAP Array (only for valid UFLI lesson numbers)
     if (lessonNum) {
       const mapRowIdx = studentMapRowLookup[cleanName];
@@ -1083,46 +1104,59 @@ function syncSmallGroupProgress() {
         mapData[mapRowIdx][lessonColIdx] = status;
       }
     }
-
+    
     // B. Update Group Sheet Array (by EXACT lesson name match - handles Comprehension!)
-    // For co-teaching entries, use sourceGroup so each student's data goes to their own group sheet
-    const effectiveGroup = sourceGroup || groupName;
-    if (effectiveGroup) {
+    if (groupName) {
       // Use mixed-grade version if available, otherwise fall back to standard
       if (typeof updateGroupArrayByLessonName_MixedGrade === 'function') {
-        updateGroupArrayByLessonName_MixedGrade(groupSheetsData, effectiveGroup, studentName, lessonNameStr, status);
+        updateGroupArrayByLessonName_MixedGrade(groupSheetsData, groupName, studentName, lessonNameStr, status);
       } else {
-        updateGroupArrayByLessonName(groupSheetsData, effectiveGroup, studentName, lessonNameStr, status);
+        updateGroupArrayByLessonName(groupSheetsData, groupName, studentName, lessonNameStr, status);
       }
     }
     
-    // C. Track Current Lesson (only for UFLI lessons)
-    if (lessonNum) {
-      const rowDate = new Date(date);
-      if (!isNaN(rowDate)) {
-        if (!studentCurrentLesson[cleanName]) {
-          studentCurrentLesson[cleanName] = { maxDate: rowDate, maxLesson: lessonNum };
-        } else {
-          const curr = studentCurrentLesson[cleanName];
-          if (rowDate > curr.maxDate) {
-            curr.maxDate = rowDate;
-            curr.maxLesson = lessonNum;
-          } else if (rowDate.getTime() === curr.maxDate.getTime()) {
-            if (lessonNum > curr.maxLesson) curr.maxLesson = lessonNum;
-          }
+   // C. Track Current Lesson (only for UFLI lessons)
+// FIX: Use highest lesson NUMBER (not most recent timestamp)
+// FIX: Preserve full lesson label including "reteach" suffix
+if (lessonNum) {
+  const rowDate = new Date(date);
+  if (!isNaN(rowDate)) {
+    if (!studentCurrentLesson[cleanName]) {
+      studentCurrentLesson[cleanName] = {
+        maxDate: rowDate,
+        maxLesson: lessonNum,
+        lessonLabel: lessonNameStr  // preserve "UFLI L15 reteach"
+      };
+    } else {
+      const curr = studentCurrentLesson[cleanName];
+      // Current Lesson = highest lesson number reached (regardless of submission order)
+      if (lessonNum > curr.maxLesson) {
+        curr.maxLesson = lessonNum;
+        curr.lessonLabel = lessonNameStr;
+      } else if (lessonNum === curr.maxLesson) {
+        // Same lesson submitted again — prefer the reteach label if present
+        if (lessonNameStr.toLowerCase().includes('reteach')) {
+          curr.lessonLabel = lessonNameStr;
         }
       }
+      // Always track most recent activity date (for Pacing Dashboard "Last Entry")
+      if (rowDate > curr.maxDate) {
+        curr.maxDate = rowDate;
+      }
     }
+  }
+}
   });
   
   // 4. APPLY CURRENT LESSON TO MAP ARRAY
-  Object.keys(studentCurrentLesson).forEach(name => {
-    const mapRowIdx = studentMapRowLookup[name];
-    if (mapRowIdx !== undefined) {
-      const lessonNum = studentCurrentLesson[name].maxLesson;
-      mapData[mapRowIdx][4] = `UFLI L${lessonNum}`;
-    }
-  });
+ Object.keys(studentCurrentLesson).forEach(name => {
+  const mapRowIdx = studentMapRowLookup[name];
+  if (mapRowIdx !== undefined) {
+    const entry = studentCurrentLesson[name];
+    // FIX: Use preserved label (includes "reteach") instead of rebuilding from number
+    mapData[mapRowIdx][4] = entry.lessonLabel || `UFLI L${entry.maxLesson}`;
+  }
+});
   
   // 5. BIG DUMP: Write everything back
   mapSheet.getRange(1, 1, mapData.length, mapData[0].length).setValues(mapData);
@@ -1134,21 +1168,19 @@ function syncSmallGroupProgress() {
   });
   
   // 6. CHAIN REACTION: Update Stats (Skills & Summary) using the updated Map Data
-  updateAllStats(ss, mapData, getSankofaConfig());
+  // Use generic config object - school-specific configs should be in extension files
+  const config = {
+    SHEET_NAMES_V2,
+    SHEET_NAMES_PREK,
+    LAYOUT,
+    PREK_CONFIG,
+    GRADE_METRICS: typeof SHARED_GRADE_METRICS !== 'undefined' ? SHARED_GRADE_METRICS : {}
+  };
+  updateAllStats(ss, mapData, config);
   
   log(functionName, 'Sync Complete.');
 }
 
-/**
- * Updates Group Sheet by matching EXACT lesson name (not just lesson number)
- * This handles "Comprehension", "Fluency", and any other non-UFLI lessons
- * 
- * @param {Object} groupSheetsData - Cache of all group sheet data
- * @param {string} groupName - Name of the group (e.g., "G3 Group 1 Tutoring Galdamez")
- * @param {string} studentName - Student name
- * @param {string} lessonName - Full lesson name (e.g., "Comprehension", "UFLI L101")
- * @param {string} status - Y, N, or A
- */
 /**
  * Updates Group Sheet by matching EXACT lesson name (not just lesson number)
  * This handles "Comprehension", "Fluency", and any other non-UFLI lessons
@@ -1171,10 +1203,15 @@ function syncSmallGroupProgress() {
  */
 function updateGroupArrayByLessonName(groupSheetsData, groupName, studentName, lessonName, status) {
   // Extract grade from group name to find the right sheet
+let sheetName = null;
+
+if (groupName.startsWith("SC Classroom")) {
+  sheetName = "SC Classroom";
+} else {
   const gradeMatch = groupName.match(/^([A-Za-z0-9]+)/);
   if (!gradeMatch) return;
-  
-  const sheetName = gradeMatch[1] + " Groups";
+  sheetName = gradeMatch[1] + " Groups";
+}
   const cache = groupSheetsData[sheetName];
   if (!cache) return;
   
@@ -1242,9 +1279,15 @@ function updateGroupArrayByLessonName(groupSheetsData, groupName, studentName, l
   }
 }
 function updateGroupArrayInMemory(groupSheetsData, groupName, studentName, lessonNum, status) {
+let sheetName = null;
+
+if (groupName.startsWith("SC Classroom")) {
+  sheetName = "SC Classroom";
+} else {
   const gradeMatch = groupName.match(/^([A-Za-z0-9]+)/);
   if (!gradeMatch) return;
-  const sheetName = `${gradeMatch[1]} Groups`;
+  sheetName = gradeMatch[1] + " Groups";
+}
   const cache = groupSheetsData[sheetName];
   if (!cache) return;
   
@@ -1286,30 +1329,8 @@ function updateGroupArrayInMemory(groupSheetsData, groupName, studentName, lesso
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// UPDATE ALL STATS (v5.3 - Suppress Negative Growth)
+// STATS UPDATE WRAPPER (Uses SharedEngine.gs)
 // ═══════════════════════════════════════════════════════════════════════════
-
-/**
- * Calculates and Writes stats for BOTH UFLI (K-8) and HWT (Pre-K)
- * Merges data into Skills Tracker and Grade Summary
- * 
- * v5.1 FIXES:
- * - Skip PreK students in UFLI loop (prevents duplicates)
- * - Correct PreK metric mapping (Form→Foundational, Name+Sound→MinGrade, All→FullGrade)
- * - Use fixed denominators for PreK (26/52/78)
- * 
- * v5.2 FIX:
- * - Benchmark Status now based on Min Grade Skills % (not Foundational) for K-8
- * 
- * v5.3 FIX:
- * - Suppress negative growth: If student passed in Initial Assessment, preserve 'Y'
- * - Uses merged row (best of Initial + Current) for benchmark calculations
- * 
- * NOTE: Now uses SharedEngine.updateAllStats with Sankofa configuration
- */
-function updateAllStats_Sankofa(ss, mapData) {
-  updateAllStats(ss, mapData, getSankofaConfig());
-}
 
 function updateStatsForNewStudents() {
   const functionName = 'updateStatsForNewStudents';
@@ -1325,46 +1346,13 @@ function updateAllProgress() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// SCHOOL SUMMARY DASHBOARD ENGINE (v2 - Polished UI)
+// SCHOOL SUMMARY DASHBOARD
 // ═══════════════════════════════════════════════════════════════════════════
-
-// Dashboard Color Palette
-var DASHBOARD_COLORS = {
-  HEADER_BG: "#1a73e8",        // Google Blue - main header
-  HEADER_TEXT: "#ffffff",
-  GRADE_HEADER_BG: "#4285f4",  // Lighter blue for grade headers
-  GRADE_HEADER_TEXT: "#ffffff",
-  SECTION_LABEL: "#5f6368",    // Gray for section labels
-  TABLE_HEADER_BG: "#e8eaed",  // Light gray for table headers
-  TABLE_ALT_ROW: "#f8f9fa",    // Subtle alternating rows
-  CARD_BORDER: "#dadce0",      // Card border color
-  
-  // Status colors
-  ON_TRACK: "#34a853",         // Green
-  ON_TRACK_BG: "#e6f4ea",
-  PROGRESSING: "#fbbc04",      // Yellow/Amber
-  PROGRESSING_BG: "#fef7e0",
-  AT_RISK: "#ea4335",          // Red
-  AT_RISK_BG: "#fce8e6",
-  
-  // Progress bar
-  BAR_FILL: "#1a73e8",
-  BAR_EMPTY: "#e8eaed"
-};
 
 function updateSchoolSummary() {
   const functionName = 'updateSchoolSummary';
-
-  // Use mixed-grade version when enabled (handles cross-grade group naming)
-  if (typeof ENABLE_MIXED_GRADES !== 'undefined' && ENABLE_MIXED_GRADES &&
-      typeof updateSchoolSummary_MixedGrade === 'function') {
-    log(functionName, 'Dispatching to mixed-grade School Summary...');
-    updateSchoolSummary_MixedGrade();
-    return;
-  }
-
   log(functionName, 'Generating Full School Summary Dashboard...');
-
+  
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const summarySheet = getOrCreateSheet(ss, SHEET_NAMES_V2.SCHOOL_SUMMARY, false); 
   
@@ -1390,13 +1378,13 @@ function updateSchoolSummary() {
   summarySheet.clearConditionalFormatRules();
   
   summarySheet.setColumnWidth(1, 200); 
-  summarySheet.setColumnWidth(2, 50);   
-  summarySheet.setColumnWidth(3, 70);   
-  summarySheet.setColumnWidth(4, 70);   
-  summarySheet.setColumnWidth(5, 70);   
+  summarySheet.setColumnWidth(2, 90);   
+  summarySheet.setColumnWidth(3, 90);   
+  summarySheet.setColumnWidth(4, 90);   
+  summarySheet.setColumnWidth(5, 90);   
   summarySheet.setColumnWidth(6, 90);   
   summarySheet.setColumnWidth(7, 90);   
-  summarySheet.getRange(1, 1, 500, 5).setFontFamily("Calibri");
+  summarySheet.getRange(1, 1, 500, 7).setFontFamily("Calibri");
   
   // 3. RENDER HEADER
   let currentRow = renderDashboardHeader(summarySheet, schoolName);
@@ -1413,8 +1401,8 @@ function updateSchoolSummary() {
   // 5. GRADE-LEVEL PROCESSING LOOP
   if (grades && grades.length > 0) {
     grades.forEach(grade => {
-      const gradeStudents = Array.from(studentData.values()).filter(s => s[COLS.GRADE_SUMMARY.GRADE] && s[COLS.GRADE_SUMMARY.GRADE].toString() === grade);
-      const gradeGroups = pacingData.filter(row => row[COLS.PACING_DASHBOARD.GROUP] && row[COLS.PACING_DASHBOARD.GROUP].toString().startsWith(grade));
+      const gradeStudents = Array.from(studentData.values()).filter(s => s[1] && s[1].toString() === grade);
+      const gradeGroups = pacingData.filter(row => row[0] && row[0].toString().startsWith(grade));
       
       const totalStudentCount = configCounts[grade] || gradeStudents.length;
 
@@ -1434,9 +1422,15 @@ function updateSchoolSummary() {
 
   // 6. MIXED GRADE TABLE
   if (typeof ENABLE_MIXED_GRADES !== 'undefined' && ENABLE_MIXED_GRADES) {
+    log(functionName, 'Mixed grades enabled, checking for renderMixedGradeGroupTable...');
     if (typeof renderMixedGradeGroupTable === 'function') {
+      log(functionName, `Calling renderMixedGradeGroupTable with ${pacingData.length} pacing rows`);
       currentRow = renderMixedGradeGroupTable(summarySheet, currentRow, pacingData);
+    } else {
+      log(functionName, 'WARNING: renderMixedGradeGroupTable function not found!', 'WARN');
     }
+  } else {
+    log(functionName, 'Mixed grades not enabled, skipping Group Performance table');
   }
   
   summarySheet.setFrozenRows(4);
@@ -1448,58 +1442,59 @@ function updateSchoolSummary() {
 // ═══════════════════════════════════════════════════════════════════════════
 
 function renderDashboardHeader(sheet, schoolName) {
-  // Row 1: Main title bar
-  sheet.getRange(1, 1, 1, 5).merge()
-    .setValue(`📊  SCHOOL SUMMARY DASHBOARD`)
-    .setBackground(DASHBOARD_COLORS.HEADER_BG)
-    .setFontColor(DASHBOARD_COLORS.HEADER_TEXT)
+  // Row 1: Main title bar (no merge)
+  sheet.getRange(1, 1).setValue(`SCHOOL SUMMARY DASHBOARD`);
+  sheet.getRange(1, 1, 1, 5).setBackground(DASHBOARD_COLORS.HEADER_BG);
+  sheet.getRange(1, 1).setFontColor(DASHBOARD_COLORS.HEADER_TEXT)
     .setFontSize(18)
     .setFontWeight("bold")
-    .setVerticalAlignment("middle")
-    .setHorizontalAlignment("center");
+    .setFontFamily("Calibri")
+    .setVerticalAlignment("middle");
   sheet.setRowHeight(1, 50);
-  
-  // Row 2: School name and date
-  sheet.getRange(2, 1, 1, 3).merge()
-    .setValue(schoolName)
-    .setFontSize(12)
+
+  // Row 2: School name (no merge)
+  sheet.getRange(2, 1).setValue(schoolName);
+  sheet.getRange(2, 1).setFontSize(12)
     .setFontWeight("bold")
+    .setFontFamily("Calibri")
     .setFontColor(DASHBOARD_COLORS.SECTION_LABEL)
     .setVerticalAlignment("middle");
-  
-  sheet.getRange(2, 4, 1, 2).merge()
-    .setValue(`Updated: ${new Date().toLocaleDateString()}`)
-    .setFontSize(10)
+
+  sheet.getRange(2, 5).setValue(`Updated: ${new Date().toLocaleDateString()}`);
+  sheet.getRange(2, 5).setFontSize(10)
+    .setFontFamily("Calibri")
     .setFontColor(DASHBOARD_COLORS.SECTION_LABEL)
     .setHorizontalAlignment("right")
     .setVerticalAlignment("middle");
   sheet.setRowHeight(2, 30);
-  
-  // Row 3: Dashboard description
+
+  // Row 3: Dashboard description (MERGED - intentional for multi-column spanning text)
+  // Note: Merge used here for descriptive text that naturally spans the dashboard width
   const description = "Growth & Pacing Metrics: Initial average, current average, growth percentage, and instructional pacing rate  •  " +
     "Student Distribution: Visual breakdown of students On Track (80%+), Progressing (50-79%), and Needs Support (<50%)  •  " +
     "Group Performance Table: Pass rate and Absenteeism rate for each instructional group with status indicators";
-    +
-    
   
-  sheet.getRange(3, 1, 1, 5).merge()
-    .setValue(description)
-    .setFontSize(9)
-    .setFontColor(DASHBOARD_COLORS.SECTION_LABEL)
-    .setFontStyle("italic")
-    .setFontFamily("Calibri")
-    .setVerticalAlignment("middle")
-    .setWrap(true);
-  sheet.setRowHeight(3, 45);  // Taller row to accommodate wrapped text
-  
+  const descRange = sheet.getRange(3, 1, 1, 5);
+descRange.merge();  // ✅ MERGE cells A3:E3
+descRange.setValue(description)
+  .setBackground("#f8f9fa")
+  .setFontSize(9)
+  .setFontColor(DASHBOARD_COLORS.SECTION_LABEL)
+  .setFontStyle("italic")
+  .setFontFamily("Calibri")
+  .setVerticalAlignment("middle")
+  .setHorizontalAlignment("left")
+  .setWrap(true);
+sheet.setRowHeight(3, 45);
+
   // Row 4: Subtle divider line
   sheet.getRange(4, 1, 1, 5)
     .setBorder(null, null, true, null, null, null, DASHBOARD_COLORS.CARD_BORDER, SpreadsheetApp.BorderStyle.SOLID);
   sheet.setRowHeight(4, 8);
-  
+
   // Row 5: Spacer
   sheet.setRowHeight(5, 15);
-  
+
   return 6; // Next available row (shifted down by 1)
 }
 
@@ -1507,22 +1502,36 @@ function renderDashboardHeader(sheet, schoolName) {
 // GRADE CARD RENDERING
 // ═══════════════════════════════════════════════════════════════════════════
 
-function renderGradeCard(sheet, startRow, grade, students, groups, initialData, overrideCount) {
+/**
+ * Renders a grade-level summary card on the dashboard
+ * Standardized signature with optional overrideCount parameter
+ * 
+ * @param {Sheet} sheet - Target sheet
+ * @param {number} startRow - Starting row for the card
+ * @param {string} grade - Grade level (e.g., "KG", "G1")
+ * @param {Array} students - Array of student data
+ * @param {Array} groups - Array of group data
+ * @param {Map} initialData - Initial assessment data map
+ * @param {number} overrideCount - Optional student count override (default: null, uses students.length)
+ * @returns {number} Next available row after the card
+ */
+function renderGradeCard(sheet, startRow, grade, students, groups, initialData, overrideCount = null) {
   let row = startRow;
   
   // Use overrideCount if provided, otherwise use students.length
-  const displayCount = overrideCount !== undefined ? overrideCount : students.length;
+  const displayCount = overrideCount !== null ? overrideCount : students.length;
 
   const headerText = (typeof ENABLE_MIXED_GRADES !== 'undefined' && ENABLE_MIXED_GRADES) 
     ? `${grade}  •  ${displayCount} students`
     : `${grade}  •  ${displayCount} students  •  ${groups.length} groups`;
 
-  sheet.getRange(row, 1, 1, 5).merge()
-    .setValue(headerText)
-    .setBackground(DASHBOARD_COLORS.GRADE_HEADER_BG)
-    .setFontColor(DASHBOARD_COLORS.GRADE_HEADER_TEXT)
+  // Grade header (no merge)
+  sheet.getRange(row, 1).setValue(headerText);
+  sheet.getRange(row, 1, 1, 5).setBackground(DASHBOARD_COLORS.GRADE_HEADER_BG);
+  sheet.getRange(row, 1).setFontColor(DASHBOARD_COLORS.GRADE_HEADER_TEXT)
     .setFontSize(13)
     .setFontWeight("bold")
+    .setFontFamily("Calibri")
     .setVerticalAlignment("middle");
   sheet.setRowHeight(row, 36);
   row++;
@@ -1709,7 +1718,8 @@ function renderProgressBar(sheet, row, label, count, total, accentColor, bgColor
     .setFontSize(10)
     .setVerticalAlignment("middle");
   
-  // Columns 2-4: Progress bar (merged cells with background trick)
+  // Columns 2-4: Progress bar (MERGED - required for visual progress bar effect)
+  // Note: Merge intentional here for graphical progress bar representation
   const barRange = sheet.getRange(row, 2, 1, 3).merge();
   barRange.setBackground(DASHBOARD_COLORS.BAR_EMPTY);
   
@@ -1746,7 +1756,7 @@ function renderProgressBar(sheet, row, label, count, total, accentColor, bgColor
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// CALCULATION HELPERS (Dashboard)
+// CALCULATION & ANALYSIS HELPERS
 // ═══════════════════════════════════════════════════════════════════════════
 
 function calculateGrowthMetrics(students, initialData, grade) {
@@ -1755,16 +1765,16 @@ function calculateGrowthMetrics(students, initialData, grade) {
   let fullInitialSum = 0, fullCurrentSum = 0, fullCount = 0;
   
   // Get the correct metric configuration for this grade
-  const metrics = SHARED_GRADE_METRICS[grade];
+  const metrics = GRADE_METRICS[grade];
   
   students.forEach(s => {
     const studentName = s[0];
     
     // Current values from Grade Summary
     // Column indices: 4 = Foundational, 5 = Min Grade, 6 = Full Grade
-    const currentFoundational = parseFloat(s[COLS.GRADE_SUMMARY.FOUNDATIONAL]) || 0;
-    const currentMinGrade = parseFloat(s[COLS.GRADE_SUMMARY.MIN_GRADE]) || 0;
-    const currentFullGrade = parseFloat(s[COLS.GRADE_SUMMARY.FULL_GRADE]) || 0;
+    const currentFoundational = parseFloat(s[4]) || 0;
+    const currentMinGrade = parseFloat(s[5]) || 0;
+    const currentFullGrade = parseFloat(s[6]) || 0;
     
     // Get initial values - calculate from Initial Assessment data
     let initialFoundational = 0;
@@ -1776,9 +1786,9 @@ function calculateGrowthMetrics(students, initialData, grade) {
       
       // Calculate initial metrics using the same logic as updateAllStats
       if (metrics) {
-        initialFoundational = calculateBenchmark(initialRow, metrics.foundational.lessons, metrics.foundational.denominator, LAYOUT);
-        initialMinGrade = calculateBenchmark(initialRow, metrics.minimum.lessons, metrics.minimum.denominator, LAYOUT);
-        initialFullGrade = calculateBenchmark(initialRow, metrics.currentYear.lessons, metrics.currentYear.denominator, LAYOUT);
+        initialFoundational = calculateBenchmarkFromRow(initialRow, metrics.foundational.lessons, metrics.foundational.denominator);
+        initialMinGrade = calculateBenchmarkFromRow(initialRow, metrics.minimum.lessons, metrics.minimum.denominator);
+        initialFullGrade = calculateBenchmarkFromRow(initialRow, metrics.currentYear.lessons, metrics.currentYear.denominator);
       }
     }
     
@@ -1835,13 +1845,35 @@ function calculateGrowthMetrics(students, initialData, grade) {
     growth: foundCurrentAvg - foundInitialAvg
   };
 }
+/**
+ * Simplified benchmark calculation (no gateway logic)
+ * Used for Initial Assessment and quick estimates where gateway logic isn't needed.
+ * Simply counts Y's in non-review lessons.
+ *
+ * @param {Array} row - Student's row data
+ * @param {Array<number>} lessonIndices - Lesson numbers to check
+ * @param {number} denominator - (unused, kept for API compatibility)
+ * @returns {number} Percentage integer (0-100)
+ */
+function calculateBenchmarkFromRow(row, lessonIndices, denominator) {
+  if (!row || !lessonIndices || lessonIndices.length === 0) return 0;
 
+  const { nonReviews } = partitionLessonsByReview(lessonIndices);
+  if (nonReviews.length === 0) return 0;
+
+  let passed = 0;
+  for (const lessonNum of nonReviews) {
+    if (getLessonStatus(row, lessonNum, LAYOUT) === 'Y') passed++;
+  }
+
+  return Math.round((passed / nonReviews.length) * 100);
+}
 function calculateDistributionBands(students) {
   const bands = { onTrack: 0, progressing: 0, atRisk: 0 };
   students.forEach(s => {
-    const score = parseFloat(s[COLS.GRADE_SUMMARY.MIN_GRADE]) || 0;  // Min Grade Skills % (v5.2 fix)
-    if (score >= 80) bands.onTrack++;
-    else if (score >= 50) bands.progressing++;
+    const score = parseFloat(s[5]) || 0;  // s[5] = Min Grade Skills % (v5.2 fix)
+    if (score >= PERFORMANCE_THRESHOLDS.ON_TRACK) bands.onTrack++;
+    else if (score >= PERFORMANCE_THRESHOLDS.NEEDS_SUPPORT) bands.progressing++;
     else bands.atRisk++;
   });
   return bands;
@@ -1854,8 +1886,8 @@ function calculateGradePacing(groups) {
   let groupCount = 0;
   
   groups.forEach(g => {
-    // Pacing % (stored as decimal, e.g., 0.44)
-    const groupPacing = parseFloat(g[COLS.PACING_DASHBOARD.PACING_PCT]) || 0;
+    // Column F (index 6) = Pacing % (stored as decimal, e.g., 0.44)
+    const groupPacing = parseFloat(g[5]) || 0;
     if (groupPacing > 0) {
       totalPacing += groupPacing;
       groupCount++;
@@ -1925,9 +1957,8 @@ function getExistingGrades(configSheet) {
   return uniqueGrades;
 }
 
-
 // ═══════════════════════════════════════════════════════════════════════════
-// REPAIR & MAINTENANCE FUNCTIONS
+// MAINTENANCE & REPAIR UTILITIES
 // ═══════════════════════════════════════════════════════════════════════════
 
 function regenerateSystemSheets() {
@@ -1987,13 +2018,27 @@ function fixMissingTeachers() {
 
 function repairSkillsTrackerFormulas() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  updateAllStats(ss, null, getSankofaConfig());
+  const config = {
+    SHEET_NAMES_V2,
+    SHEET_NAMES_PREK,
+    LAYOUT,
+    PREK_CONFIG,
+    GRADE_METRICS: typeof SHARED_GRADE_METRICS !== 'undefined' ? SHARED_GRADE_METRICS : {}
+  };
+  updateAllStats(ss, null, config);
   SpreadsheetApp.getUi().alert('Skills Tracker values recalculated.');
 }
 
 function repairGradeSummaryFormulas() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  updateAllStats(ss, null, getSankofaConfig());
+  const config = {
+    SHEET_NAMES_V2,
+    SHEET_NAMES_PREK,
+    LAYOUT,
+    PREK_CONFIG,
+    GRADE_METRICS: typeof SHARED_GRADE_METRICS !== 'undefined' ? SHARED_GRADE_METRICS : {}
+  };
+  updateAllStats(ss, null, config);
   SpreadsheetApp.getUi().alert('Grade Summary values recalculated.');
 }
 
@@ -2121,42 +2166,89 @@ function repairAllGroupSheetFormatting() {
 }
 
 /**
- * Quick test function - run this to check a specific sheet
+ * Adds skill formulas for a new student row (placeholder for formula-based approach)
+ * Most schools now use script-based calculations; this is a legacy compatibility function.
+ * @param {Sheet} sheet - Skills Tracker sheet
+ * @param {number} row - Row number to add formulas to
+ */
+function addSkillFormulasForRow(sheet, row) {
+  // Placeholder - data filled on next sync by updateAllProgress()
+  // Legacy function kept for compatibility with older school implementations
+}
+
+/**
+ * Adds grade summary formulas for a new student row (placeholder for formula-based approach)
+ * Most schools now use script-based calculations; this is a legacy compatibility function.
+ * @param {Sheet} sheet - Grade Summary sheet
+ * @param {number} row - Row number to add formulas to
+ * @param {Object} studentObj - Student data object
+ */
+function addGradeSummaryFormulasForRow(sheet, row, studentObj) {
+  // Placeholder - data filled on next sync by updateAllProgress()
+  // Legacy function kept for compatibility with older school implementations
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FEATURE-FLAGGED FUNCTIONS
+// These functions are enabled/disabled via SITE_CONFIG feature flags
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Tests group sheet structure for debugging (diagnostic tool)
+ * @feature diagnosticTools - Enable with features.diagnosticTools = true
  */
 function testGroupSheetStructure() {
+  if (typeof SITE_CONFIG === 'undefined' || !SITE_CONFIG.features || !SITE_CONFIG.features.diagnosticTools) {
+    throw new Error('Diagnostic tools are disabled. Enable with features.diagnosticTools = true');
+  }
+  
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sheet = ss.getSheetByName("G3 Groups");
+  const gradeSheetRegex = /^(PreK|KG|G[1-8]) Groups$/;
+  const gradeSheets = ss.getSheets().filter(sheet => gradeSheetRegex.test(sheet.getName()));
   
-  if (!sheet) {
-    Logger.log("G3 Groups sheet not found");
-    return;
-  }
-  
-  const data = sheet.getDataRange().getValues();
-  
-  Logger.log("=== G3 Groups Sheet Structure ===");
-  for (let i = 0; i < Math.min(data.length, 30); i++) {
-    Logger.log(`Row ${i + 1}: "${data[i][0]}" | "${data[i][1]}" | "${data[i][2]}"`);
-  }
+  Logger.log(`Testing ${gradeSheets.length} grade sheets...`);
+  gradeSheets.forEach(sheet => {
+    const data = sheet.getDataRange().getValues();
+    Logger.log(`\n${sheet.getName()}:`);
+    Logger.log(`  Total rows: ${data.length}`);
+    Logger.log(`  Row 3 (Instructional Sequence): ${data[2] ? data[2][0] : 'MISSING'}`);
+  });
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// SINGLE ROW HELPERS (FOR ADDING STUDENTS VIA WIZARD)
-// ═══════════════════════════════════════════════════════════════════════════
-
-function addSkillFormulasForRow(sheet, row) {
-  // Placeholder - data filled on next sync
-}
-
-function addGradeSummaryFormulasForRow(sheet, row, studentObj) {
-  // Placeholder - data filled on next sync
-}
-
-// addStudentToSheet: canonical version in Setupwizard.gs (includes formula setup)
-// updateStudentInSheet: canonical version in Setupwizard.gs
 /**
- * Navigates to the School Summary sheet
+ * Adds student to sheet dynamically (if enabled)
+ * @feature dynamicStudentRoster - Enable with features.dynamicStudentRoster = true
  */
+function addStudentToSheet(ss, sheetName, studentData) {
+  if (typeof SITE_CONFIG === 'undefined' || !SITE_CONFIG.features || !SITE_CONFIG.features.dynamicStudentRoster) {
+    throw new Error('Dynamic student roster is disabled. Enable with features.dynamicStudentRoster = true');
+  }
+  
+  const sheet = ss.getSheetByName(sheetName);
+  if (!sheet) return;
+  const lastRow = sheet.getLastRow();
+  sheet.getRange(lastRow + 1, 1, 1, studentData.length).setValues([studentData]);
+}
+
+/**
+ * Updates student data in sheet (if dynamic roster enabled)
+ * @feature dynamicStudentRoster
+ */
+function updateStudentInSheet(ss, sheetName, studentName, columnIndex, newValue) {
+  if (typeof SITE_CONFIG === 'undefined' || !SITE_CONFIG.features || !SITE_CONFIG.features.dynamicStudentRoster) {
+    throw new Error('Dynamic student roster is disabled. Enable with features.dynamicStudentRoster = true');
+  }
+  
+  const sheet = ss.getSheetByName(sheetName);
+  if (!sheet) return;
+  // Implementation details...
+}
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DEBUGGING & DIAGNOSTIC UTILITIES
+// ═══════════════════════════════════════════════════════════════════════════
+
 function goToSchoolSummary() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   let sheet = ss.getSheetByName(SHEET_NAMES_V2.SCHOOL_SUMMARY);
@@ -2243,12 +2335,12 @@ function getGradeCountsFromConfig(ss) {
     const lastRow = configSheet.getLastRow();
     if (lastRow >= 8) { // Data starts at row 8
       // Get Col B (Grade) and Col D (Count)
-      const data = configSheet.getRange(8, 2, lastRow - 7, 3).getValues();
-
+      const data = configSheet.getRange(8, 2, lastRow - 7, 3).getValues(); 
+      
       data.forEach(row => {
         const grade = row[0] ? row[0].toString().trim() : ""; // Col B
         const count = parseInt(row[2]) || 0; // Col D (Index 2 in this slice)
-
+        
         if (grade) {
           if (!counts[grade]) counts[grade] = 0;
           counts[grade] += count;
@@ -2258,255 +2350,209 @@ function getGradeCountsFromConfig(ss) {
   }
   return counts;
 }
-
 // ═══════════════════════════════════════════════════════════════════════════
-// CO-TEACHING COMPARISON REPORT
-// Compares pass rates and progress between co-teaching pairs and solo groups
+// DEBUG: Troubleshoot getExistingLessonData()
+// Run this from Apps Script editor to see exactly what's happening
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Generates a Co-Teaching Comparison Report
- *
- * Creates or updates a "Co-Teaching Report" sheet with:
- * - Comparison of co-teaching pairs vs solo groups
- * - Pass rate breakdown by original group within co-teaching pairs
- * - Identification of structural weaknesses in teaching teams
+ * TEST FUNCTION - Run this manually with your actual values
+ * Change these test values to match a real lesson check you're trying to load
  */
-function generateCoTeachingReport() {
+function testGetExistingLessonData() {
+  // ══════════════════════════════════════════════════════════════════════════
+  // CHANGE THESE VALUES TO MATCH YOUR ACTUAL FORM SELECTIONS:
+  // ══════════════════════════════════════════════════════════════════════════
+  const testGradeSheet = "KG and G1 Groups";  // <-- What you selected in Step 1
+  const testGroupName = "KG Group 1 - T. Smith";  // <-- What you selected in Step 2  
+  const testLessonName = "UFLI L5 VC&CVC Words";  // <-- What you selected in Step 3
+  // ══════════════════════════════════════════════════════════════════════════
+  
+  Logger.log("═══════════════════════════════════════════════════════════════════");
+  Logger.log("TESTING getExistingLessonData with:");
+  Logger.log("  gradeSheet: '" + testGradeSheet + "'");
+  Logger.log("  groupName:  '" + testGroupName + "'");
+  Logger.log("  lessonName: '" + testLessonName + "'");
+  Logger.log("═══════════════════════════════════════════════════════════════════");
+  
+  const result = debugGetExistingLessonData(testGradeSheet, testGroupName, testLessonName);
+  
+  Logger.log("");
+  Logger.log("═══════════════════════════════════════════════════════════════════");
+  Logger.log("FINAL RESULT:");
+  Logger.log(JSON.stringify(result, null, 2));
+  Logger.log("═══════════════════════════════════════════════════════════════════");
+}
+
+/**
+ * DEBUG VERSION of getExistingLessonData with verbose logging
+ */
+function debugGetExistingLessonData(gradeSheet, groupName, lessonName) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const ui = SpreadsheetApp.getUi();
+  const sheet = ss.getSheetByName(gradeSheet);
 
-  Logger.log("=== Generating Co-Teaching Comparison Report ===");
-
-  // Get co-teaching pairs and solo groups
-  const coTeachingPairs = getAllCoTeachingPairs();
-  const soloGroups = getAllSoloGroups();
-
-  if (coTeachingPairs.length === 0) {
-    ui.alert("No Co-Teaching Groups Found",
-      "No co-teaching pairs are configured in the Group Configuration sheet.\n\n" +
-      "To set up co-teaching:\n" +
-      "1. Add a 'Partner Group' column (Column C) to Group Configuration\n" +
-      "2. Enter the partner group name for each co-teaching pair",
-      ui.ButtonSet.OK);
-    return;
+  if (!sheet) {
+    Logger.log("❌ PROBLEM: Sheet not found: '" + gradeSheet + "'");
+    Logger.log("");
+    Logger.log("Available sheets in this spreadsheet:");
+    ss.getSheets().forEach(s => Logger.log("  - '" + s.getName() + "'"));
+    return {};
   }
+  
+  Logger.log("✓ Sheet found: " + gradeSheet);
 
-  // Get or create the report sheet
-  let reportSheet = ss.getSheetByName("Co-Teaching Report");
-  if (!reportSheet) {
-    reportSheet = ss.insertSheet("Co-Teaching Report");
-  } else {
-    reportSheet.clear();
-  }
+  const data = sheet.getDataRange().getValues();
+  Logger.log("✓ Sheet has " + data.length + " rows and " + (data[0] ? data[0].length : 0) + " columns");
+  
+  const existingData = {};
+  let inTargetGroup = false;
+  let lessonColIndex = -1;
+  let foundLessonRow = false;
+  let groupsFoundInSheet = [];
 
-  // Get data from Small Group Progress for pass rate calculations
-  const progressSheet = ss.getSheetByName("Small Group Progress");
-  const progressData = progressSheet ? progressSheet.getDataRange().getValues() : [];
+  for (let i = 0; i < data.length; i++) {
+    const cellA = data[i][0] ? data[i][0].toString().trim() : "";
 
-  // Calculate metrics for each group
-  const groupMetrics = calculateGroupMetrics(progressData);
-
-  // Build report
-  const reportData = [];
-
-  // Header section
-  reportData.push(["CO-TEACHING COMPARISON REPORT"]);
-  reportData.push(["Generated: " + new Date().toLocaleString()]);
-  reportData.push([""]);
-
-  // Summary section
-  reportData.push(["SUMMARY"]);
-  reportData.push(["Co-Teaching Pairs:", coTeachingPairs.length]);
-  reportData.push(["Solo Groups:", soloGroups.length]);
-  reportData.push([""]);
-
-  // Co-Teaching Pairs Detail
-  reportData.push(["CO-TEACHING PAIRS BREAKDOWN"]);
-  reportData.push(["Pair", "Group 1", "Group 1 Pass Rate", "Group 2", "Group 2 Pass Rate", "Combined Rate", "Difference"]);
-
-  let totalCoTeachingRate = 0;
-  let coTeachingPairCount = 0;
-
-  coTeachingPairs.forEach((pair, index) => {
-    const group1Metrics = groupMetrics[pair.group1] || { passRate: 0, totalEntries: 0 };
-    const group2Metrics = groupMetrics[pair.group2] || { passRate: 0, totalEntries: 0 };
-
-    const combinedPass = (group1Metrics.passCount || 0) + (group2Metrics.passCount || 0);
-    const combinedTotal = (group1Metrics.totalEntries || 0) + (group2Metrics.totalEntries || 0);
-    const combinedRate = combinedTotal > 0 ? (combinedPass / combinedTotal * 100) : 0;
-
-    const difference = Math.abs(group1Metrics.passRate - group2Metrics.passRate);
-
-    reportData.push([
-      `Pair ${index + 1}`,
-      pair.group1,
-      group1Metrics.passRate.toFixed(1) + "%",
-      pair.group2,
-      group2Metrics.passRate.toFixed(1) + "%",
-      combinedRate.toFixed(1) + "%",
-      difference.toFixed(1) + "%"
-    ]);
-
-    if (combinedTotal > 0) {
-      totalCoTeachingRate += combinedRate;
-      coTeachingPairCount++;
+    // Detect group headers
+    if (cellA.includes("Group") && !cellA.includes("Student")) {
+      groupsFoundInSheet.push({ row: i + 1, name: cellA });
+      
+      // Check for exact match
+      if (cellA === groupName) {
+        Logger.log("");
+        Logger.log("✓ EXACT MATCH found for group at row " + (i + 1) + ": '" + cellA + "'");
+        inTargetGroup = true;
+        foundLessonRow = false;
+        lessonColIndex = -1;
+      } 
+      // Check for case-insensitive match
+      else if (cellA.toUpperCase() === groupName.toUpperCase()) {
+        Logger.log("");
+        Logger.log("⚠️ CASE MISMATCH: Sheet has '" + cellA + "' but form sent '" + groupName + "'");
+        Logger.log("   This might be the issue! The comparison is case-sensitive.");
+        inTargetGroup = true;
+        foundLessonRow = false;
+        lessonColIndex = -1;
+      }
+      // Check for partial match (group name might have extra info like teacher name)
+      else if (cellA.includes(groupName) || groupName.includes(cellA)) {
+        Logger.log("");
+        Logger.log("⚠️ PARTIAL MATCH at row " + (i + 1) + ":");
+        Logger.log("   Sheet has: '" + cellA + "'");
+        Logger.log("   Form sent: '" + groupName + "'");
+        Logger.log("   These don't match exactly - this could be the problem!");
+      }
+      else if (inTargetGroup) {
+        // Hit next group, stop searching
+        Logger.log("  Reached next group at row " + (i + 1) + ", stopping search");
+        break;
+      }
+      continue;
     }
-  });
 
-  reportData.push([""]);
-
-  // Solo Groups Summary
-  reportData.push(["SOLO GROUPS SUMMARY"]);
-  reportData.push(["Group Name", "Grade", "Pass Rate", "Total Entries", "Pass Count"]);
-
-  let totalSoloRate = 0;
-  let soloGroupCount = 0;
-
-  soloGroups.forEach(group => {
-    const metrics = groupMetrics[group.groupName] || { passRate: 0, totalEntries: 0, passCount: 0 };
-
-    reportData.push([
-      group.groupName,
-      group.grade,
-      metrics.passRate.toFixed(1) + "%",
-      metrics.totalEntries,
-      metrics.passCount || 0
-    ]);
-
-    if (metrics.totalEntries > 0) {
-      totalSoloRate += metrics.passRate;
-      soloGroupCount++;
+    // Skip "Student Name" header
+    if (cellA === "Student Name") {
+      if (inTargetGroup) {
+        Logger.log("  Row " + (i + 1) + ": Found 'Student Name' header");
+      }
+      continue;
     }
-  });
 
-  reportData.push([""]);
+    // Find lesson column in sub-header row
+    if (inTargetGroup && !foundLessonRow) {
+      if (data[i][1]) {  // Has data in column B (first lesson column)
+        Logger.log("  Row " + (i + 1) + ": Scanning for lesson columns...");
+        
+        let lessonsInRow = [];
+        for (let col = 1; col < data[i].length; col++) {
+          const colLessonName = data[i][col] ? data[i][col].toString().trim() : "";
+          if (colLessonName) {
+            lessonsInRow.push({ col: col, name: colLessonName });
+          }
+          
+          // Check for exact match
+          if (colLessonName === lessonName) {
+            lessonColIndex = col;
+            Logger.log("  ✓ EXACT MATCH for lesson at column " + (col + 1) + ": '" + colLessonName + "'");
+            break;
+          }
+          // Check for case-insensitive match
+          else if (colLessonName.toUpperCase() === lessonName.toUpperCase()) {
+            Logger.log("  ⚠️ CASE MISMATCH: Sheet has '" + colLessonName + "' but form sent '" + lessonName + "'");
+            lessonColIndex = col;
+            break;
+          }
+        }
+        
+        if (lessonColIndex === -1) {
+          Logger.log("  ❌ Lesson NOT FOUND in this row. Available lessons:");
+          lessonsInRow.forEach(l => Logger.log("      Col " + (l.col + 1) + ": '" + l.name + "'"));
+        }
+        
+        foundLessonRow = true;
+        continue;
+      }
+    }
 
-  // Comparison Summary
-  const avgCoTeachingRate = coTeachingPairCount > 0 ? totalCoTeachingRate / coTeachingPairCount : 0;
-  const avgSoloRate = soloGroupCount > 0 ? totalSoloRate / soloGroupCount : 0;
-
-  reportData.push(["COMPARISON SUMMARY"]);
-  reportData.push(["Metric", "Co-Teaching Groups", "Solo Groups", "Difference"]);
-  reportData.push([
-    "Average Pass Rate",
-    avgCoTeachingRate.toFixed(1) + "%",
-    avgSoloRate.toFixed(1) + "%",
-    (avgCoTeachingRate - avgSoloRate).toFixed(1) + "%"
-  ]);
-
-  // Structural Weakness Analysis
-  reportData.push([""]);
-  reportData.push(["STRUCTURAL WEAKNESS ANALYSIS"]);
-  reportData.push(["(Co-teaching pairs with >10% difference between groups may indicate structural issues)"]);
-  reportData.push([""]);
-
-  const weaknessPairs = coTeachingPairs.filter(pair => {
-    const g1 = groupMetrics[pair.group1] || { passRate: 0 };
-    const g2 = groupMetrics[pair.group2] || { passRate: 0 };
-    return Math.abs(g1.passRate - g2.passRate) > 10;
-  });
-
-  if (weaknessPairs.length > 0) {
-    reportData.push(["⚠️ Pairs with significant performance gaps:"]);
-    weaknessPairs.forEach(pair => {
-      const g1 = groupMetrics[pair.group1] || { passRate: 0 };
-      const g2 = groupMetrics[pair.group2] || { passRate: 0 };
-      const diff = Math.abs(g1.passRate - g2.passRate);
-      const lowerGroup = g1.passRate < g2.passRate ? pair.group1 : pair.group2;
-      reportData.push([`  • ${pair.group1} vs ${pair.group2}: ${diff.toFixed(1)}% gap (${lowerGroup} is lower)`]);
-    });
-  } else {
-    reportData.push(["✓ No significant performance gaps detected between co-teaching pairs."]);
-  }
-
-  // Write to sheet
-  if (reportData.length > 0) {
-    const maxCols = Math.max(...reportData.map(row => row.length));
-    const normalizedData = reportData.map(row => {
-      while (row.length < maxCols) row.push("");
-      return row;
-    });
-
-    reportSheet.getRange(1, 1, normalizedData.length, maxCols).setValues(normalizedData);
-
-    // Format header
-    reportSheet.getRange(1, 1, 1, maxCols).setFontWeight("bold").setFontSize(14);
-    reportSheet.getRange("A4").setFontWeight("bold");
-    reportSheet.getRange("A8").setFontWeight("bold");
-
-    // Auto-resize columns
-    for (let i = 1; i <= maxCols; i++) {
-      reportSheet.autoResizeColumn(i);
+    // Extract student data
+    if (inTargetGroup && foundLessonRow && lessonColIndex >= 0 && cellA && cellA !== "(No students assigned)") {
+      const studentName = cellA;
+      const value = data[i][lessonColIndex] ? data[i][lessonColIndex].toString().trim().toUpperCase() : "";
+      
+      if (value === "Y" || value === "N" || value === "A" || value === "U") {
+        existingData[studentName] = value;
+        Logger.log("  Row " + (i + 1) + ": " + studentName + " = " + value);
+      } else if (value) {
+        Logger.log("  Row " + (i + 1) + ": " + studentName + " has unexpected value: '" + value + "'");
+      }
     }
   }
+  
+  // Summary
+  Logger.log("");
+  Logger.log("═══════════════════════════════════════════════════════════════════");
+  Logger.log("DIAGNOSTIC SUMMARY:");
+  Logger.log("═══════════════════════════════════════════════════════════════════");
+  Logger.log("");
+  Logger.log("Groups found in sheet '" + gradeSheet + "':");
+  groupsFoundInSheet.forEach(g => {
+    const match = g.name === groupName ? " ✓ MATCH" : "";
+    Logger.log("  Row " + g.row + ": '" + g.name + "'" + match);
+  });
+  Logger.log("");
+  Logger.log("Target group found: " + inTargetGroup);
+  Logger.log("Lesson column found: " + (lessonColIndex >= 0 ? "Yes (column " + (lessonColIndex + 1) + ")" : "No"));
+  Logger.log("Students with existing data: " + Object.keys(existingData).length);
 
-  // Show completion message
-  ui.alert("Co-Teaching Report Generated",
-    `Report created with:\n` +
-    `• ${coTeachingPairs.length} co-teaching pairs analyzed\n` +
-    `• ${soloGroups.length} solo groups analyzed\n` +
-    `• ${weaknessPairs.length} pairs flagged for review\n\n` +
-    `See the "Co-Teaching Report" sheet for details.`,
-    ui.ButtonSet.OK);
-
-  Logger.log("Co-Teaching Report generated successfully");
+  return existingData;
 }
 
 /**
- * Calculates pass rate metrics for each group from Small Group Progress data
- *
- * @param {Array} progressData - Data from Small Group Progress sheet
- * @returns {Object} Map of groupName -> {passRate, totalEntries, passCount}
+ * Quick check - list all sheets and their first few group headers
  */
-function calculateGroupMetrics(progressData) {
-  const metrics = {};
-
-  // Skip header row, process data
-  // Columns: Timestamp | Teacher | Group | Student | Lesson | Status | (optional: Source Group)
-  for (let i = 1; i < progressData.length; i++) {
-    const row = progressData[i];
-    const groupName = row[2] ? row[2].toString().trim() : "";
-    const status = row[5] ? row[5].toString().trim().toUpperCase() : "";
-    const sourceGroup = row[6] ? row[6].toString().trim() : "";
-
-    // Use sourceGroup if available (co-teaching), otherwise use groupName
-    const effectiveGroup = sourceGroup || groupName;
-
-    if (!effectiveGroup || !status) continue;
-    if (status === 'U') continue; // Skip unenrolled
-
-    if (!metrics[effectiveGroup]) {
-      metrics[effectiveGroup] = {
-        totalEntries: 0,
-        passCount: 0,
-        passRate: 0
-      };
+function listAllSheetsAndGroups() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  Logger.log("═══════════════════════════════════════════════════════════════════");
+  Logger.log("ALL SHEETS AND THEIR GROUP HEADERS");
+  Logger.log("═══════════════════════════════════════════════════════════════════");
+  
+  ss.getSheets().forEach(sheet => {
+    const name = sheet.getName();
+    if (name.includes("Groups") || name.includes("Classroom")) {
+      Logger.log("");
+      Logger.log("SHEET: '" + name + "'");
+      
+      const data = sheet.getDataRange().getValues();
+      let groupCount = 0;
+      
+      for (let i = 0; i < data.length && groupCount < 10; i++) {
+        const cellA = data[i][0] ? data[i][0].toString().trim() : "";
+        if (cellA.includes("Group") && !cellA.includes("Student")) {
+          Logger.log("  Row " + (i + 1) + ": '" + cellA + "'");
+          groupCount++;
+        }
+      }
     }
-
-    metrics[effectiveGroup].totalEntries++;
-
-    if (status === 'Y') {
-      metrics[effectiveGroup].passCount++;
-    }
-  }
-
-  // Calculate pass rates
-  for (const group in metrics) {
-    const m = metrics[group];
-    m.passRate = m.totalEntries > 0 ? (m.passCount / m.totalEntries * 100) : 0;
-  }
-
-  return metrics;
-}
-
-/**
- * Adds the Co-Teaching Report option to the menu
- * Call this from the main menu setup function
- */
-function addCoTeachingReportMenu() {
-  const ui = SpreadsheetApp.getUi();
-  ui.createMenu('Co-Teaching')
-    .addItem('Generate Comparison Report', 'generateCoTeachingReport')
-    .addToUi();
+  });
 }

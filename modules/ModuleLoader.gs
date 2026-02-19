@@ -26,14 +26,16 @@ function buildFeatureMenu(ui, baseMenu) {
   
   // Add Coaching Dashboard menu if enabled
   if (features.coachingDashboard) {
-    baseMenu.addSubMenu(ui.createMenu('👨‍🏫 Coach Tools')
+    var coachLabel = getFeatureMenuLabel('coachingDashboard', 'Coach Tools', '👨‍🏫');
+    baseMenu.addSubMenu(ui.createMenu(coachLabel.icon + ' ' + coachLabel.label)
       .addItem('📊 Weekly Coaching Dashboard', 'openWeeklyDashboard')
       .addItem('🔄 Refresh Dashboard', 'refreshWeeklyDashboard'));
   }
   
   // Add Tutoring menu if enabled
   if (features.tutoringSystem) {
-    baseMenu.addSubMenu(ui.createMenu('📚 Tutoring')
+    var tutorLabel = getFeatureMenuLabel('tutoringSystem', 'Tutoring', '📚');
+    baseMenu.addSubMenu(ui.createMenu(tutorLabel.icon + ' ' + tutorLabel.label)
       .addItem('📋 View Tutoring Summary', 'goToTutoringSummary')
       .addItem('📝 View Tutoring Log', 'goToTutoringLog')
       .addSeparator()
@@ -42,7 +44,8 @@ function buildFeatureMenu(ui, baseMenu) {
   
   // Add Grant Reporting menu if enabled
   if (features.grantReporting) {
-    baseMenu.addSubMenu(ui.createMenu('📊 Grant Reports')
+    var grantLabel = getFeatureMenuLabel('grantReporting', 'Grant Reports', '📊');
+    baseMenu.addSubMenu(ui.createMenu(grantLabel.icon + ' ' + grantLabel.label)
       .addItem('📊 Generate Mind Trust Summary', 'generateMindTrustSummary')
       .addItem('⏰ Schedule Mind Trust Report', 'scheduleMindTrustReport')
       .addItem('🚫 Remove Scheduled Report', 'removeMindTrustTrigger'));
@@ -50,13 +53,15 @@ function buildFeatureMenu(ui, baseMenu) {
   
   // Add Growth Highlighter menu if enabled
   if (features.growthHighlighter) {
-    baseMenu.addSubMenu(ui.createMenu('🔍 Growth Highlighter')
+    var growthLabel = getFeatureMenuLabel('growthHighlighter', 'Growth Highlighter', '🔍');
+    baseMenu.addSubMenu(ui.createMenu(growthLabel.icon + ' ' + growthLabel.label)
       .addItem('Open Utility', 'ghShowSidebar'));
   }
   
   // Add Admin Import menu if enabled
   if (features.adminImport) {
-    baseMenu.addSubMenu(ui.createMenu('🔐 Admin Tools')
+    var adminLabel = getFeatureMenuLabel('adminImport', 'Admin Tools', '🔐');
+    baseMenu.addSubMenu(ui.createMenu(adminLabel.icon + ' ' + adminLabel.label)
       .addItem('📂 Open Import Dialog...', 'showImportDialog')
       .addSeparator()
       .addItem('✅ Validate Import Data', 'validateImportData')
