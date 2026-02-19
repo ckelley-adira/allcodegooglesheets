@@ -1785,7 +1785,8 @@ function getLessonsForGrade(grade) {
  */
 function getExistingLessonData(gradeSheet, groupName, lessonName) {
   // Support 2-arg calling convention: getExistingLessonData(groupName, lessonName)
-  if (lessonName === undefined) {
+  // When called with 2 args, shift parameters so gradeSheet becomes null.
+  if (arguments.length === 2) {
     lessonName = groupName;
     groupName = gradeSheet;
     gradeSheet = null;
@@ -2057,22 +2058,22 @@ function saveLessonData(formData) {
 
       // STEP 1: Log to "Small Group Progress" (with Source Group for co-teaching)
       const progressRows = activeStatuses.map(student => {
-        const sourceGroup = student.sourceGroup || groupName;
-        return [
+        const row = [
           timestamp,
           teacherName || 'Unknown',
           isCoTeaching ? primaryGroup : groupName,
           student.name,
           lessonName,
-          student.status,
-          isCoTeaching ? sourceGroup : ''
+          student.status
         ];
+        if (isCoTeaching) {
+          row.push(student.sourceGroup || groupName);
+        }
+        return row;
       });
 
       const numCols = isCoTeaching ? 7 : 6;
-      progressSheet.getRange(progressSheet.getLastRow() + 1, 1, progressRows.length, numCols).setValues(
-        isCoTeaching ? progressRows : progressRows.map(row => row.slice(0, 6))
-      );
+      progressSheet.getRange(progressSheet.getLastRow() + 1, 1, progressRows.length, numCols).setValues(progressRows);
 
       if (isCoTeaching) {
         Logger.log(`[${functionName}] Co-teaching mode: ${primaryGroup} + ${partnerGroup}`);
