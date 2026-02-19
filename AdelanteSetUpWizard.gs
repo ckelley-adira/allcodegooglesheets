@@ -1,4 +1,11 @@
 // ═══════════════════════════════════════════════════════════════════════════
+// ⚠️  DEPRECATED — Phase 7e (February 2026)
+// This file is superseded by SetupWizard.gs (v4.0, canonical).
+// All school-specific divergences have been absorbed into the unified module
+// via SITE_CONFIG feature flags. Do NOT add new functionality here.
+// Removal planned for Phase 8.
+// See: PHASE7_AUDIT_REPORT.md §3.2
+// ═══════════════════════════════════════════════════════════════════════════
 // Adira Reads Progress Report - SETUP WIZARD (PHASE 1)
 // Configuration, Student/Group Management, Reports, and Web App
 // ═══════════════════════════════════════════════════════════════════════════

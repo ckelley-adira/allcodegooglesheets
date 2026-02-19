@@ -242,7 +242,60 @@ const SITE_CONFIG = {
      * Required for: Schools managing rosters mid-year (Allegiant, GlobalPrep, CCA)
      * Adds: addStudentToSheet() in Phase2 tracking
      */
-    dynamicStudentRoster: false
+    dynamicStudentRoster: false,
+    
+    /**
+     * UFLI MAP QUEUE
+     * Deferred UFLI MAP updates via sync queue for faster form submissions
+     * Required for: Schools using queued UFLI MAP processing (most schools)
+     * Adds: addToSyncQueue(), processSyncQueue() workflow
+     * Menu: "Sync & Performance" > "Process UFLI MAP Queue Now"
+     */
+    ufliMapQueue: true,
+    
+    /**
+     * SYNC QUEUE PROCESSING
+     * Periodic processing of queued UFLI MAP updates (hourly trigger)
+     * Required for: Schools using queued sync (most schools)
+     * Adds: setupSyncQueueTrigger(), disableSyncQueueTrigger()
+     * Menu: "Sync & Performance" > "Enable/Disable Hourly UFLI Sync"
+     */
+    syncQueueProcessing: true,
+    
+    /**
+     * NIGHTLY SYNC AUTOMATION
+     * Full nightly sync trigger for complete data reconciliation
+     * Required for: Schools needing overnight data refresh (Adelante, Allegiant, Sankofa, CHAW)
+     * Adds: setupNightlySyncTrigger(), removeNightlySyncTrigger()
+     * Menu: "Sync & Performance" > "Enable/Disable Nightly Full Sync"
+     */
+    nightlySyncAutomation: true,
+    
+    /**
+     * SYNC STATUS MONITORING
+     * Dashboard for viewing sync queue status and trigger health
+     * Required for: Schools needing sync visibility (Adelante, CHAW)
+     * Adds: showSyncStatus() dialog
+     * Menu: "Sync & Performance" > "Check Sync Status"
+     */
+    syncStatusMonitoring: false,
+    
+    /**
+     * FORMULA REPAIR TOOLS
+     * Grade Summary formula refresh and student formula update utilities
+     * Required for: Schools with complex formula dependencies (CCA)
+     * Adds: refreshGradeSummaryFormulas(), updateFormulasForNewStudents()
+     * Menu: "System Tools" > "Repair All Formulas"
+     */
+    formulaRepairTools: false,
+    
+    /**
+     * STUDENT EDIT CAPABILITY
+     * In-sheet student record editing (name, grade, status changes)
+     * Required for: Schools managing student data directly (Allegiant, GlobalPrep, CCA)
+     * Adds: editStudentRecord(), updateStudentStatus() in student management
+     */
+    studentEditCapability: false
   }
 };
 
