@@ -36,7 +36,6 @@ jobs:
 
       - name: Authenticate clasp
         env:
-          CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS }}
           CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
         run: |
           # Write clasp credentials for authentication
