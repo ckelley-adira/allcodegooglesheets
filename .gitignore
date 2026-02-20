@@ -1,2 +1,22 @@
+# Dependencies
 node_modules/
-coverage/
+
+# clasp credentials and local config (contains script IDs / secrets)
+.clasp.json
+.clasprc.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+
+# Environment / secrets
+.env
+.env.local
+
+# Integration test staging (ephemeral, created by run_integration_tests.js)
+tests/integration/.staging/
