@@ -1,0 +1,79 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'gold-standard-template/**'
+      - 'tests/integration/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'gold-standard-template/**'
+      - 'tests/integration/**'
+  workflow_dispatch:
+
+jobs:
+  integration-tests:
+    name: GAS Integration Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install clasp
+        run: npm install -g @google/clasp
+
+      - name: Authenticate clasp
+        env:
+          CLASP_CREDENTIALS: ${{ secrets.CLASP_CREDENTIALS }}
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        run: |
+          # Write clasp credentials for authentication
+          if [ -n "$CLASPRC_JSON" ]; then
+            echo "$CLASPRC_JSON" > ~/.clasprc.json
+          else
+            echo "::warning::CLASPRC_JSON secret not set — skipping integration tests"
+            echo "SKIP_TESTS=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Configure test project
+        if: env.SKIP_TESTS != 'true'
+        env:
+          CLASP_SCRIPT_ID: ${{ secrets.CLASP_SCRIPT_ID }}
+        run: |
+          if [ -z "$CLASP_SCRIPT_ID" ]; then
+            echo "::warning::CLASP_SCRIPT_ID secret not set — skipping integration tests"
+            echo "SKIP_TESTS=true" >> "$GITHUB_ENV"
+          else
+            # Create .clasp.json for the test project
+            cat > tests/integration/.clasp.json <<EOF
+          {
+            "scriptId": "$CLASP_SCRIPT_ID",
+            "rootDir": "."
+          }
+          EOF
+          fi
+
+      - name: Run Tier 1 validation
+        run: node gold-standard-template/validate_shared_constants.js
+
+      - name: Run integration tests
+        if: env.SKIP_TESTS != 'true'
+        run: node tests/integration/run_integration_tests.js
+
+      - name: Integration tests skipped
+        if: env.SKIP_TESTS == 'true'
+        run: |
+          echo "::notice::Integration tests were skipped because required secrets are not configured."
+          echo "To enable integration tests, set these repository secrets:"
+          echo "  - CLASPRC_JSON: clasp authentication credentials (~/.clasprc.json contents)"
+          echo "  - CLASP_SCRIPT_ID: Apps Script project ID for the test spreadsheet"
+          echo "See tests/integration/README.md for setup instructions."
