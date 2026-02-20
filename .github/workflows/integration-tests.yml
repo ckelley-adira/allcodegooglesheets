@@ -13,6 +13,9 @@ on:
       - 'tests/integration/**'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   integration-tests:
     name: GAS Integration Tests
