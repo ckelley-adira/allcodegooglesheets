@@ -89,6 +89,7 @@ const CONST_NAMES = [
   'FOUNDATIONAL_LESSONS', 'G1_MINIMUM_LESSONS', 'G1_CURRENT_YEAR_LESSONS',
   'G2_MINIMUM_LESSONS', 'G2_CURRENT_YEAR_LESSONS', 'G4_MINIMUM_LESSONS',
   'ALL_NON_REVIEW_LESSONS', 'SHARED_GRADE_METRICS',
+  'GRADE_RANGE_MODELS',
 ];
 // `this` inside the VM points to the sandbox (globalThis), which lets us
 // expose lexical `const` values as enumerable sandbox properties.
