@@ -53,7 +53,7 @@ The repo root currently contains BOTH legacy school-prefixed files AND unified f
 
 ## Key Conventions
 
-1. **All `.gs` files use `const`/`let`** (never `var`). The runtime is GAS V8.
+1. **All unified/template `.gs` files under `gold-standard-template/` use `const`/`let`** (never `var`). Legacy files under `archive/` may still use `var` and are read-only reference. The runtime is GAS V8.
 2. **Google Apps Script has a flat global scope** — every `.gs` file shares the same namespace. All top-level `const`, `function`, and `class` declarations are global. Prefix module-specific constants to avoid collisions (e.g., `GH_CONFIG`, `TUTORING_LAYOUT`, `WEEKLY_COL`).
 3. **Feature flags** live in `SiteConfig_TEMPLATE.gs` under `SITE_CONFIG.features`. Modules check these at runtime via `isFeatureEnabled('featureName')` or direct property access. Always gate new optional features behind a flag.
 4. **Sheet layout constants**: Data rows start at row 6 (`LAYOUT.DATA_START_ROW = 6`), headers are at row 5. Column indices are 1-based for `Range` calls. These constants are in `SharedConstants.gs` and `SharedEngine.gs`.
