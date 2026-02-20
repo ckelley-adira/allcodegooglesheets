@@ -23,7 +23,16 @@
  */
 function buildFeatureMenu(ui, baseMenu) {
   const features = SITE_CONFIG.features;
-  
+
+  // Add Pre-K HWT menu items when full HWT system is active
+  if (features.preKSystem === "hwt") {
+    baseMenu.addSubMenu(ui.createMenu('🧒 Pre-K (HWT)')
+      .addItem('🏠 Open Pre-K Portal', 'openPreKPortal')
+      .addItem('📊 Open Pre-K Dashboard', 'openPreKDashboard')
+      .addItem('📝 Pre-K Tutor Entry', 'openPreKTutorForm')
+      .addItem('📄 Generate Parent Reports', 'generatePreKParentReports'));
+  }
+
   // Add Coaching Dashboard menu if enabled
   if (features.coachingDashboard) {
     var coachLabel = getFeatureMenuLabel('coachingDashboard', 'Coach Tools', '👨‍🏫');
@@ -132,7 +141,14 @@ function getSheetNameForGradeCode(gradeCode) {
  */
 function initializeFeatureModules() {
   const features = SITE_CONFIG.features;
-  
+
+  // Initialize Pre-K system
+  if (features.preKSystem === "hwt") {
+    Logger.log('Pre-K HWT system enabled — full Handwriting Without Tears UI active');
+  } else if (features.preKSystem === "light") {
+    Logger.log('Pre-K Light mode enabled — basic tracking with Pre-K denominators');
+  }
+
   // Initialize Mixed Grade Support
   if (features.mixedGradeSupport) {
     Logger.log('Mixed Grade Support module enabled');

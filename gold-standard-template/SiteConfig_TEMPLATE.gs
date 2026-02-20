@@ -121,15 +121,31 @@ const SITE_CONFIG = {
   // ═══════════════════════════════════════════════════════════════════════════
   features: {
     /**
-     * PRE-K ONLY MODE
-     * Selects the Pre-K–specific sheet layout (Pre-K Data, Pre-K Pacing,
-     * Pre-K Summary) and skips UFLI lesson-based sheets during onboarding.
-     * For mixed-grade sites that include Pre-K alongside K–8 grades, leave
-     * this false and add "PreK" to the grade list instead.
-     * Required for: Sites serving only Pre-K students
-     * Adds: Pre-K–only sheet generation and dashboard
+     * PRE-K SYSTEM MODE
+     * Controls how Pre-K students are tracked in this deployment.
+     *
+     * Options:
+     *   false    — No Pre-K support. Disables all Pre-K–specific menus,
+     *              denominators, and UI. To run as a true K–8–only system,
+     *              also remove "PreK" from gradesServed and update
+     *              gradeRangeModel (e.g., use "k8" instead of "prek_8").
+     *              The sheet generator is driven by gradesServed; setting
+     *              this flag to false alone does not remove Pre-K sheets if
+     *              "PreK" remains in gradesServed.
+     *
+     *   "light"  — Basic Pre-K tracking using the standard UFLI lesson
+     *              framework. Students are tracked like K–8 students but with
+     *              Pre-K-appropriate denominators (Form: 26, Name+Sound: 52,
+     *              Full: 78). No separate HWT UI or workflows are activated.
+     *
+     *   "hwt"    — Full Handwriting Without Tears (HWT) system. Activates
+     *              PreKMainCode.gs, PreKIndex.html, PreKDashboard.html,
+     *              PreKTutorForm.html, PreKParentReport.html,
+     *              PreKSetupWizard.html, and PreKPortal.html, along with
+     *              SHEET_NAMES_PREK and PREK_CONFIG column mappings.
+     *              Can be used in mixed-grade deployments (e.g., prek_8).
      */
-    preKOnlyMode: false,
+    preKSystem: false,
     
     /**
      * MIXED GRADE SUPPORT
@@ -655,8 +671,36 @@ function getFeatureMenuLabel(featureName, defaultLabel, defaultIcon) {
 }
 
 /**
+ * Returns the active Pre-K system mode for this deployment.
+ * @returns {false|"light"|"hwt"} false = no Pre-K, "light" = basic tracking, "hwt" = full HWT system
+ */
+function getPreKMode() {
+  const mode = SITE_CONFIG.features.preKSystem;
+  if (mode === "light" || mode === "hwt") return mode;
+  return false;
+}
+
+/**
+ * Returns true when the full HWT Pre-K system is active.
+ * @returns {boolean}
+ */
+function isPreKHWT() {
+  return SITE_CONFIG.features.preKSystem === "hwt";
+}
+
+/**
+ * Returns true when any Pre-K support is active (light or hwt).
+ * @returns {boolean}
+ */
+function isPreKEnabled() {
+  const mode = SITE_CONFIG.features.preKSystem;
+  return mode === "light" || mode === "hwt";
+}
+
+/**
  * Detects whether the current site is a Pre-K–only deployment.
- * A site is Pre-K–only when the preKOnlyMode feature flag is true.
+ * Kept for backward compatibility — checks the legacy preKOnlyMode flag.
+ * For new deployments, use getPreKMode() or isPreKEnabled() instead.
  * @returns {boolean}
  */
 function isPreKOnlySite() {
