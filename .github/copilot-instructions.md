@@ -89,7 +89,7 @@ Since GAS files cannot be executed locally, validate logic changes by:
 
 ### Tier 3 — Planned (Not Yet Implemented)
 
-End-to-end testing, automated linting, and CI integration are planned but not yet available. See `PHASE7G_E2E_TESTING.md` for the testing roadmap.
+End-to-end testing, automated linting, and CI integration are planned but not yet available. See `docs/PHASE7G_E2E_TESTING.md` for the testing roadmap.
 
 ### What NOT to Do
 
