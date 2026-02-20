@@ -15,15 +15,12 @@ The repository is transitioning from fragmented school-specific files into a uni
 The repo root currently contains BOTH legacy school-prefixed files AND unified files. The unified files are the target:
 
 **Unified Core Files (USE THESE):**
-- `SharedConstants.gs` — Canonical constants (LESSON_LABELS, SKILL_SECTIONS, REVIEW_LESSONS, GRADE_METRICS)
-- `SharedEngine.gs` — Low-level helpers (score calc, layout utilities)
-- `UnifiedConfig.gs` — Runtime config loader (reads SITE_CONFIG)
-- `Phase2_ProgressTracking_Unified.gs` — Unified progress tracking engine (~111 KB)
-- `UnifiedPhase2_ProgressTracking.gs` — Thin adapter layer for unified engine
-- `AdminImport_Unified.gs` — Unified admin import
-- `MixedGradeSupport_Unified.gs` — Unified mixed-grade support
-- `SetupWizard.gs` — Unified onboarding wizard, menu builder (~112 KB)
-- `SiteConfig_TEMPLATE.gs` — Copy and rename per school; defines SITE_CONFIG object + feature flags
+- `gold-standard-template/SharedConstants.gs` — Canonical constants (LESSON_LABELS, SKILL_SECTIONS, REVIEW_LESSONS, GRADE_METRICS)
+- `gold-standard-template/SharedEngine.gs` — Low-level helpers (score calc, layout utilities)
+- `gold-standard-template/UnifiedConfig.gs` — Runtime config loader (reads SITE_CONFIG)
+- `gold-standard-template/Phase2_ProgressTracking.gs` — Unified progress tracking engine (~111 KB)
+- `gold-standard-template/SetupWizard.gs` — Unified onboarding wizard, menu builder (~112 KB)
+- `gold-standard-template/SiteConfig_TEMPLATE.gs` — Copy and rename per school; defines SITE_CONFIG object + feature flags
 - `validate_shared_constants.js` — Node.js offline validator
 
 **Unified UI Files (USE THESE):**
