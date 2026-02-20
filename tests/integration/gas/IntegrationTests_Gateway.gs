@@ -6,7 +6,7 @@
 //
 // TESTS COVERED:
 // - REVIEW_LESSONS are recognized as gateway tests
-// - Performance threshold classification (At/Above, Approaching, Below)
+// - Performance threshold classification (On Track, Needs Support, Intervention)
 // - getPerformanceStatus() returns correct labels for boundary values
 // - Benchmark calculation on fixture data
 // - Skill section percentage computation
@@ -22,9 +22,9 @@ function registerGatewayTests() {
     { name: 'REVIEW_LESSONS_SET is defined', fn: testReviewLessonsSetDefined },
     { name: 'PERFORMANCE_THRESHOLDS has required levels', fn: testPerformanceThresholds },
     { name: 'STATUS_LABELS has required labels', fn: testStatusLabels },
-    { name: 'getPerformanceStatus: 90% → At/Above', fn: testPerformanceStatusHigh },
-    { name: 'getPerformanceStatus: 70% → Approaching', fn: testPerformanceStatusMid },
-    { name: 'getPerformanceStatus: 40% → Below', fn: testPerformanceStatusLow },
+    { name: 'getPerformanceStatus: 90% → On Track', fn: testPerformanceStatusHigh },
+    { name: 'getPerformanceStatus: 70% → Needs Support', fn: testPerformanceStatusMid },
+    { name: 'getPerformanceStatus: 40% → Intervention', fn: testPerformanceStatusLow },
     { name: 'getPerformanceStatus: boundary at threshold', fn: testPerformanceStatusBoundary },
     { name: 'Fixture scores: high-performer averages above 80', fn: testHighPerformerAverage },
     { name: 'Fixture scores: low-performer averages below 70', fn: testLowPerformerAverage },
@@ -38,8 +38,8 @@ function registerGatewayTests() {
 // ═══════════════════════════════════════════════════════════════════════════
 
 function testReviewLessonsContent() {
-  // Known gateway review lessons from UFLI curriculum
-  const knownGateways = [5, 10, 19, 35, 38, 41, 49, 53];
+  // Known gateway review lessons from current SharedConstants.REVIEW_LESSONS
+  const knownGateways = [35, 41, 49, 53, 79, 97, 128];
   for (let i = 0; i < knownGateways.length; i++) {
     Assert.includes(REVIEW_LESSONS, knownGateways[i],
       'REVIEW_LESSONS should include L' + knownGateways[i]);
@@ -60,52 +60,50 @@ function testReviewLessonsSetDefined() {
 
 function testPerformanceThresholds() {
   Assert.isNotNull(PERFORMANCE_THRESHOLDS, 'PERFORMANCE_THRESHOLDS should be defined');
-  // Should have numeric threshold values
-  Assert.typeOf(PERFORMANCE_THRESHOLDS.AT_ABOVE, 'number', 'AT_ABOVE threshold should be number');
-  Assert.typeOf(PERFORMANCE_THRESHOLDS.APPROACHING, 'number', 'APPROACHING threshold should be number');
+  // Should have numeric threshold values matching SharedConstants keys
+  Assert.typeOf(PERFORMANCE_THRESHOLDS.ON_TRACK, 'number', 'ON_TRACK threshold should be number');
+  Assert.typeOf(PERFORMANCE_THRESHOLDS.NEEDS_SUPPORT, 'number', 'NEEDS_SUPPORT threshold should be number');
 }
 
 function testStatusLabels() {
   Assert.isNotNull(STATUS_LABELS, 'STATUS_LABELS should be defined');
-  Assert.isNotNull(STATUS_LABELS.AT_ABOVE, 'AT_ABOVE label should be defined');
-  Assert.isNotNull(STATUS_LABELS.APPROACHING, 'APPROACHING label should be defined');
-  Assert.isNotNull(STATUS_LABELS.BELOW, 'BELOW label should be defined');
+  Assert.isNotNull(STATUS_LABELS.ON_TRACK, 'ON_TRACK label should be defined');
+  Assert.isNotNull(STATUS_LABELS.NEEDS_SUPPORT, 'NEEDS_SUPPORT label should be defined');
+  Assert.isNotNull(STATUS_LABELS.INTERVENTION, 'INTERVENTION label should be defined');
 }
 
 function testPerformanceStatusHigh() {
-  if (typeof getPerformanceStatus !== 'function') return;
+  Assert.typeOf(getPerformanceStatus, 'function', 'getPerformanceStatus must be defined');
   const status = getPerformanceStatus(90);
-  Assert.equals(status, STATUS_LABELS.AT_ABOVE,
-    '90% should be "' + STATUS_LABELS.AT_ABOVE + '"');
+  Assert.equals(status, STATUS_LABELS.ON_TRACK,
+    '90% should be "' + STATUS_LABELS.ON_TRACK + '"');
 }
 
 function testPerformanceStatusMid() {
-  if (typeof getPerformanceStatus !== 'function') return;
+  Assert.typeOf(getPerformanceStatus, 'function', 'getPerformanceStatus must be defined');
   const status = getPerformanceStatus(70);
-  Assert.equals(
-    status,
-    STATUS_LABELS.NEEDS_SUPPORT,
-    '70% should be "' + STATUS_LABELS.NEEDS_SUPPORT + '"'
-  );
+  Assert.equals(status, STATUS_LABELS.NEEDS_SUPPORT,
+    '70% should be "' + STATUS_LABELS.NEEDS_SUPPORT + '"');
 }
+
 function testPerformanceStatusLow() {
-  if (typeof getPerformanceStatus !== 'function') return;
+  Assert.typeOf(getPerformanceStatus, 'function', 'getPerformanceStatus must be defined');
   const status = getPerformanceStatus(40);
-  Assert.equals(status, STATUS_LABELS.BELOW,
-    '40% should be "' + STATUS_LABELS.BELOW + '"');
+  Assert.equals(status, STATUS_LABELS.INTERVENTION,
+    '40% should be "' + STATUS_LABELS.INTERVENTION + '"');
 }
 
 function testPerformanceStatusBoundary() {
-  if (typeof getPerformanceStatus !== 'function') return;
+  Assert.typeOf(getPerformanceStatus, 'function', 'getPerformanceStatus must be defined');
   // Test exact threshold value
-  const thresholdValue = PERFORMANCE_THRESHOLDS.AT_ABOVE;
+  const thresholdValue = PERFORMANCE_THRESHOLDS.ON_TRACK;
   const status = getPerformanceStatus(thresholdValue);
-  Assert.equals(status, STATUS_LABELS.AT_ABOVE,
-    'Exact threshold (' + thresholdValue + '%) should be "' + STATUS_LABELS.AT_ABOVE + '"');
+  Assert.equals(status, STATUS_LABELS.ON_TRACK,
+    'Exact threshold (' + thresholdValue + '%) should be "' + STATUS_LABELS.ON_TRACK + '"');
 }
 
 function testHighPerformerAverage() {
-  // S001 scores: 90, 85, 78, 92, 88, 80 → avg = 85.5
+  // S001 scores: 92, 90, 85, 78, 88, 80 → avg = 85.5
   const scores = FIXTURE_LESSON_SCORES['S001'];
   const values = Object.keys(scores).map(function(k) { return scores[k]; });
   const avg = values.reduce(function(a, b) { return a + b; }, 0) / values.length;

@@ -31,15 +31,16 @@ const FIXTURE_STUDENTS = [
 
 /**
  * Fixture lesson score data (student ID → lesson number → score).
+ * Uses actual REVIEW_LESSONS numbers from SharedConstants.gs.
  */
 const FIXTURE_LESSON_SCORES = {
-  'S001': { 5: 90, 10: 85, 19: 78, 35: 92, 38: 88, 41: 80 },
-  'S002': { 5: 65, 10: 70, 19: 60, 35: 55, 38: 50, 41: 45 },
-  'S003': { 5: 95, 10: 92, 19: 88, 35: 90, 38: 85, 41: 82 },
-  'S004': { 5: 72, 10: 68, 19: 75, 35: 70, 38: 65, 41: 60 },
-  'S005': { 5: 88, 10: 82 },
-  'S006': { 5: 78, 10: 80, 19: 76, 35: 74, 38: 72, 41: 70, 49: 68, 53: 65 },
-  'S007': { 5: 100, 10: 98, 19: 95, 35: 97, 38: 96, 41: 94, 49: 92, 53: 90 }
+  'S001': { 35: 92, 36: 90, 37: 85, 39: 78, 40: 88, 41: 80 },
+  'S002': { 35: 65, 36: 70, 37: 60, 39: 55, 40: 50, 41: 45 },
+  'S003': { 35: 95, 36: 92, 37: 88, 39: 90, 40: 85, 41: 82 },
+  'S004': { 35: 72, 36: 68, 37: 75, 39: 70, 40: 65, 41: 60 },
+  'S005': { 35: 88, 36: 82 },
+  'S006': { 35: 78, 36: 80, 37: 76, 39: 74, 40: 72, 41: 70, 49: 68, 53: 65 },
+  'S007': { 35: 100, 36: 98, 37: 95, 39: 97, 40: 96, 41: 94, 49: 92, 53: 90 }
 };
 
 /**
@@ -50,6 +51,7 @@ const FIXTURE_SCENARIOS = {
   coreOnly: {
     schoolName: 'Test Core School',
     gradeRangeModel: 'k5',
+    gradesServed: ['KG', 'G1', 'G2', 'G3', 'G4', 'G5'],
     features: {
       mixedGradeSupport: false,
       coachingDashboard: false,
@@ -72,6 +74,7 @@ const FIXTURE_SCENARIOS = {
   mixedGrade: {
     schoolName: 'Test Mixed Grade School',
     gradeRangeModel: 'k8',
+    gradesServed: ['KG', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8'],
     features: {
       mixedGradeSupport: true,
       coachingDashboard: false,
@@ -94,6 +97,7 @@ const FIXTURE_SCENARIOS = {
   tutoringOnly: {
     schoolName: 'Test Tutoring School',
     gradeRangeModel: 'k5',
+    gradesServed: ['KG', 'G1', 'G2', 'G3', 'G4', 'G5'],
     features: {
       mixedGradeSupport: false,
       coachingDashboard: false,
@@ -116,6 +120,7 @@ const FIXTURE_SCENARIOS = {
   preKOnly: {
     schoolName: 'Test Pre-K School',
     gradeRangeModel: 'prek_only',
+    gradesServed: ['PreK'],
     features: {
       mixedGradeSupport: false,
       coachingDashboard: false,
@@ -138,6 +143,7 @@ const FIXTURE_SCENARIOS = {
   fullFeatures: {
     schoolName: 'Test Full School',
     gradeRangeModel: 'prek_8',
+    gradesServed: ['PreK', 'KG', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8'],
     features: {
       mixedGradeSupport: true,
       coachingDashboard: true,
@@ -243,8 +249,8 @@ function setupTestGroupSheet(groupName, students) {
   // Row 5: Column headers
   const headers = ['Student ID', 'First Name', 'Last Name', 'Grade', 'Teacher'];
 
-  // Add lesson columns (simplified: just the review lessons)
-  const lessonCols = [5, 10, 19, 35, 38, 41, 49, 53];
+  // Add lesson columns using the first 8 canonical review lessons from SharedConstants
+  const lessonCols = REVIEW_LESSONS.slice(0, 8);
   for (let l = 0; l < lessonCols.length; l++) {
     headers.push('L' + lessonCols[l]);
   }

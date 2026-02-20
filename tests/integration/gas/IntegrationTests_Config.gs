@@ -63,13 +63,13 @@ function testGradeRangeModelShape() {
 }
 
 function testGetGradeRangeModels() {
-  if (typeof getGradeRangeModels !== 'function') return; // skip if not defined
+  Assert.typeOf(getGradeRangeModels, 'function', 'getGradeRangeModels must be defined');
   const models = getGradeRangeModels();
   Assert.isNotNull(models, 'getGradeRangeModels should return non-null');
 }
 
 function testDefaultGradesK5() {
-  if (typeof getDefaultGradesForModel !== 'function') return;
+  Assert.typeOf(getDefaultGradesForModel, 'function', 'getDefaultGradesForModel must be defined');
   const grades = getDefaultGradesForModel('k5');
   Assert.isTrue(Array.isArray(grades), 'k5 should return array');
   Assert.equals(grades.length, 6, 'k5 should return 6 grades');
@@ -78,7 +78,7 @@ function testDefaultGradesK5() {
 }
 
 function testDefaultGradesK8() {
-  if (typeof getDefaultGradesForModel !== 'function') return;
+  Assert.typeOf(getDefaultGradesForModel, 'function', 'getDefaultGradesForModel must be defined');
   const grades = getDefaultGradesForModel('k8');
   Assert.isTrue(Array.isArray(grades), 'k8 should return array');
   Assert.equals(grades.length, 9, 'k8 should return 9 grades');
@@ -86,7 +86,7 @@ function testDefaultGradesK8() {
 }
 
 function testDefaultGradesPreK() {
-  if (typeof getDefaultGradesForModel !== 'function') return;
+  Assert.typeOf(getDefaultGradesForModel, 'function', 'getDefaultGradesForModel must be defined');
   const grades = getDefaultGradesForModel('prek_only');
   Assert.isTrue(Array.isArray(grades), 'prek_only should return array');
   Assert.equals(grades.length, 1, 'prek_only should return 1 grade');
@@ -94,7 +94,7 @@ function testDefaultGradesPreK() {
 }
 
 function testDefaultGradesPreK8() {
-  if (typeof getDefaultGradesForModel !== 'function') return;
+  Assert.typeOf(getDefaultGradesForModel, 'function', 'getDefaultGradesForModel must be defined');
   const grades = getDefaultGradesForModel('prek_8');
   Assert.isTrue(Array.isArray(grades), 'prek_8 should return array');
   Assert.equals(grades.length, 10, 'prek_8 should return 10 grades');
@@ -103,21 +103,21 @@ function testDefaultGradesPreK8() {
 }
 
 function testDefaultGradesCustom() {
-  if (typeof getDefaultGradesForModel !== 'function') return;
+  Assert.typeOf(getDefaultGradesForModel, 'function', 'getDefaultGradesForModel must be defined');
   const grades = getDefaultGradesForModel('custom');
   Assert.isTrue(Array.isArray(grades), 'custom should return array');
   Assert.equals(grades.length, 0, 'custom should return empty array');
 }
 
 function testGetUnifiedConfigLayout() {
-  if (typeof getUnifiedConfig !== 'function') return;
+  Assert.typeOf(getUnifiedConfig, 'function', 'getUnifiedConfig must be defined');
   const config = getUnifiedConfig();
   Assert.isNotNull(config, 'getUnifiedConfig should return non-null');
   Assert.isNotNull(config.LAYOUT, 'config should have LAYOUT');
 }
 
 function testLayoutKeys() {
-  if (typeof getUnifiedConfig !== 'function') return;
+  Assert.typeOf(getUnifiedConfig, 'function', 'getUnifiedConfig must be defined');
   const config = getUnifiedConfig();
   const layout = config.LAYOUT;
   // Check essential layout properties exist
@@ -127,7 +127,7 @@ function testLayoutKeys() {
 }
 
 function testLayoutDefaults() {
-  if (typeof getUnifiedConfig !== 'function') return;
+  Assert.typeOf(getUnifiedConfig, 'function', 'getUnifiedConfig must be defined');
   const config = getUnifiedConfig();
   const layout = config.LAYOUT;
   // Defaults should match SITE_CONFIG.layout values
@@ -140,7 +140,7 @@ function testLayoutDefaults() {
 }
 
 function testValidateUnifiedConfigCallable() {
-  if (typeof validateUnifiedConfig !== 'function') return;
+  Assert.typeOf(validateUnifiedConfig, 'function', 'validateUnifiedConfig must be defined');
   // Should not throw for a valid SITE_CONFIG
   const result = validateUnifiedConfig();
   Assert.isNotNull(result, 'validateUnifiedConfig should return a result');

@@ -187,11 +187,7 @@ function main() {
   } catch (e) {
     log('Could not parse JSON from clasp output. Raw output:');
     console.log(runResult.output);
-    // Treat as pass if output contains indication of success
-    if (runResult.output.includes('"failed":0') || runResult.output.includes('"failed": 0')) {
-      log('Output suggests all tests passed (failed: 0).');
-      process.exit(0);
-    }
+    // Treat JSON parse failure as infrastructure error
     process.exit(2);
   }
 

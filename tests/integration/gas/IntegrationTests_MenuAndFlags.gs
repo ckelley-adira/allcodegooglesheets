@@ -174,11 +174,9 @@ function testSyncStatusFlag() {
 }
 
 function testIsSystemConfigured() {
-  if (typeof isSystemConfigured === 'function') {
-    const result = isSystemConfigured();
-    Assert.typeOf(result, 'boolean', 'isSystemConfigured should return boolean');
-  }
-  // If function not present, skip gracefully (test still passes)
+  Assert.typeOf(isSystemConfigured, 'function', 'isSystemConfigured must be defined');
+  const result = isSystemConfigured();
+  Assert.typeOf(result, 'boolean', 'isSystemConfigured should return boolean');
 }
 
 function testOnOpenConfigured() {

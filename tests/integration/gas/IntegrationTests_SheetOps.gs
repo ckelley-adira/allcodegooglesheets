@@ -109,14 +109,14 @@ function testFixtureLessonScores() {
   const students = FIXTURE_STUDENTS.filter(function(s) { return s.group === 'Group A'; });
   const sheet = setupTestGroupSheet('Group A', students);
 
-  // Column 6 = first lesson column (L5), Row 6 = first student (S001)
-  // FIXTURE_LESSON_SCORES.S001[5] = 90
+  // Column 6 = first lesson column (L35), Row 6 = first student (S001)
+  // FIXTURE_LESSON_SCORES.S001[35] = 92
   const score = sheet.getRange(6, 6).getValue();
-  Assert.equals(score, 90, 'S001 L5 score should be 90');
+  Assert.equals(score, 92, 'S001 L35 score should be 92');
 
-  // S002 L5 score = 65 (row 7, col 6)
+  // S002 L35 score = 65 (row 7, col 6)
   const score2 = sheet.getRange(7, 6).getValue();
-  Assert.equals(score2, 65, 'S002 L5 score should be 65');
+  Assert.equals(score2, 65, 'S002 L35 score should be 65');
 
   SpreadsheetApp.getActiveSpreadsheet().deleteSheet(sheet);
 }

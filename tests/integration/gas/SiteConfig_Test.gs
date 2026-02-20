@@ -82,6 +82,14 @@ function applyTestScenario(scenarioKey) {
   SITE_CONFIG.schoolName = scenario.schoolName;
   SITE_CONFIG.gradeRangeModel = scenario.gradeRangeModel;
 
+  // Keep gradesServed in sync with the active scenario so getUnifiedConfig()
+  // resolves the correct grades.
+  if (scenario.gradesServed) {
+    SITE_CONFIG.gradesServed = scenario.gradesServed.slice();
+  } else {
+    SITE_CONFIG.gradesServed = [];
+  }
+
   const featureKeys = Object.keys(scenario.features);
   for (let i = 0; i < featureKeys.length; i++) {
     SITE_CONFIG.features[featureKeys[i]] = scenario.features[featureKeys[i]];
