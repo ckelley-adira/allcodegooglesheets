@@ -129,7 +129,7 @@ describe('getLessonStatus', () => {
     expect(ctx.getLessonStatus(row, 1, DEFAULT_LAYOUT)).toBe('');
   });
 
-  test('normalises lowercase y to Y', () => {
+  test('normalizes lowercase y to Y', () => {
     const row = buildStudentRow({ lessons: { 5: 'y' } });
     expect(ctx.getLessonStatus(row, 5, DEFAULT_LAYOUT)).toBe('Y');
   });
