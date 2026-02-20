@@ -43,8 +43,8 @@ The repo root currently contains BOTH legacy school-prefixed files AND unified f
 - `PreKDashboard.html`, `PreKIndex.html`, `PreKParentReport.html`, `PreKPortal.html`, `PreKSetupWizard.html`, `PreKTutorForm.html`
 
 **Legacy School-Prefixed Files (READ-ONLY REFERENCE — do not modify):**
-- `Adelante*.gs/.html`, `Sankofa*.gs/.html`, `CHAW*.gs/.html`, `CCA*.gs/.html`, `GlobalPrep*.gs/.html`, `Allegiant*.gs/.html`
-- These are frozen legacy references from before unification. All new work targets the unified files above.
+- `archive/adelante/Adelante*.gs/.html`, `archive/sankofa/Sankofa*.gs/.html`, `archive/chaw/CHAW*.gs/.html`, `archive/cca/CCA*.gs/.html`, `archive/globalprep/GlobalPrep*.gs/.html`, `archive/allegiant/Allegiant*.gs/.html`
+- These are frozen legacy references from before unification and live under `archive/*`. All new work targets the unified files above.
 
 **Documentation:**
 - `ARCHITECTURE.md`, `BUSINESS_RULES.md`, `QA_CHECKLIST.md`, `MIGRATION_GUIDE.md`
