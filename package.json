@@ -1,0 +1,13 @@
+{
+  "name": "allcodegooglesheets-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Unit tests for UFLI progress tracking pure logic (SharedEngine, SharedConstants)",
+  "scripts": {
+    "test": "jest --verbose",
+    "test:ci": "jest --ci --coverage"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
