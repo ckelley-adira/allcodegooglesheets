@@ -31,7 +31,8 @@ const FIXTURE_STUDENTS = [
 
 /**
  * Fixture lesson score data (student ID → lesson number → score).
- * Uses actual REVIEW_LESSONS numbers from SharedConstants.gs.
+ * Keys correspond to the first 8 entries of REVIEW_LESSONS from
+ * SharedConstants.gs: [35, 36, 37, 39, 40, 41, 49, 53].
  */
 const FIXTURE_LESSON_SCORES = {
   'S001': { 35: 92, 36: 90, 37: 85, 39: 78, 40: 88, 41: 80 },
@@ -249,7 +250,8 @@ function setupTestGroupSheet(groupName, students) {
   // Row 5: Column headers
   const headers = ['Student ID', 'First Name', 'Last Name', 'Grade', 'Teacher'];
 
-  // Add lesson columns using the first 8 canonical review lessons from SharedConstants
+  // Add lesson columns using the first 8 canonical review lessons from SharedConstants.
+  // REVIEW_LESSONS has 23 entries; we use a subset to keep fixture sheets manageable.
   const lessonCols = REVIEW_LESSONS.slice(0, 8);
   for (let l = 0; l < lessonCols.length; l++) {
     headers.push('L' + lessonCols[l]);
