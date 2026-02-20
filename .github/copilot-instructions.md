@@ -70,12 +70,13 @@ There are **no GitHub Actions workflows** and **no CI pipeline** currently confi
 ### Tier 1 — Available Automated Check
 
 ```bash
-node validate_shared_constants.js
+node gold-standard-template/validate_shared_constants.js
 ```
 
-This Node.js script (requires Node 14+) validates:
-- `SharedConstants.gs` defines all canonical constants (`LESSON_LABELS`, `SKILL_SECTIONS`, `REVIEW_LESSONS`, `REVIEW_LESSONS_SET`, `PERFORMANCE_THRESHOLDS`, `STATUS_LABELS`).
-- No school-specific Phase2 files redefine these constants locally.
+This Node.js script (requires Node 14+) runs relative to `gold-standard-template/` and validates:
+- `gold-standard-template/SharedConstants.gs` defines all canonical constants (`LESSON_LABELS`, `SKILL_SECTIONS`, `REVIEW_LESSONS`, `REVIEW_LESSONS_SET`, `PERFORMANCE_THRESHOLDS`, `STATUS_LABELS`).
+- `gold-standard-template/UnifiedConfig.gs` defines key functions (`getUnifiedConfig`, `getGradeRangeModels`, etc.).
+- `gold-standard-template/SiteConfig_TEMPLATE.gs` includes Phase 7 layout settings (`gradeRangeModel`, `dataStartRow`, etc.).
 
 **Always run this after modifying `SharedConstants.gs` or any Phase2/engine file.**
 
@@ -102,7 +103,7 @@ End-to-end testing, automated linting, and CI integration are planned but not ye
 
 - **New shared logic** → Add to or modify the unified files (no school prefix).
 - **New optional feature** → Create a new module in `modules/`, add a feature flag to `SiteConfig_TEMPLATE.gs`, register it in `modules/ModuleLoader.gs` inside `buildFeatureMenu()`.
-- **Constants changes** → Edit `SharedConstants.gs`, then run `node validate_shared_constants.js`.
+- **Constants changes** → Edit `SharedConstants.gs`, then run `node gold-standard-template/validate_shared_constants.js`.
 - **UI changes** → Edit the unified HTML files (no school prefix).
 - **Documentation** → Update the relevant `.md` file in the repo root.
 - **Never modify** legacy school-prefixed files — they are frozen references.
