@@ -40,7 +40,7 @@ The repo root currently contains BOTH legacy school-prefixed files AND unified f
 
 **Pre-K System:**
 - `PreKMainCode.gs` — Pre-K subsystem backend (~94 KB)
-- `PreKDashboard.html`, `PreKIndex.html`, `PreKParentReport.html`, `PreKPortal.html`, `PreKSetupWizard.html`, `PreKTutorForm.html`
+- `gold-standard-template/prek/PreKDashboard.html`, `gold-standard-template/prek/PreKIndex.html`, `gold-standard-template/prek/PreKParentReport.html`, `gold-standard-template/prek/PreKPortal.html`, `gold-standard-template/prek/PreKSetupWizard.html`, `gold-standard-template/prek/PreKTutorForm.html`
 
 **Legacy School-Prefixed Files (READ-ONLY REFERENCE — do not modify):**
 - `archive/adelante/Adelante*.gs/.html`, `archive/sankofa/Sankofa*.gs/.html`, `archive/chaw/CHAW*.gs/.html`, `archive/cca/CCA*.gs/.html`, `archive/globalprep/GlobalPrep*.gs/.html`, `archive/allegiant/Allegiant*.gs/.html`
