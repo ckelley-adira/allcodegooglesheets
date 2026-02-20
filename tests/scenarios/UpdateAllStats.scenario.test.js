@@ -126,10 +126,12 @@ describe('Single G1 student — gateway in benchmark vs skills tracker', () => {
     expect(result.summaryOutput[0][4]).toBe(100);
   });
 
-  test('minimum % = 77 (34 of 44 non-review benchmark lessons passed; no gateway in benchmark)', () => {
+  test('minimum % = 77 (34/44 passed; reviews excluded from benchmark array so gateway cannot fire)', () => {
     // G1_MINIMUM_LESSONS = [1-34, 42-48, 50-52] = 44 non-review lessons
-    // Reviews 49,53 are excluded from the benchmark array, so gateway can't fire
-    // Student only passed 1-34 (34 of 44) = 77%
+    // Reviews 49 and 53 are excluded from G1_MINIMUM_LESSONS, so calculateBenchmark
+    // never sees them — the gateway cannot fire for the Digraphs section.
+    // (Contrast with Skills Tracker where the full section array includes reviews.)
+    // Student passed 1-34 only → 34 of 44 = 77%
     expect(result.summaryOutput[0][5]).toBe(77);
   });
 

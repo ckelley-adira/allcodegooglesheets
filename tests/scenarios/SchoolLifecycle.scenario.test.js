@@ -249,9 +249,9 @@ describe('Phase 3: End of Year — Final Assessment', () => {
     }
   });
 
-  test('EOY outputs more total students than BOY (PreK students added)', () => {
-    // PreK students are added by the PreK processing block
-    // K-8 students are always present
+  test('EOY outputs include all K-8 students (may include PreK if sheet exists)', () => {
+    // K-8 students are always present; PreK students are added only if
+    // a Pre-K Data sheet exists in the mock spreadsheet
     const k8Count = STUDENTS.filter(s => s.grade !== 'PreK').length;
     expect(result.summaryOutput.length).toBeGreaterThanOrEqual(k8Count);
   });

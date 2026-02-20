@@ -29,9 +29,8 @@ const FILES = [
 let ctx;
 
 beforeAll(() => {
-  // Need to also define SITE_CONFIG in the sandbox before loading UnifiedConfig
-  // The default SiteConfig_TEMPLATE defines it, but we want to test dynamically.
-  // We'll load UnifiedConfig which references SITE_CONFIG (will use fallback defaults).
+  // SITE_CONFIG is not defined in the sandbox so getUnifiedConfig() uses
+  // built-in defaults for all layout, colors, and sheet name values.
   ({ ctx } = loadGasModules(FILES));
 });
 

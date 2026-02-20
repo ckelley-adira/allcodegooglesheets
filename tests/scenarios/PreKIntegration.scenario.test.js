@@ -239,7 +239,7 @@ describe('PreK Growth Progression', () => {
     expect(eoyFull).toBeGreaterThan(moyFull);
   });
 
-  test('maximum possible PreK score is ~12% per metric (3/26, 6/52, 9/78)', () => {
+  test('maximum possible PreK score is 12% per metric (3/26, 6/52, 9/78)', () => {
     // With our 3-column fixture, max is 3 Y's per category
     const maxResult = runPreKPhase({ nameY: 3, soundY: 3, formY: 3 });
     const row = maxResult.summaryOutput[0];
