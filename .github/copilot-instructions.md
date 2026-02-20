@@ -47,9 +47,9 @@ The repo root currently contains BOTH legacy school-prefixed files AND unified f
 - These are frozen legacy references from before unification and live under `archive/*`. All new work targets the unified files above.
 
 **Documentation:**
-- `ARCHITECTURE.md`, `BUSINESS_RULES.md`, `QA_CHECKLIST.md`, `MIGRATION_GUIDE.md`
-- `PHASE2_CONSOLIDATION.md` through `PHASE7G_FINAL_REPORT.md` — Phase history
-- `TECH_CURRENT_STATE.md`, `CODE_REVIEW_HISTORY.md`, `BACKPORT_TRACKING_SHAREDCONSTANTS.md`
+- `docs/ARCHITECTURE.md`, `docs/BUSINESS_RULES.md`, `docs/QA_CHECKLIST.md`, `docs/MIGRATION_GUIDE.md`
+- `docs/PHASE2_CONSOLIDATION.md` through `docs/PHASE7G_FINAL_REPORT.md` — Phase history
+- `docs/TECH_CURRENT_STATE.md`, `docs/CODE_REVIEW_HISTORY.md`, `docs/BACKPORT_TRACKING_SHAREDCONSTANTS.md`
 
 ## Key Conventions
 
