@@ -1,5 +1,63 @@
 Summary: Repository Structure & Understanding Confirmation
 
+---
+
+## Phase 7: Logic Layer Unification (February 2026)
+
+**Status:** ✅ Complete (Phase 7g — Final Integration)
+
+**Summary:** Phase 7 consolidated six school-specific deployments into a single, parameterized codebase. Schools no longer need per-school logic files — they configure everything through `SiteConfig_TEMPLATE.gs` and the unified Setup Wizard, then use the shared unified modules.
+
+### Unified Architecture
+
+```
+SiteConfig_TEMPLATE.gs        ← School-specific configuration (feature flags, layout, branding)
+  └─► UnifiedConfig.gs        ← Resolves LAYOUT, COLORS, GRADE_METRICS, PREK_CONFIG from SITE_CONFIG
+  └─► SetupWizard.gs (v4.0)   ← Canonical wizard (delegates feature menus to ModuleLoader.gs)
+  └─► modules/ModuleLoader.gs ← Dynamic menu builder (buildFeatureMenu)
+
+Phase2_ProgressTracking_Unified.gs   ← Replaces 6 school-specific Phase2 files
+AdminImport_Unified.gs               ← Replaces school-specific import files (security + logging)
+MixedGradeSupport_Unified.gs         ← Replaces school-specific mixed-grade files (co-teaching, SC)
+```
+
+### Key Unified Modules
+
+| File | Description |
+|------|-------------|
+| `UnifiedConfig.gs` | Resolves `LAYOUT`, `SHEET_NAMES_V2`, `PREK_CONFIG`, `COLORS`, `GRADE_METRICS` from `SITE_CONFIG` at runtime |
+| `Phase2_ProgressTracking_Unified.gs` | Consolidated Phase 2 progress tracking replacing 6 school copies |
+| `AdminImport_Unified.gs` | CSV import with formula-injection prevention (`sanitizeCellValue`) and structured logging |
+| `MixedGradeSupport_Unified.gs` | Mixed-grade group management with co-teaching and SC Classroom support |
+| `SetupWizard.gs` | Canonical setup wizard — grade range model, layout config, all Phase 7 feature flags |
+| `SetupWizardUI.html` | Wizard UI — Step 2 grade range presets, Step 6 system security flags, Step 8 layout inputs |
+| `SiteConfig_TEMPLATE.gs` | Feature flag template with 24 flags, `MIXED_GRADE_CONFIG`, `SYNC_CONFIG`, `BRANDING_CONFIG`, `PROGRESS_TRACKING_CONFIG` |
+| `modules/ModuleLoader.gs` | Builds optional feature submenus dynamically from enabled `SITE_CONFIG.features` |
+
+### Phase Timeline
+
+| Phase | Status | Summary |
+|-------|--------|---------|
+| Phase 4 | ✅ Complete | Feature modules extracted to `modules/` directory |
+| Phase 5 | ✅ Complete | UI unification |
+| Phase 6 | ✅ Complete | SharedConstants backport |
+| Phase 7a | ✅ Complete | `UnifiedConfig.gs` — runtime config resolver |
+| Phase 7b | ✅ Complete | `AdminImport_Unified.gs` — security + structured logging |
+| Phase 7c | ✅ Complete | `MixedGradeSupport_Unified.gs` — co-teaching + SC Classroom |
+| Phase 7d | ✅ Complete | `SetupWizard.gs` v4.0 — canonical wizard |
+| Phase 7e | ✅ Complete | `SiteConfig_TEMPLATE.gs` — full 22-flag expansion |
+| Phase 7f | ✅ Complete | `SetupWizardUI.html` — grade range model + layout inputs |
+| Phase 7g | ✅ Complete | Final integration audit, bugfix pass, QA documentation |
+
+### Documentation
+
+- **[PHASE7G_FINAL_REPORT.md](PHASE7G_FINAL_REPORT.md)** — Executive summary, unified module inventory, per-school migration guide, known gaps fixed, deployment checklist
+- **[QA_CHECKLIST.md](QA_CHECKLIST.md)** — Phase 7 E2E QA checklist (sections 7.1–7.6) plus legacy Phase 4 module tests
+- **[PHASE7_UNIFIED_TEMPLATE.md](PHASE7_UNIFIED_TEMPLATE.md)** — Architecture diagram and per-school migration guide
+- **[PHASE7F_SETUP_WIZARD_EXPANSION.md](PHASE7F_SETUP_WIZARD_EXPANSION.md)** — Phase 7f wizard expansion notes
+
+---
+
 ## Phase 4: Feature Modules Extraction (February 2026)
 
 **Status:** ✅ Complete

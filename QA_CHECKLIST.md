@@ -696,5 +696,58 @@ After deploying to production:
 
 ---
 
+**QA Complete:** _______ (Date)
+
+---
+
+## Phase 7 Integration QA
+
+### 7.1 UnifiedConfig Validation
+- [ ] `getUnifiedConfig()` returns correct LAYOUT for each grade range model (`prek_only`, `k5`, `k8`, `prek_8`, `custom`)
+- [ ] `getUnifiedConfig()` includes `GROUP_FORMAT` and `INCLUDE_SC_CLASSROOM` in the LAYOUT object
+- [ ] `validateUnifiedConfig()` surfaces actionable error messages for missing required keys
+- [ ] Fallback defaults applied when config sheet rows 32–33 are absent (legacy schools)
+- [ ] `getDefaultGradesForModel()` returns correct grade arrays for all 5 presets
+
+### 7.2 SetupWizard End-to-End Flow
+- [ ] Step 1: School name + branding fields save correctly
+- [ ] Step 2: Grade Range Model dropdown auto-selects correct grade checkboxes for each preset
+- [ ] Step 2: Manually toggling a grade checkbox switches model to "custom"
+- [ ] Step 6: `enhancedSecurity` checkbox is ON by default; all 4 Phase 7 system flags present (`enhancedSecurity`, `structuredLogging`, `scClassroomGroups`, `coTeachingSupport`)
+- [ ] Step 8: `dataStartRow` and `lessonColumnOffset` number inputs present and persist correctly
+- [ ] Confirmation screen (Step 9) reflects all new Phase 7 fields
+- [ ] `saveConfiguration()` writes `gradeRangeModel` + layout fields to config sheet (rows 3, 32, 33)
+- [ ] Re-opening wizard loads all saved values via `loadExistingData()` (no duplicate field load)
+
+### 7.3 Feature Flag Matrix
+For each school configuration, verify correct flags activate correct menus and modules:
+- [ ] Adelante: `mixedGradeSupport=true`, `dynamicBranding=true`, `ufliMapQueue=true`, `adminImport=true`, `unenrollmentAutomation=true`
+- [ ] Sankofa: `mixedGradeSupport=true`, `coachingDashboard=true`, `coTeachingSupport=true`
+- [ ] GlobalPrep: `tutoringSystem=true`, `grantReporting=true`
+- [ ] CCA: `skillAveragesAnalytics=true`, `formulaRepairTools=true`
+- [ ] CHAW: `mixedGradeSupport=true`, `dynamicBranding=true`, `ufliMapQueue=true`
+- [ ] Allegiant: `adminImport=true`, `diagnosticTools=true`, `structuredLogging=true`
+
+### 7.4 Unified Module Integration
+- [ ] `Phase2_ProgressTracking_Unified.gs` sheet generation works for each grade model
+- [ ] `MixedGradeSupport_Unified.gs` respects `MIXED_GRADE_CONFIG.combinations`
+- [ ] `AdminImport_Unified.gs` rejects formula injection attempts (test with `=CMD("calc")`)
+- [ ] `AdminImport_Unified.gs` structured logging active only when `structuredLogging=true`
+- [ ] `SYNC_CONFIG` and `BRANDING_CONFIG` objects accessible via `getFeatureConfig()`
+- [ ] `PROGRESS_TRACKING_CONFIG` accessible via `getFeatureConfig('progressTracking')`
+
+### 7.5 Regression Tests
+- [ ] Legacy schools with existing config sheets (no rows 32–33) initialize without errors
+- [ ] Core menu items (View School Summary, Generate Reports, Manage Students, Manage Groups) always present regardless of feature flags
+- [ ] No duplicate function definition errors when unified modules load alongside legacy school files
+- [ ] `onOpen()` calls `buildFeatureMenu()` exactly once (no duplicate feature submenus)
+
+### 7.6 Dynamic Menu
+- [ ] All features disabled → no optional submenus appear
+- [ ] `tutoringSystem=true` → "Tutoring" submenu appears
+- [ ] `adminImport=true` → "Admin Tools" submenu appears
+- [ ] `coachingDashboard=true` → "Coach Tools" submenu appears
+- [ ] `ufliMapQueue=true` → "Sync & Performance" submenu appears
+- [ ] `formulaRepairTools=true` → "Repair Tools" submenu appears
 **QA Complete:** _______ (Date)  
 **Phase 7g Version:** February 2026

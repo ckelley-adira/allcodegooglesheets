@@ -398,6 +398,7 @@ function onOpen() {
   // === MAINTENANCE (System Tools submenu) ===
   baseMenu.addSeparator()
     .addSubMenu(ui.createMenu('🔧 System Tools')
+      // Unenrollment
       .addItem('📦 Manual Archive Student', 'manualArchiveStudent')
       .addItem('📄 View Archive', 'goToArchiveSheet')
       .addSeparator()
