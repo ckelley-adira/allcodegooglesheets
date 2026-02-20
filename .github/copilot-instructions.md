@@ -121,4 +121,4 @@ End-to-end testing, automated linting, and CI integration are planned but not ye
 
 ## Trust These Instructions
 
-These instructions are comprehensive and validated against the actual repository structure as of February 2026. Only perform additional file exploration if information here is incomplete or found to be in error. The repository has no hidden build scripts, no CI, no test frameworks, and no package managers beyond the single `validate_shared_constants.js` Node script.
+Start here to orient quickly. These instructions reflect the repository structure as of February 2026, but you should verify details against `README.md` and `gold-standard-template/README.md`, and explore the codebase whenever you need more context or see discrepancies. As of this date, there are no known build scripts, CI pipelines, test frameworks, or package managers beyond the single `validate_shared_constants.js` Node script, but always prefer the current repository state over assumptions from this document.
