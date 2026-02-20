@@ -27,16 +27,16 @@ The repo root currently contains BOTH legacy school-prefixed files AND unified f
 - `SetupWizardUI.html`, `LessonEntryForm.html`, `ManageGroupsUI.html`, `ManageStudentsUI.html`
 - `GenerateReportsUI.html`, `GrowthHighlighterSidebar.html`
 
-**Feature Modules (in `modules/` directory):**
-- `modules/ModuleLoader.gs` — Dynamic menu builder driven by SITE_CONFIG.features
-- `modules/CoachingDashboard.gs` — Flag: `coachingDashboard`
-- `modules/TutoringSystem.gs` — Flag: `tutoringSystem`
-- `modules/GrantReporting.gs` — Flag: `grantReporting`
-- `modules/GrowthHighlighter.gs` — Flag: `growthHighlighter`
-- `modules/UnenrollmentAutomation.gs` — Flag: `unenrollmentAutomation`
-- `modules/AdminImport.gs` — Flag: `adminImport`
-- `modules/MixedGradeSupport.gs` — Flag: `mixedGradeSupport`
-- `modules/onOpen_Example.gs` — Reference implementation
+**Feature Modules (in `gold-standard-template/modules/` directory):**
+- `gold-standard-template/modules/ModuleLoader.gs` — Dynamic menu builder driven by SITE_CONFIG.features
+- `gold-standard-template/modules/CoachingDashboard.gs` — Flag: `coachingDashboard`
+- `gold-standard-template/modules/TutoringSystem.gs` — Flag: `tutoringSystem`
+- `gold-standard-template/modules/GrantReporting.gs` — Flag: `grantReporting`
+- `gold-standard-template/modules/GrowthHighlighter.gs` — Flag: `growthHighlighter`
+- `gold-standard-template/modules/UnenrollmentAutomation.gs` — Flag: `unenrollmentAutomation`
+- `gold-standard-template/modules/AdminImport.gs` — Flag: `adminImport`
+- `gold-standard-template/modules/MixedGradeSupport.gs` — Flag: `mixedGradeSupport`
+- `gold-standard-template/modules/onOpen_Example.gs` — Reference implementation
 
 **Pre-K System:**
 - `PreKMainCode.gs` — Pre-K subsystem backend (~94 KB)
