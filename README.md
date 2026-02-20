@@ -1,4 +1,50 @@
-Summary: Repository Structure & Understanding Confirmation
+# UFLI Progress Tracking — Gold Standard Template
+
+This repository contains a multi-site UFLI literacy progress tracking system built for Google Sheets / Apps Script.
+
+## Directory structure
+
+```
+gold-standard-template/   ← Production system — deploy this for every new school
+  Phase2_ProgressTracking.gs
+  SharedConstants.gs
+  SharedEngine.gs
+  UnifiedConfig.gs
+  SetupWizard.gs
+  AdminImport.gs
+  MixedGradeSupport.gs
+  SiteConfig_TEMPLATE.gs  ← Copy + edit this per-school
+  PreKMainCode.gs
+  validate_shared_constants.js
+  modules/                ← Optional feature modules (feature-flag toggled)
+  ui/                     ← Canonical HTML dialog/sidebar files
+  prek/                   ← Pre-K subsystem HTML files
+  README.md               ← Deployment guide & architecture overview
+
+archive/                  ← Legacy school-specific files (read-only reference)
+  adelante/
+  sankofa/
+  chaw/
+  cca/
+  globalprep/
+  allegiant/
+  UnifiedPhase2_ProgressTracking_SKELETON.gs
+  README.md
+
+docs/                     ← Phase implementation history & technical documentation
+  ARCHITECTURE.md
+  BUSINESS_RULES.md
+  MIGRATION_GUIDE.md
+  PHASE*.md  ...
+
+README.md                 ← This file
+```
+
+## Getting started
+
+- **New school deployment** → See [`gold-standard-template/README.md`](gold-standard-template/README.md)
+- **Legacy school-specific code** → See [`archive/README.md`](archive/README.md)
+- **Phase history & technical docs** → See [`docs/`](docs/)
 
 ---
 
@@ -14,11 +60,11 @@ Summary: Repository Structure & Understanding Confirmation
 SiteConfig_TEMPLATE.gs        ← School-specific configuration (feature flags, layout, branding)
   └─► UnifiedConfig.gs        ← Resolves LAYOUT, COLORS, GRADE_METRICS, PREK_CONFIG from SITE_CONFIG
   └─► SetupWizard.gs (v4.0)   ← Canonical wizard (delegates feature menus to ModuleLoader.gs)
-  └─► modules/ModuleLoader.gs ← Dynamic menu builder (buildFeatureMenu)
+  └─► gold-standard-template/modules/ModuleLoader.gs ← Dynamic menu builder (buildFeatureMenu)
 
-Phase2_ProgressTracking_Unified.gs   ← Replaces 6 school-specific Phase2 files
-AdminImport_Unified.gs               ← Replaces school-specific import files (security + logging)
-MixedGradeSupport_Unified.gs         ← Replaces school-specific mixed-grade files (co-teaching, SC)
+gold-standard-template/Phase2_ProgressTracking.gs   ← Replaces 6 school-specific Phase2 files
+gold-standard-template/AdminImport.gs               ← Replaces school-specific import files (security + logging)
+gold-standard-template/MixedGradeSupport.gs         ← Replaces school-specific mixed-grade files (co-teaching, SC)
 ```
 
 ### Key Unified Modules
@@ -26,35 +72,35 @@ MixedGradeSupport_Unified.gs         ← Replaces school-specific mixed-grade fi
 | File | Description |
 |------|-------------|
 | `UnifiedConfig.gs` | Resolves `LAYOUT`, `SHEET_NAMES_V2`, `PREK_CONFIG`, `COLORS`, `GRADE_METRICS` from `SITE_CONFIG` at runtime |
-| `Phase2_ProgressTracking_Unified.gs` | Consolidated Phase 2 progress tracking replacing 6 school copies |
-| `AdminImport_Unified.gs` | CSV import with formula-injection prevention (`sanitizeCellValue`) and structured logging |
-| `MixedGradeSupport_Unified.gs` | Mixed-grade group management with co-teaching and SC Classroom support |
-| `SetupWizard.gs` | Canonical setup wizard — grade range model, layout config, all Phase 7 feature flags |
-| `SetupWizardUI.html` | Wizard UI — Step 2 grade range presets, Step 6 system security flags, Step 8 layout inputs |
-| `SiteConfig_TEMPLATE.gs` | Feature flag template with 24 flags, `MIXED_GRADE_CONFIG`, `SYNC_CONFIG`, `BRANDING_CONFIG`, `PROGRESS_TRACKING_CONFIG` |
-| `modules/ModuleLoader.gs` | Builds optional feature submenus dynamically from enabled `SITE_CONFIG.features` |
+| `gold-standard-template/Phase2_ProgressTracking.gs` | Consolidated Phase 2 progress tracking replacing 6 school copies |
+| `gold-standard-template/AdminImport.gs` | CSV import with formula-injection prevention (`sanitizeCellValue`) and structured logging |
+| `gold-standard-template/MixedGradeSupport.gs` | Mixed-grade group management with co-teaching and SC Classroom support |
+| `gold-standard-template/SetupWizard.gs` | Canonical setup wizard — grade range model, layout config, all Phase 7 feature flags |
+| `gold-standard-template/ui/SetupWizardUI.html` | Wizard UI — Step 2 grade range presets, Step 6 system security flags, Step 8 layout inputs |
+| `gold-standard-template/SiteConfig_TEMPLATE.gs` | Feature flag template with 24 flags, `MIXED_GRADE_CONFIG`, `SYNC_CONFIG`, `BRANDING_CONFIG`, `PROGRESS_TRACKING_CONFIG` |
+| `gold-standard-template/modules/ModuleLoader.gs` | Builds optional feature submenus dynamically from enabled `SITE_CONFIG.features` |
 
 ### Phase Timeline
 
 | Phase | Status | Summary |
 |-------|--------|---------|
-| Phase 4 | ✅ Complete | Feature modules extracted to `modules/` directory |
+| Phase 4 | ✅ Complete | Feature modules extracted to `gold-standard-template/modules/` directory |
 | Phase 5 | ✅ Complete | UI unification |
 | Phase 6 | ✅ Complete | SharedConstants backport |
 | Phase 7a | ✅ Complete | `UnifiedConfig.gs` — runtime config resolver |
-| Phase 7b | ✅ Complete | `AdminImport_Unified.gs` — security + structured logging |
-| Phase 7c | ✅ Complete | `MixedGradeSupport_Unified.gs` — co-teaching + SC Classroom |
-| Phase 7d | ✅ Complete | `SetupWizard.gs` v4.0 — canonical wizard |
-| Phase 7e | ✅ Complete | `SiteConfig_TEMPLATE.gs` — full 22-flag expansion |
-| Phase 7f | ✅ Complete | `SetupWizardUI.html` — grade range model + layout inputs |
+| Phase 7b | ✅ Complete | `gold-standard-template/AdminImport.gs` — security + structured logging |
+| Phase 7c | ✅ Complete | `gold-standard-template/MixedGradeSupport.gs` — co-teaching + SC Classroom |
+| Phase 7d | ✅ Complete | `gold-standard-template/SetupWizard.gs` v4.0 — canonical wizard |
+| Phase 7e | ✅ Complete | `gold-standard-template/SiteConfig_TEMPLATE.gs` — full 22-flag expansion |
+| Phase 7f | ✅ Complete | `gold-standard-template/ui/SetupWizardUI.html` — grade range model + layout inputs |
 | Phase 7g | ✅ Complete | Final integration audit, bugfix pass, QA documentation |
 
 ### Documentation
 
-- **[PHASE7G_FINAL_REPORT.md](PHASE7G_FINAL_REPORT.md)** — Executive summary, unified module inventory, per-school migration guide, known gaps fixed, deployment checklist
-- **[QA_CHECKLIST.md](QA_CHECKLIST.md)** — Phase 7 E2E QA checklist (sections 7.1–7.6) plus legacy Phase 4 module tests
-- **[PHASE7_UNIFIED_TEMPLATE.md](PHASE7_UNIFIED_TEMPLATE.md)** — Architecture diagram and per-school migration guide
-- **[PHASE7F_SETUP_WIZARD_EXPANSION.md](PHASE7F_SETUP_WIZARD_EXPANSION.md)** — Phase 7f wizard expansion notes
+- **[docs/PHASE7G_FINAL_REPORT.md](docs/PHASE7G_FINAL_REPORT.md)** — Executive summary, unified module inventory, per-school migration guide, known gaps fixed, deployment checklist
+- **[docs/QA_CHECKLIST.md](docs/QA_CHECKLIST.md)** — Phase 7 E2E QA checklist (sections 7.1–7.6) plus legacy Phase 4 module tests
+- **[docs/PHASE7_UNIFIED_TEMPLATE.md](docs/PHASE7_UNIFIED_TEMPLATE.md)** — Architecture diagram and per-school migration guide
+- **[docs/PHASE7F_SETUP_WIZARD_EXPANSION.md](docs/PHASE7F_SETUP_WIZARD_EXPANSION.md)** — Phase 7f wizard expansion notes
 
 ---
 
@@ -62,13 +108,13 @@ MixedGradeSupport_Unified.gs         ← Replaces school-specific mixed-grade fi
 
 **Status:** ✅ Complete
 
-**Summary:** All optional features have been extracted into the `modules/` directory with feature flag-driven activation. This modular architecture allows schools to enable/disable features without code changes, reducing drift and simplifying maintenance.
+**Summary:** All optional features have been extracted into the `gold-standard-template/modules/` directory with feature flag-driven activation. This modular architecture allows schools to enable/disable features without code changes, reducing drift and simplifying maintenance.
 
 ### What Changed
 
 1. **New Directory Structure:**
    ```
-   modules/
+   gold-standard-template/modules/
    ├── README.md                    # Module documentation
    ├── AdminImport.gs               # Historical data import
    ├── CoachingDashboard.gs         # Weekly coaching metrics
@@ -80,7 +126,7 @@ MixedGradeSupport_Unified.gs         ← Replaces school-specific mixed-grade fi
    ├── UnenrollmentAutomation.gs    # Auto-archival & Monday.com
    └── onOpen_Example.gs            # Implementation example
    
-   SiteConfig_TEMPLATE.gs           # Feature flag configuration
+   gold-standard-template/SiteConfig_TEMPLATE.gs   # Feature flag configuration
    ```
 
 2. **Feature Flags:** All features are now controlled via `SITE_CONFIG.features`:
@@ -113,7 +159,7 @@ MixedGradeSupport_Unified.gs         ← Replaces school-specific mixed-grade fi
 To enable a feature for your school:
 1. Open `SiteConfig_TEMPLATE.gs` in your Apps Script project
 2. Set the desired feature flag to `true`
-3. Configure any required settings (see `modules/README.md`)
+3. Configure any required settings (see `gold-standard-template/modules/README.md`)
 4. Reload your spreadsheet
 
 Menu items for enabled features will appear automatically.
@@ -121,10 +167,10 @@ Menu items for enabled features will appear automatically.
 ### For Developers
 
 When adding a new feature module:
-1. Create the module in `modules/` directory
+1. Create the module in `gold-standard-template/modules/` directory
 2. Add feature flag to `SiteConfig_TEMPLATE.gs`
 3. Update `ModuleLoader.gs` to add menu items
-4. Document in `modules/README.md`
+4. Document in `gold-standard-template/modules/README.md`
 5. Test with feature toggled on/off
 
 ---
