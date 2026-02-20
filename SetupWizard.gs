@@ -363,19 +363,30 @@ function onOpen() {
     // === MANAGEMENT (Weekly Use) ===
     .addItem('👥 Manage Students', 'manageStudents')
     .addItem('👨‍🏫 Manage Groups', 'manageGroups')
-    .addSeparator()
+    .addSeparator();
 
-    // === SYNC & PERFORMANCE (The New Workflow) ===
-    .addSubMenu(ui.createMenu('🔄 Sync & Performance')
-      .addItem('⚡ Recalculate All Stats Now', 'recalculateAllStatsNow')
-      .addSeparator()
-      .addItem('▶️ Process UFLI MAP Queue Now', 'processSyncQueueManual')
-      .addItem('✅ Enable Hourly UFLI Sync', 'setupSyncQueueTrigger')
-      .addItem('❌ Disable Hourly UFLI Sync', 'disableSyncQueueTrigger')
-      .addSeparator()
-      .addItem('✅ Enable Nightly Full Sync', 'setupNightlySyncTrigger')
-      .addItem('❌ Disable Nightly Full Sync', 'removeNightlySyncTrigger')
-      .addItem('ℹ️ Check Sync Status', 'showSyncStatus'));
+  // === SYNC & PERFORMANCE (Feature-flag gated submenu) ===
+  var syncMenu = ui.createMenu('🔄 Sync & Performance')
+    .addItem('⚡ Recalculate All Stats Now', 'recalculateAllStatsNow');
+
+  if (typeof SITE_CONFIG !== 'undefined' && SITE_CONFIG.features) {
+    if (SITE_CONFIG.features.syncQueueProcessing) {
+      syncMenu.addSeparator()
+        .addItem('▶️ Process UFLI MAP Queue Now', 'processSyncQueueManual')
+        .addItem('✅ Enable Hourly UFLI Sync', 'setupSyncQueueTrigger')
+        .addItem('❌ Disable Hourly UFLI Sync', 'disableSyncQueueTrigger');
+    }
+    if (SITE_CONFIG.features.nightlySyncAutomation) {
+      syncMenu.addSeparator()
+        .addItem('✅ Enable Nightly Full Sync', 'setupNightlySyncTrigger')
+        .addItem('❌ Disable Nightly Full Sync', 'removeNightlySyncTrigger');
+    }
+    if (SITE_CONFIG.features.syncStatusMonitoring) {
+      syncMenu.addItem('ℹ️ Check Sync Status', 'showSyncStatus');
+    }
+  }
+
+  baseMenu.addSubMenu(syncMenu);
 
   // === FEATURE MODULES (Phase 7: Dynamic menu items from feature flags) ===
   // Uses ModuleLoader.buildFeatureMenu() to add menus only for enabled features
@@ -384,15 +395,13 @@ function onOpen() {
     buildFeatureMenu(ui, baseMenu);
   }
 
+  // === MAINTENANCE (System Tools submenu) ===
   baseMenu.addSeparator()
-
-    // === MAINTENANCE ===
     .addSubMenu(ui.createMenu('🔧 System Tools')
       // Unenrollment
       .addItem('📦 Manual Archive Student', 'manualArchiveStudent')
       .addItem('📄 View Archive', 'goToArchiveSheet')
       .addSeparator()
-      // Repairs (Only the essential ones)
       .addItem('🔧 Repair All Formulas', 'repairAllFormulas')
       .addItem('⚠️ Fix Missing Teachers', 'fixMissingTeachers')
       .addItem('🎨 Repair Formatting', 'repairUFLIMapFormatting'))

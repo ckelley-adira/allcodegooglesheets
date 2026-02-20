@@ -470,6 +470,38 @@ function saveStandardUFLIData(formObject) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// NAVIGATION FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Navigates to the Tutoring Summary sheet
+ */
+function goToTutoringSummary() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES_TUTORING.SUMMARY);
+
+  if (sheet) {
+    ss.setActiveSheet(sheet);
+  } else {
+    SpreadsheetApp.getUi().alert('Tutoring Summary sheet not found. It will be created when tutoring data is first synced.');
+  }
+}
+
+/**
+ * Navigates to the Tutoring Progress Log sheet
+ */
+function goToTutoringLog() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAMES_TUTORING.PROGRESS_LOG);
+
+  if (sheet) {
+    ss.setActiveSheet(sheet);
+  } else {
+    SpreadsheetApp.getUi().alert('Tutoring Progress Log sheet not found. It will be created when tutoring data is first synced.');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // SYNC TUTORING DATA
 // ═══════════════════════════════════════════════════════════════════════════
 
