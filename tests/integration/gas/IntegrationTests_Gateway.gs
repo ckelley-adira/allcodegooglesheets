@@ -82,14 +82,12 @@ function testPerformanceStatusHigh() {
 function testPerformanceStatusMid() {
   if (typeof getPerformanceStatus !== 'function') return;
   const status = getPerformanceStatus(70);
-  // 70% may be approaching or at/above depending on threshold
-  Assert.isNotNull(status, '70% should return a valid status');
-  Assert.isTrue(
-    status === STATUS_LABELS.AT_ABOVE || status === STATUS_LABELS.APPROACHING,
-    '70% should be at/above or approaching'
+  Assert.equals(
+    status,
+    STATUS_LABELS.NEEDS_SUPPORT,
+    '70% should be "' + STATUS_LABELS.NEEDS_SUPPORT + '"'
   );
 }
-
 function testPerformanceStatusLow() {
   if (typeof getPerformanceStatus !== 'function') return;
   const status = getPerformanceStatus(40);
