@@ -118,8 +118,11 @@ const SITE_CONFIG = {
 const MIXED_GRADE_CONFIG = {
   enabled: true,
   sheetFormat: "STANDARD",
-  // Mixed-grade sheet groupings for upper grades
-  combinations: "G5+G6, G7+G8",
+  // Mixed-grade sheet groupings for upper grades (object: sheetName → grade array)
+  combinations: {
+    "G5 to G6 Groups": ["G5", "G6"],
+    "G7 to G8 Groups": ["G7", "G8"]
+  },
   namingPattern: "NUMBERED_TEACHER",
   scClassroom: {
     gradeRange: [],
@@ -162,9 +165,9 @@ The `preKSystem` flag is a **tri-state toggle** that controls how (or whether) P
 
 | Value | Name | Description |
 |---|---|---|
-| `false` | No Pre-K | Pre-K grade is excluded. The system operates as K–8 only. |
+| `false` | No Pre-K | Disables all Pre-K–specific menus, denominators, and UI. To run as a true K–8–only system, also remove `"PreK"` from `gradesServed` and update `gradeRangeModel` (e.g., use `"k8"`). Sheet generation is driven by `gradesServed`; this flag alone does not remove Pre-K sheets if `"PreK"` remains in that list. |
 | `"light"` | Pre-K Light | Basic Pre-K tracking inside the standard UFLI lesson framework. Students are tracked like K–8 peers but with Pre-K-appropriate denominators (Form: 26, Name+Sound: 52, Full: 78). No separate HWT UI or workflows. |
-| `"hwt"` | Pre-K HWT (Full) | Complete Handwriting Without Tears system with dedicated sheets, UI, and workflows (see file list below). |
+| `"hwt"` | Pre-K HWT (Full) | Complete Handwriting Without Tears system with dedicated sheets, UI, and workflows (see file list below). Compatible with mixed-grade deployments (e.g., `prek_8`). |
 
 ### Files Activated by Mode
 
@@ -212,7 +215,7 @@ const SUMMARY_PRE_K_SOUND_CUMULATIVE_COL  = 10; // Col J
 
 ## 4. Feature Activation Matrix
 
-The table below maps Horizon Academy's enabled features to the files/modules they activate.
+The table below maps **every `SITE_CONFIG.features` flag** to its status at Horizon Academy and the files it activates. Flags set to `false` at Horizon Academy are shown as ❌ — they are not required by this school's profile but are available for other deployments.
 
 | Feature | Flag | Status | Files / Modules |
 |---|---|:---:|---|
@@ -233,11 +236,14 @@ The table below maps Horizon Academy's enabled features to the files/modules the
 | Sync Status Monitoring | `syncStatusMonitoring: true` | ✅ | `SetupWizard.gs` status dialog |
 | Student Edit Capability | `studentEditCapability: true` | ✅ | `Phase2_ProgressTracking.gs` |
 | Dynamic Branding | `dynamicBranding: true` | ✅ | `SetupWizard.gs` + `SITE_CONFIG.branding` |
+| Lesson Array Tracking | `lessonArrayTracking: true` | ✅ | `Phase2_ProgressTracking.gs` |
 | SC Classroom Groups | `scClassroomGroups: false` | ❌ | `modules/MixedGradeSupport.gs` |
 | Co-Teaching Support | `coTeachingSupport: false` | ❌ | `SetupWizard.gs` |
 | Skill Averages Analytics | `skillAveragesAnalytics: false` | ❌ | `modules/CoachingDashboard.gs` |
 | Formula Repair Tools | `formulaRepairTools: false` | ❌ | `SetupWizard.gs` |
 | Student Normalization | `studentNormalization: false` | ❌ | `Phase2_ProgressTracking.gs` |
+| Structured Logging | `structuredLogging: false` | ❌ | `SetupWizard.gs` (diagnostic audit trail) |
+| Diagnostic Tools | `diagnosticTools: false` | ❌ | `SetupWizard.gs` System Tools menu |
 
 ---
 
@@ -247,7 +253,7 @@ The table below maps Horizon Academy's enabled features to the files/modules the
 
 Ms. Rivera opens the Google Sheet and clicks **HA Tools → 🧒 Pre-K (HWT) → 📝 Pre-K Tutor Entry**.
 
-`openPreKTutorForm()` (gated by `preKSystem === "hwt"` in `buildFeatureMenu`) serves `prek/PreKTutorForm.html`. She selects the student, chooses the current HWT letter (e.g., "F"), and marks Form, Name, and Sound progress. On submit, `PreKMainCode.gs` writes the result to the **Pre-K** sheet using the fixed column mappings in `PREK_CONFIG` and updates the **Skill Summary Page** cumulative totals.
+`openPreKTutorForm()` (gated by `preKSystem === "hwt"` in `buildFeatureMenu`, implemented in `PreKMainCode.gs`) opens the Pre-K tutor entry web app (`?page=tutor`) in a new browser tab. She selects the student, chooses the current HWT letter (e.g., "F"), and marks Form, Name, and Sound progress. On submit, `PreKMainCode.gs` writes the result to the **Pre-K** sheet using the fixed column mappings in `PREK_CONFIG` and updates the **Skill Summary Page** cumulative totals.
 
 ### 5.2 — G3 Teacher Submitting a Lesson Entry
 
@@ -255,7 +261,7 @@ Mr. Thompson opens the spreadsheet. The **G3 Groups** sheet was generated as a s
 
 ### 5.3 — G7 Student in a Mixed-Grade Group (Gateway)
 
-Destiny is in a G7+G8 mixed group created by `MIXED_GRADE_CONFIG.combinations: "G5+G6, G7+G8"`. `MixedGradeSupport.gs` generates a **G7 to G8 Groups** sheet. Because Destiny scored above the gateway threshold during the beginning-of-year assessment, she is placed on a review-only lesson path. Her group's lesson entry form still submits normally; the gateway logic (P2 roadmap item) limits the lessons displayed to review lessons only.
+Destiny is in a G7+G8 mixed group. `MIXED_GRADE_CONFIG.combinations` maps `"G7 to G8 Groups"` to `["G7", "G8"]`, so `MixedGradeSupport.gs` generates a **G7 to G8 Groups** sheet. Because Destiny scored above the gateway threshold during the beginning-of-year assessment, she is placed on a review-only lesson path. Her group's lesson entry form still submits normally; the gateway logic (P2 roadmap item) limits the lessons displayed to review lessons only.
 
 ### 5.4 — Coach Reviewing the Weekly Coaching Dashboard
 
@@ -325,4 +331,4 @@ The goal is for **≥ 90% of code to be shared** across all schools, with ≤ 10
 | Gap | Description | Affected Scenario |
 |---|---|---|
 | **Auto-Assignment of Review-Only Path** | High-scoring G5–G8 students who have completed the UFLI sequence should be automatically placed on a review-only lesson path. Gateway logic exists conceptually but is not yet implemented in the mixed-grade sheet. Separate PR in progress. | 5.3 |
-| **Pre-K Light Denominators in Setup Wizard** | When `preKSystem: "light"`, the Setup Wizard should surface a simplified Pre-K denominator configuration screen (Form: 26, Name+Sound: 52, Full: 78) rather than the full HWT wizard. Currently the wizard defaults to HWT or skips Pre-K entirely. | General |
+| **Pre-K Light Denominators in Setup Wizard** | `preKSystem` is currently informational and not referenced by `SetupWizard.gs`. When `preKSystem: "light"`, the wizard should surface a simplified Pre-K denominator configuration screen (Form: 26, Name+Sound: 52, Full: 78) rather than always following the full HWT-style flow. The specific decision point is the grade-range step in `SetupWizardUI.html` where Pre-K sheets are provisioned. | General |

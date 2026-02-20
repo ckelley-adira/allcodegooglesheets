@@ -125,8 +125,13 @@ const SITE_CONFIG = {
      * Controls how Pre-K students are tracked in this deployment.
      *
      * Options:
-     *   false    — No Pre-K support. The system operates as K–8 only.
-     *              Pre-K grade is excluded from sheets and menus.
+     *   false    — No Pre-K support. Disables all Pre-K–specific menus,
+     *              denominators, and UI. To run as a true K–8–only system,
+     *              also remove "PreK" from gradesServed and update
+     *              gradeRangeModel (e.g., use "k8" instead of "prek_8").
+     *              The sheet generator is driven by gradesServed; setting
+     *              this flag to false alone does not remove Pre-K sheets if
+     *              "PreK" remains in gradesServed.
      *
      *   "light"  — Basic Pre-K tracking using the standard UFLI lesson
      *              framework. Students are tracked like K–8 students but with
@@ -138,10 +143,7 @@ const SITE_CONFIG = {
      *              PreKTutorForm.html, PreKParentReport.html,
      *              PreKSetupWizard.html, and PreKPortal.html, along with
      *              SHEET_NAMES_PREK and PREK_CONFIG column mappings.
-     *
-     * Note: When gradeRangeModel includes Pre-K (e.g., "prek_8") and
-     * preKSystem is false, the Pre-K grade is silently skipped during
-     * sheet generation. Set to "light" or "hwt" to activate Pre-K support.
+     *              Can be used in mixed-grade deployments (e.g., prek_8).
      */
     preKSystem: false,
     

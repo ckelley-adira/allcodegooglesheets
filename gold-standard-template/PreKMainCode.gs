@@ -2592,3 +2592,50 @@ function getParentReportPreview(studentName) {
 
   return data;
 }
+
+// ====================================================================
+// ============ GOLD STANDARD TEMPLATE — PRE-K HWT MENU HANDLERS ====
+// ====================================================================
+// These functions are called by the Pre-K (HWT) submenu in ModuleLoader.gs
+// when features.preKSystem === "hwt".  They delegate to the existing
+// PreKMainCode.gs functions and web-app routes defined above.
+
+/**
+ * Opens the Pre-K portal landing page in a new browser tab.
+ * Delegates to the doGet() default route (?page=portal).
+ */
+function openPreKPortal() {
+  const url = ScriptApp.getService().getUrl();
+  const html = HtmlService.createHtmlOutput(
+    '<script>window.open("' + url + '", "_blank");google.script.host.close();</script>'
+  ).setWidth(200).setHeight(50);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Opening Pre-K Portal...');
+}
+
+/**
+ * Opens the Pre-K HWT program dashboard.
+ * Delegates to openDashboard() which opens ?page=dashboard.
+ */
+function openPreKDashboard() {
+  openDashboard();
+}
+
+/**
+ * Opens the Pre-K tutor entry form in a new browser tab.
+ * Routes to ?page=tutor via doGet().
+ */
+function openPreKTutorForm() {
+  const url = ScriptApp.getService().getUrl() + '?page=tutor';
+  const html = HtmlService.createHtmlOutput(
+    '<script>window.open("' + url + '", "_blank");google.script.host.close();</script>'
+  ).setWidth(200).setHeight(50);
+  SpreadsheetApp.getUi().showModalDialog(html, 'Opening Tutor Entry Form...');
+}
+
+/**
+ * Generates HWT parent progress reports for all Pre-K students.
+ * Delegates to generateParentReports() defined above.
+ */
+function generatePreKParentReports() {
+  generateParentReports();
+}
