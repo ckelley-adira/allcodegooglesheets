@@ -114,10 +114,10 @@ End-to-end testing, automated linting, and CI integration are planned but not ye
 | 1 | `SiteConfig_TEMPLATE.gs` | All feature flags + config shape (~27 KB) |
 | 2 | `SharedConstants.gs` | Canonical UFLI constants (~10 KB) |
 | 3 | `SharedEngine.gs` | Core helper functions (~26 KB) |
-| 4 | `modules/README.md` | Module documentation and flag mapping |
-| 5 | `ARCHITECTURE.md` | System architecture overview |
-| 6 | `BUSINESS_RULES.md` | Domain rules (benchmark calc, review lesson gateways, grade metrics) |
-| 7 | `QA_CHECKLIST.md` | Testing and validation procedures |
+| 4 | `gold-standard-template/modules/README.md` | Module documentation and flag mapping |
+| 5 | `docs/ARCHITECTURE.md` | System architecture overview |
+| 6 | `docs/BUSINESS_RULES.md` | Domain rules (benchmark calc, review lesson gateways, grade metrics) |
+| 7 | `docs/QA_CHECKLIST.md` | Testing and validation procedures |
 
 ## Trust These Instructions
 
