@@ -244,8 +244,8 @@ const CONFIG_LAYOUT = {
   }
 };
 
-// Shorthand for roster layout (backwards compatibility)
-const LAYOUT = CONFIG_LAYOUT.ROSTER;
+// Shorthand for roster layout — renamed to ROSTER_LAYOUT to avoid collision with Phase2's LAYOUT constant
+const ROSTER_LAYOUT = CONFIG_LAYOUT.ROSTER;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // UTILITY FUNCTIONS - SHARED HELPERS
@@ -328,7 +328,7 @@ function getTeacherForGroup(groupName) {
     const mapSheet = ss.getSheetByName(SHEET_NAMES_V2.UFLI_MAP);
     if (!mapSheet) return "";
     const data = mapSheet.getDataRange().getValues();
-    for (let i = LAYOUT.DATA_START_ROW - 1; i < data.length; i++) {
+    for (let i = ROSTER_LAYOUT.DATA_START_ROW - 1; i < data.length; i++) {
       if (data[i][3] === groupName) return data[i][2];
     }
   }
@@ -623,12 +623,12 @@ function getExistingStudents() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const rosterSheet = ss.getSheetByName(SHEET_NAMES.STUDENT_ROSTER);
   
-  if (!rosterSheet || rosterSheet.getLastRow() < LAYOUT.DATA_START_ROW) {
+  if (!rosterSheet || rosterSheet.getLastRow() < ROSTER_LAYOUT.DATA_START_ROW) {
     return [];
   }
   
-  const data = rosterSheet.getRange(LAYOUT.DATA_START_ROW, 1, 
-    rosterSheet.getLastRow() - LAYOUT.DATA_START_ROW + 1, 4).getValues();
+  const data = rosterSheet.getRange(ROSTER_LAYOUT.DATA_START_ROW, 1, 
+    rosterSheet.getLastRow() - ROSTER_LAYOUT.DATA_START_ROW + 1, 4).getValues();
   return data
     .filter(row => row[0])
     .map(row => ({
@@ -647,12 +647,12 @@ function getExistingTeachers() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const teacherSheet = ss.getSheetByName(SHEET_NAMES.TEACHER_ROSTER);
   
-  if (!teacherSheet || teacherSheet.getLastRow() < LAYOUT.DATA_START_ROW) {
+  if (!teacherSheet || teacherSheet.getLastRow() < ROSTER_LAYOUT.DATA_START_ROW) {
     return [];
   }
   
-  const data = teacherSheet.getRange(LAYOUT.DATA_START_ROW, 1, 
-    teacherSheet.getLastRow() - LAYOUT.DATA_START_ROW + 1, 2).getValues();
+  const data = teacherSheet.getRange(ROSTER_LAYOUT.DATA_START_ROW, 1, 
+    teacherSheet.getLastRow() - ROSTER_LAYOUT.DATA_START_ROW + 1, 2).getValues();
   return data
     .filter(row => row[0])
     .map(row => ({
@@ -669,12 +669,12 @@ function getExistingGroups() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const groupSheet = ss.getSheetByName(SHEET_NAMES.GROUP_CONFIG);
   
-  if (!groupSheet || groupSheet.getLastRow() < LAYOUT.DATA_START_ROW) {
+  if (!groupSheet || groupSheet.getLastRow() < ROSTER_LAYOUT.DATA_START_ROW) {
     return [];
   }
   
-  const data = groupSheet.getRange(LAYOUT.DATA_START_ROW, 1, 
-    groupSheet.getLastRow() - LAYOUT.DATA_START_ROW + 1, 2).getValues();
+  const data = groupSheet.getRange(ROSTER_LAYOUT.DATA_START_ROW, 1, 
+    groupSheet.getLastRow() - ROSTER_LAYOUT.DATA_START_ROW + 1, 2).getValues();
   return data
     .filter(row => row[0])
     .map(row => ({
@@ -712,7 +712,7 @@ function getExistingFeatures() {
   
   const features = {};
   FEATURE_OPTIONS.forEach((feature, index) => {
-    const value = featureSheet.getRange(LAYOUT.DATA_START_ROW + index, 2).getValue();
+    const value = featureSheet.getRange(ROSTER_LAYOUT.DATA_START_ROW + index, 2).getValue();
     features[feature.id] = value === true || value === "TRUE";
   });
   
@@ -1112,7 +1112,7 @@ function createStudentRosterSheet(ss, data) {
       s.teacher || "",
       s.group || ""
     ]);
-    sheet.getRange(LAYOUT.DATA_START_ROW, 1, studentData.length, 4).setValues(studentData);
+    sheet.getRange(ROSTER_LAYOUT.DATA_START_ROW, 1, studentData.length, 4).setValues(studentData);
   }
   
   sheet.setColumnWidth(1, 200);
@@ -1121,7 +1121,7 @@ function createStudentRosterSheet(ss, data) {
   sheet.setColumnWidth(4, 150);
   
   sheet.setFrozenRows(5);
-  sheet.getRange(LAYOUT.DATA_START_ROW, 1, Math.max(1, sheet.getMaxRows() - 5), 4).setFontFamily("Calibri");
+  sheet.getRange(ROSTER_LAYOUT.DATA_START_ROW, 1, Math.max(1, sheet.getMaxRows() - 5), 4).setFontFamily("Calibri");
 }
 
 function createTeacherRosterSheet(ss, data) {
@@ -1152,14 +1152,14 @@ function createTeacherRosterSheet(ss, data) {
       t.name || "",
       (t.grades || []).join(', ')
     ]);
-    sheet.getRange(LAYOUT.DATA_START_ROW, 1, teacherData.length, 2).setValues(teacherData);
+    sheet.getRange(ROSTER_LAYOUT.DATA_START_ROW, 1, teacherData.length, 2).setValues(teacherData);
   }
   
   sheet.setColumnWidth(1, 200);
   sheet.setColumnWidth(2, 200);
   
   sheet.setFrozenRows(5);
-  sheet.getRange(LAYOUT.DATA_START_ROW, 1, Math.max(1, sheet.getMaxRows() - 5), 2).setFontFamily("Calibri");
+  sheet.getRange(ROSTER_LAYOUT.DATA_START_ROW, 1, Math.max(1, sheet.getMaxRows() - 5), 2).setFontFamily("Calibri");
 }
 
 function createGroupConfigSheet(ss, data) {
@@ -1261,9 +1261,9 @@ function createFeatureSettingsSheet(ss, data) {
   
   const features = data.features || {};
   FEATURE_OPTIONS.forEach((feature, index) => {
-    sheet.getRange(LAYOUT.DATA_START_ROW + index, 1).setValue(feature.name);
-    sheet.getRange(LAYOUT.DATA_START_ROW + index, 2).setValue(features[feature.id] || false);
-    sheet.getRange(LAYOUT.DATA_START_ROW + index, 3).setValue(feature.description);
+    sheet.getRange(ROSTER_LAYOUT.DATA_START_ROW + index, 1).setValue(feature.name);
+    sheet.getRange(ROSTER_LAYOUT.DATA_START_ROW + index, 2).setValue(features[feature.id] || false);
+    sheet.getRange(ROSTER_LAYOUT.DATA_START_ROW + index, 3).setValue(feature.description);
   });
   
   sheet.setColumnWidth(1, 200);
@@ -1271,7 +1271,7 @@ function createFeatureSettingsSheet(ss, data) {
   sheet.setColumnWidth(3, 350);
   
   sheet.setFrozenRows(5);
-  sheet.getRange(LAYOUT.DATA_START_ROW, 1, FEATURE_OPTIONS.length, 3).setFontFamily("Calibri");
+  sheet.getRange(ROSTER_LAYOUT.DATA_START_ROW, 1, FEATURE_OPTIONS.length, 3).setFontFamily("Calibri");
   
   protectSheet(sheet);
 }
@@ -1301,17 +1301,17 @@ function getStudentRosterData() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const rosterSheet = ss.getSheetByName(SHEET_NAMES.STUDENT_ROSTER);
     
-    if (!rosterSheet || rosterSheet.getLastRow() < LAYOUT.DATA_START_ROW) {
+    if (!rosterSheet || rosterSheet.getLastRow() < ROSTER_LAYOUT.DATA_START_ROW) {
       return [];
     }
     
-    const data = rosterSheet.getRange(LAYOUT.DATA_START_ROW, 1, 
-      rosterSheet.getLastRow() - LAYOUT.DATA_START_ROW + 1, 4).getValues();
+    const data = rosterSheet.getRange(ROSTER_LAYOUT.DATA_START_ROW, 1, 
+      rosterSheet.getLastRow() - ROSTER_LAYOUT.DATA_START_ROW + 1, 4).getValues();
     
     return data
       .filter(row => row[0])
       .map((row, index) => ({
-        rowIndex: index + LAYOUT.DATA_START_ROW,
+        rowIndex: index + ROSTER_LAYOUT.DATA_START_ROW,
         name: row[0] ? row[0].toString() : "",
         grade: row[1] ? row[1].toString() : "",
         teacher: row[2] ? row[2].toString() : "",
@@ -1398,14 +1398,14 @@ function deleteStudent(studentObject) {
 
 function updateStudentInSheet(ss, sheetName, studentName, studentData) {
   const sheet = ss.getSheetByName(sheetName);
-  if (!sheet || sheet.getLastRow() < LAYOUT.DATA_START_ROW) return;
+  if (!sheet || sheet.getLastRow() < ROSTER_LAYOUT.DATA_START_ROW) return;
   
-  const data = sheet.getRange(LAYOUT.DATA_START_ROW, 1, 
-    sheet.getLastRow() - LAYOUT.DATA_START_ROW + 1, 1).getValues();
+  const data = sheet.getRange(ROSTER_LAYOUT.DATA_START_ROW, 1, 
+    sheet.getLastRow() - ROSTER_LAYOUT.DATA_START_ROW + 1, 1).getValues();
   const rowIndex = data.findIndex(row => row[0] === studentName);
   
   if (rowIndex !== -1) {
-    const sheetRow = rowIndex + LAYOUT.DATA_START_ROW;
+    const sheetRow = rowIndex + ROSTER_LAYOUT.DATA_START_ROW;
     sheet.getRange(sheetRow, 1, 1, 4).setValues([studentData]);
   }
 }
@@ -1425,7 +1425,7 @@ function addStudentToSheet(ss, sheetName, studentData) {
   
   if (sheetName === SHEET_NAMES_V2.UFLI_MAP) {
     const currentLessonFormula = buildCurrentLessonFormula(newRowIndex);
-    sheet.getRange(newRowIndex, LAYOUT.COL_CURRENT_LESSON).setFormula(currentLessonFormula);
+    sheet.getRange(newRowIndex, ROSTER_LAYOUT.COL_CURRENT_LESSON).setFormula(currentLessonFormula);
     
   } else if (sheetName === SHEET_NAMES_V2.SKILLS) {
     addSkillFormulasForRow(sheet, newRowIndex);
@@ -1438,14 +1438,14 @@ function addStudentToSheet(ss, sheetName, studentData) {
 
 function deleteStudentFromSheet(ss, sheetName, studentName) {
   const sheet = ss.getSheetByName(sheetName);
-  if (!sheet || sheet.getLastRow() < LAYOUT.DATA_START_ROW) return;
+  if (!sheet || sheet.getLastRow() < ROSTER_LAYOUT.DATA_START_ROW) return;
   
-  const data = sheet.getRange(LAYOUT.DATA_START_ROW, 1, 
-    sheet.getLastRow() - LAYOUT.DATA_START_ROW + 1, 1).getValues();
+  const data = sheet.getRange(ROSTER_LAYOUT.DATA_START_ROW, 1, 
+    sheet.getLastRow() - ROSTER_LAYOUT.DATA_START_ROW + 1, 1).getValues();
   const rowIndex = data.findIndex(row => row[0] === studentName);
   
   if (rowIndex !== -1) {
-    const sheetRow = rowIndex + LAYOUT.DATA_START_ROW;
+    const sheetRow = rowIndex + ROSTER_LAYOUT.DATA_START_ROW;
     sheet.deleteRow(sheetRow);
   }
 }
@@ -1526,9 +1526,9 @@ function saveGroups(newGroupConfig) {
     createGradeGroupSheets(ss, wizardData);
 
     const rosterSheet = ss.getSheetByName(SHEET_NAMES.STUDENT_ROSTER);
-    if (rosterSheet && rosterSheet.getLastRow() >= LAYOUT.DATA_START_ROW) {
-      const rosterData = rosterSheet.getRange(LAYOUT.DATA_START_ROW, 1, 
-        rosterSheet.getLastRow() - LAYOUT.DATA_START_ROW + 1, 4).getValues();
+    if (rosterSheet && rosterSheet.getLastRow() >= ROSTER_LAYOUT.DATA_START_ROW) {
+      const rosterData = rosterSheet.getRange(ROSTER_LAYOUT.DATA_START_ROW, 1, 
+        rosterSheet.getLastRow() - ROSTER_LAYOUT.DATA_START_ROW + 1, 4).getValues();
       
       const validGroupNames = new Set();
       newGroupConfig.forEach(g => {
@@ -1551,7 +1551,7 @@ function saveGroups(newGroupConfig) {
       });
 
       if (changesMade) {
-        rosterSheet.getRange(LAYOUT.DATA_START_ROW, 1, updatedRosterData.length, 4).setValues(updatedRosterData);
+        rosterSheet.getRange(ROSTER_LAYOUT.DATA_START_ROW, 1, updatedRosterData.length, 4).setValues(updatedRosterData);
         syncStudentGroupsToTrackers(ss);
       }
     }
@@ -1571,10 +1571,10 @@ function syncStudentGroupsToTrackers(ss) {
   
   [SHEET_NAMES_V2.UFLI_MAP, SHEET_NAMES_V2.SKILLS, SHEET_NAMES_V2.GRADE_SUMMARY].forEach(sheetName => {
     const sheet = ss.getSheetByName(sheetName);
-    if (!sheet || sheet.getLastRow() < LAYOUT.DATA_START_ROW) return;
+    if (!sheet || sheet.getLastRow() < ROSTER_LAYOUT.DATA_START_ROW) return;
     
-    const sheetData = sheet.getRange(LAYOUT.DATA_START_ROW, 1, 
-      sheet.getLastRow() - LAYOUT.DATA_START_ROW + 1, 4).getValues();
+    const sheetData = sheet.getRange(ROSTER_LAYOUT.DATA_START_ROW, 1, 
+      sheet.getLastRow() - ROSTER_LAYOUT.DATA_START_ROW + 1, 4).getValues();
     let changed = false;
     
     sheetData.forEach(row => {
@@ -1594,7 +1594,7 @@ function syncStudentGroupsToTrackers(ss) {
     });
     
     if (changed) {
-      sheet.getRange(LAYOUT.DATA_START_ROW, 1, sheetData.length, 4).setValues(sheetData);
+      sheet.getRange(ROSTER_LAYOUT.DATA_START_ROW, 1, sheetData.length, 4).setValues(sheetData);
     }
   });
 }
@@ -1671,12 +1671,12 @@ function buildReport(selectedColumns, filters) {
     const timestamp = formatDateSafe(new Date(), "yyyy-MM-dd HH:mm");
 
     const rosterSheet = ss.getSheetByName(SHEET_NAMES.STUDENT_ROSTER);
-    if (!rosterSheet || rosterSheet.getLastRow() < LAYOUT.DATA_START_ROW) {
+    if (!rosterSheet || rosterSheet.getLastRow() < ROSTER_LAYOUT.DATA_START_ROW) {
       throw new Error("Student Roster is empty.");
     }
     
-    let studentRosterData = rosterSheet.getRange(LAYOUT.DATA_START_ROW, 1, 
-      rosterSheet.getLastRow() - LAYOUT.DATA_START_ROW + 1, 4).getValues();
+    let studentRosterData = rosterSheet.getRange(ROSTER_LAYOUT.DATA_START_ROW, 1, 
+      rosterSheet.getLastRow() - ROSTER_LAYOUT.DATA_START_ROW + 1, 4).getValues();
     
     if (filters.grade !== 'ALL') {
       studentRosterData = studentRosterData.filter(row => row[1] === filters.grade);
@@ -1762,12 +1762,12 @@ function buildReport(selectedColumns, filters) {
 
 function getSheetDataAsMap(ss, sheetName) {
   const sheet = ss.getSheetByName(sheetName);
-  if (!sheet || sheet.getLastRow() < LAYOUT.DATA_START_ROW) {
+  if (!sheet || sheet.getLastRow() < ROSTER_LAYOUT.DATA_START_ROW) {
     return new Map();
   }
   
   const data = sheet.getDataRange().getValues();
-  const dataRows = data.slice(LAYOUT.DATA_START_ROW - 1);
+  const dataRows = data.slice(ROSTER_LAYOUT.DATA_START_ROW - 1);
   
   return new Map(dataRows.filter(row => row[0]).map(row => [row[0], row]));
 }
@@ -1784,12 +1784,12 @@ function getGroupsFromConfiguration() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const groupSheet = ss.getSheetByName(SHEET_NAMES.GROUP_CONFIG);
   
-  if (!groupSheet || groupSheet.getLastRow() < LAYOUT.DATA_START_ROW) {
+  if (!groupSheet || groupSheet.getLastRow() < ROSTER_LAYOUT.DATA_START_ROW) {
     throw new Error("Group Configuration sheet is not set up.");
   }
   
-  const data = groupSheet.getRange(LAYOUT.DATA_START_ROW, 1, 
-    groupSheet.getLastRow() - LAYOUT.DATA_START_ROW + 1, 2).getValues();
+  const data = groupSheet.getRange(ROSTER_LAYOUT.DATA_START_ROW, 1, 
+    groupSheet.getLastRow() - ROSTER_LAYOUT.DATA_START_ROW + 1, 2).getValues();
   const allGroupNames = [];
   
   data.filter(row => row[0]).forEach(row => {
@@ -2308,20 +2308,20 @@ function updateGroupSheetTargeted(ss, gradeSheetName, groupName, lessonName, stu
  */
 function updateUFLIMapTargeted(mapSheet, studentStatuses, lessonNum, timestamp) {
   const lastRow = mapSheet.getLastRow();
-  if (lastRow < LAYOUT.DATA_START_ROW) return;
+  if (lastRow < ROSTER_LAYOUT.DATA_START_ROW) return;
   
-  const numRows = lastRow - LAYOUT.DATA_START_ROW + 1;
+  const numRows = lastRow - ROSTER_LAYOUT.DATA_START_ROW + 1;
   
   // 1. Read Student Names (Column A)
-  const nameData = mapSheet.getRange(LAYOUT.DATA_START_ROW, 1, numRows, 1).getValues().flat();
+  const nameData = mapSheet.getRange(ROSTER_LAYOUT.DATA_START_ROW, 1, numRows, 1).getValues().flat();
   
   // 2. Identify target column indices
-  const lessonColIdx = LAYOUT.COL_FIRST_LESSON + lessonNum - 1; // 1-based column index
-  const currentLessonColIdx = LAYOUT.COL_CURRENT_LESSON;        // 1-based column index
+  const lessonColIdx = ROSTER_LAYOUT.COL_FIRST_LESSON + lessonNum - 1; // 1-based column index
+  const currentLessonColIdx = ROSTER_LAYOUT.COL_CURRENT_LESSON;        // 1-based column index
   
   // 3. Read the Data Columns (Lesson Column and Current Lesson Column)
-  const lessonRange = mapSheet.getRange(LAYOUT.DATA_START_ROW, lessonColIdx, numRows, 1);
-  const currentLessonRange = mapSheet.getRange(LAYOUT.DATA_START_ROW, currentLessonColIdx, numRows, 1);
+  const lessonRange = mapSheet.getRange(ROSTER_LAYOUT.DATA_START_ROW, lessonColIdx, numRows, 1);
+  const currentLessonRange = mapSheet.getRange(ROSTER_LAYOUT.DATA_START_ROW, currentLessonColIdx, numRows, 1);
   
   const lessonValues = lessonRange.getValues();
   const currentLessonValues = currentLessonRange.getValues();
