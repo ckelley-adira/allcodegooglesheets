@@ -24,6 +24,16 @@ const GAS_FILES = [
   path.join(GOLD, 'modules', 'TutoringSystem.gs'),
 ];
 
+// Split-module file list: loads SharedEngine_Core.gs + SharedEngine_IO.gs
+// instead of the monolithic SharedEngine.gs.  Use this to verify that the
+// split files expose the same API surface as the original.
+const GAS_FILES_SPLIT = [
+  path.join(GOLD, 'SharedConstants.gs'),
+  path.join(GOLD, 'SharedEngine_Core.gs'),
+  path.join(GOLD, 'SharedEngine_IO.gs'),
+  path.join(GOLD, 'modules', 'TutoringSystem.gs'),
+];
+
 /**
  * Builds a sandbox context that mimics the GAS global environment just enough
  * for pure-logic functions to execute. GAS-specific APIs (SpreadsheetApp,
@@ -123,4 +133,4 @@ function loadGasModules(files) {
   return { ctx };
 }
 
-module.exports = { loadGasModules, GAS_FILES, GOLD };
+module.exports = { loadGasModules, GAS_FILES, GAS_FILES_SPLIT, GOLD };

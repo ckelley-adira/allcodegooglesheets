@@ -71,10 +71,48 @@ const PREK_CONFIG = {
   DATA_START_ROW: 2,
 };
 
+/**
+ * Full configuration object for computeStudentStats().
+ * Mirrors the shape returned by getUnifiedConfig() with default layout values.
+ */
+const COMPUTE_STATS_CONFIG = {
+  LAYOUT: DEFAULT_LAYOUT,
+  PREK_CONFIG: PREK_CONFIG,
+  GRADE_METRICS: undefined, // falls back to SHARED_GRADE_METRICS in computeStudentStats
+  SHEET_NAMES_V2: {
+    UFLI_MAP: 'UFLI MAP',
+    SKILLS: 'Skills Tracker',
+    GRADE_SUMMARY: 'Grade Summary',
+    INITIAL_ASSESSMENT: 'Initial Assessment',
+    SCHOOL_SUMMARY: 'School Summary',
+    SMALL_GROUP_PROGRESS: 'Small Group Progress'
+  },
+  SHEET_NAMES_PREK: {
+    DATA: 'Pre-K Data'
+  }
+};
+
+/**
+ * Wraps an array of student rows with 5 empty header rows so that
+ * the combined array has data starting at index 5 (DATA_START_ROW - 1).
+ * This matches the shape of sheet.getDataRange().getValues() for a sheet
+ * with 5 header rows followed by student data.
+ *
+ * @param {Array<Array>} studentRows - Rows built with buildStudentRow()
+ * @returns {Array<Array>} mapData with header padding
+ */
+function buildMapDataWithHeaders(studentRows) {
+  const colCount = studentRows.length > 0 ? studentRows[0].length : DEFAULT_LAYOUT.LESSON_COLUMN_OFFSET + 128;
+  const headers = Array.from({ length: DEFAULT_LAYOUT.HEADER_ROW_COUNT }, () => new Array(colCount).fill(''));
+  return [...headers, ...studentRows];
+}
+
 module.exports = {
   DEFAULT_LAYOUT,
   buildStudentRow,
   buildPreKRow,
   PREK_HEADERS,
   PREK_CONFIG,
+  COMPUTE_STATS_CONFIG,
+  buildMapDataWithHeaders,
 };
