@@ -11,19 +11,22 @@
 > | **SE** | `gold-standard-template/SharedEngine.gs` | 664 |
 > | **SEC** | `gold-standard-template/SharedEngine_Core.gs` | 639 |
 > | **SC** | `gold-standard-template/SharedConstants.gs` | 141 |
+> | **UC** | `gold-standard-template/UnifiedConfig.gs` | ~200 |
+> | **SCT** | `gold-standard-template/SiteConfig_TEMPLATE.gs` | ~700 |
 
 ---
 
 ## Section 1: Executive Summary
 
-The three largest files in the gold-standard template — Phase2_ProgressTracking.gs (P2), MixedGradeSupport.gs (MG), and SetupWizard.gs (SW) — collectively contain ~7,665 lines, of which an estimated **800–1,100 lines** are duplicated or near-duplicated logic across file boundaries.
+The five core files in the gold-standard template — Phase2_ProgressTracking.gs (P2), MixedGradeSupport.gs (MG), SetupWizard.gs (SW), SharedConstants.gs (SC), and UnifiedConfig.gs (UC) — collectively contain ~8,500+ lines, of which an estimated **800–1,100 lines** are duplicated or near-duplicated logic across file boundaries.
 
-The overlap falls into five critical categories:
+The overlap falls into six critical categories:
 1. **Group-sheet update functions** that implement three incompatible write strategies (TextFinder, cached arrays, and format-aware dispatch).
 2. **Pacing/scanning functions** duplicated between P2 and MG with subtle denominator and absent-rate formula divergences.
 3. **Student-lookup and sheet-data-as-map helpers** redefined with differing empty-sheet guards.
 4. **Utility functions** (`extractLessonNumber`, `normalizeStudent`, `naturalSort`, `getExistingGrades`, `formatPercent`/`formatGrowth`/`formatDate`) duplicated across files with different implementations.
 5. **The `LAYOUT` constant** defined in both P2 (as a rich object with 10+ properties) and SW (as a reference to `CONFIG_LAYOUT.ROSTER` with only 4 properties), creating a **guaranteed runtime collision** in the GAS flat namespace.
+6. **Configuration/shared-layer desync** — Phase2 hardcodes `LAYOUT`, `PREK_CONFIG`, and `COLORS` instead of calling `getUnifiedConfig()`, meaning wizard-configured values (e.g., `headerRowCount=4`) are silently ignored at runtime, creating **data integrity risk** (see Section 8).
 
 When one file's function is modified — say, the absent-rate denominator in `processPacing_Standard` — the other file's copy silently retains the old logic, producing inconsistent dashboard data. This is the most common class of production bug reported in the system.
 
@@ -32,6 +35,7 @@ When one file's function is modified — say, the absent-rate denominator in `pr
 **Risk assessment:**
 - **CRITICAL:** `LAYOUT` constant collision between P2 and SW — whichever file loads last wins. Currently both exist in production.
 - **CRITICAL:** Three incompatible write strategies for group sheets create data inconsistency when form saves and sync run concurrently.
+- **CRITICAL:** Phase2 hardcodes `LAYOUT`/`PREK_CONFIG` instead of calling `getUnifiedConfig()`. If the Setup Wizard sets `headerRowCount=4`, Phase2 still reads `DATA_START_ROW=6`, causing students to be read from wrong rows (see Section 8.3).
 - **HIGH:** `getExistingGrades()` defined in both P2 (line 1927) and SW (line 592) with different logic — one reads Grade Summary, the other has a fallback-only implementation.
 - **HIGH:** `naturalSort()` defined TWICE within MG itself (lines 1347 and 1600) with different regex patterns.
 - **MEDIUM:** `extractLessonNumber()` in SW (line 2024) uses a broader regex than SE (line 436), causing edge-case mismatches.
@@ -504,6 +508,254 @@ This is actually **not** a separate write strategy — it modifies the same `gro
 - [ ] Test full sync → verify School Summary + Pacing Dashboard
 - [ ] Test with `ENABLE_MIXED_GRADES` = true and false
 - [ ] Test with both Standard and Sankofa sheet formats
+
+### Phase 5: Configuration Layer Fixes (see Section 8)
+
+- [ ] **Refactor Phase2 to call `getUnifiedConfig()`** — Replace hardcoded `LAYOUT`, `PREK_CONFIG`, and `COLORS` constants (P2 lines 97–146) with values resolved from `getUnifiedConfig()`. This is the highest-priority config fix; without it, wizard-configured `headerRowCount` values are silently ignored.
+- [ ] **Add `DASHBOARD_COLORS` to UnifiedConfig.gs** — Currently defined only in Phase2 (lines 125–146) and not customizable via SITE_CONFIG. Add to `getUnifiedConfig()` output with branding overrides.
+- [ ] **Consolidate `log`/`logMessage` into SharedEngine_IO.gs** — Merge SW's `logMessage` (line 260) into SE's `log` (line 488). Adopt a single format string and function name across all files.
+- [ ] **Upgrade `extractLessonNumber` in SharedEngine** — Replace SE's simple `/L(\d+)/` regex with SW's comprehensive version that handles `LESSON`, `L`, `UFLI L` patterns and 1–128 range validation. Remove from SW after promotion.
+- [ ] **Consolidate `getSheetDataAsMap` with `.toString()` safety** — Ensure the surviving copy (recommend P2's explicit-loop version) applies `.toString()` to all keys. Remove the duplicate.
+- [ ] **Consolidate `getExistingGrades`** — Merge P2's robust Grade Summary reader with SW's fallback logic into a single function. Remove the duplicate.
+- [ ] **Verify SITE_CONFIG → UnifiedConfig → consumer flow** — After Phase2 refactor, confirm that changing `headerRowCount` in SITE_CONFIG correctly propagates to `DATA_START_ROW` in all consumers (Phase2, MixedGrade, SetupWizard).
+- [ ] **Run `validate_shared_constants.js`** after all config layer changes
+
+---
+
+## Section 8: Shared-Layer Configuration Divergence
+
+This section extends the divergence analysis to the configuration and shared-layer files: **SharedConstants.gs**, **UnifiedConfig.gs**, **SharedEngine.gs** (and its split: SharedEngine_Core.gs / SharedEngine_IO.gs), and **SiteConfig_TEMPLATE.gs**. These files form the foundation that Phase2, MixedGradeSupport, and SetupWizard are all supposed to build upon — but Phase2 bypasses significant portions of the configuration pipeline.
+
+---
+
+### 8.1 Configuration Flow Diagram
+
+**Intended flow (how it SHOULD work):**
+
+```
+SiteConfig_TEMPLATE.gs
+│  Defines: SITE_CONFIG = { siteName, headerRowCount, dataStartRow, gradeRangeModel, features, branding, ... }
+│
+└──► UnifiedConfig.gs — getUnifiedConfig()
+    │  Resolves: LAYOUT, PREK_CONFIG, COLORS from SITE_CONFIG values
+    │  Resolves: GRADE_RANGE_MODELS, getGradeRangeModels(), getDefaultGradesForModel()
+    │  Validates: validateUnifiedConfig() ensures all required fields present
+    │
+    ├──► Phase2_ProgressTracking.gs  — uses resolved LAYOUT.DATA_START_ROW, PREK_CONFIG, COLORS
+    ├──► MixedGradeSupport.gs       — uses resolved config + ENABLE_MIXED_GRADES
+    └──► SetupWizard.gs             — uses resolved config for sheet creation
+```
+
+**Actual flow (how it ACTUALLY works today):**
+
+```
+SiteConfig_TEMPLATE.gs
+│  Defines: SITE_CONFIG = { siteName, headerRowCount, dataStartRow, gradeRangeModel, features, branding, ... }
+│
+├──► UnifiedConfig.gs — getUnifiedConfig()
+│   │  Resolves: LAYOUT, PREK_CONFIG, COLORS from SITE_CONFIG values  ✅
+│   │
+│   ├──► MixedGradeSupport.gs  — uses P2's hardcoded constants (via GAS flat namespace)
+│   └──► SetupWizard.gs        — defines its OWN LAYOUT (CONFIG_LAYOUT.ROSTER)  ⚠️
+│
+└──► Phase2_ProgressTracking.gs
+     IGNORES getUnifiedConfig() entirely  ❌
+     Hardcodes: LAYOUT (lines 97–111), PREK_CONFIG (lines 83–90), COLORS (lines 113–123)
+     These hardcoded values assume headerRowCount=5, dataStartRow=6 ALWAYS
+```
+
+**The gap:** Phase2 never calls `getUnifiedConfig()`. It defines its own constants at file scope, which means any site-specific customization set via the Setup Wizard (stored in SITE_CONFIG) is invisible to the progress tracking engine.
+
+---
+
+### 8.2 Constant-by-Constant Overlap Table
+
+| Constant | Phase2 (hardcoded) | UnifiedConfig (resolved) | Values Identical? | Risk |
+|---|---|---|---|---|
+| `LAYOUT` (DATA_START_ROW=6, HEADER_ROW=5) | Lines 97–111: hardcoded `DATA_START_ROW: 6`, `HEADER_ROW_COUNT: 5` | Lines 92–108: resolved from `SITE_CONFIG.headerRowCount` and `SITE_CONFIG.dataStartRow` | Only when `headerRowCount=5` | **DESYNC** — Phase2 ignores wizard-configured header settings |
+| `SHEET_NAMES_V2` | Lines 66–73: hardcoded object | Lines 111–118: identical hardcoded object | ✅ Yes | SAFE — identical values |
+| `SHEET_NAMES_PREK` | Lines 79–81: hardcoded | Lines 121–123: identical | ✅ Yes | SAFE |
+| `PREK_CONFIG` (HEADER_ROW=5, DATA_START_ROW=6) | Lines 83–90: hardcoded `HEADER_ROW: 5`, `DATA_START_ROW: 6` | Lines 125–132: resolved from `SITE_CONFIG.headerRowCount` | Only when `headerRowCount=5` | **DESYNC** — if wizard sets `headerRowCount≠5`, Phase2 Pre-K tracking breaks |
+| `COLORS` | Lines 113–123: hardcoded status colors | Lines 142–152: customizable via `SITE_CONFIG.branding` | Depends on branding config | MEDIUM — cosmetic only, but inconsistent branding if overridden |
+| `DASHBOARD_COLORS` | Lines 125–146: hardcoded dashboard palette | NOT in UnifiedConfig at all | N/A | MEDIUM — not customizable; schools cannot brand dashboards |
+| `GRADE_METRICS` | Line 216: `var GRADE_METRICS = SHARED_GRADE_METRICS` | Lines 161–163: same alias pattern | ✅ Yes — both reference SharedEngine | SAFE — properly delegated to shared source |
+
+---
+
+### 8.3 Critical Desync: Phase2 vs UnifiedConfig
+
+**The core problem:** Phase2_ProgressTracking.gs defines its own `LAYOUT` and `PREK_CONFIG` constants with hardcoded row numbers instead of calling `getUnifiedConfig()` to resolve them from `SITE_CONFIG`.
+
+**Concrete failure scenario:**
+
+1. School administrator runs the Setup Wizard
+2. Wizard writes `headerRowCount=4` to the Site Configuration sheet (e.g., school uses a compact header layout)
+3. `SiteConfig_TEMPLATE.gs` reads this as `SITE_CONFIG.headerRowCount = 4`
+4. `UnifiedConfig.gs` → `getUnifiedConfig()` correctly resolves:
+   - `LAYOUT.DATA_START_ROW = 5` (headerRowCount 4 + 1)
+   - `PREK_CONFIG.DATA_START_ROW = 5`
+5. **Phase2 ignores all of this** — it uses hardcoded `LAYOUT.DATA_START_ROW = 6`
+6. Phase2's `syncSmallGroupProgress()` reads student data starting at row 6
+7. **Row 5 contains the first student** (correctly placed by the wizard)
+8. **Result:** First student in every sheet is silently skipped during sync. Their progress data is never written to UFLI MAP, Skills Tracker, or Grade Summary. No error is thrown.
+
+**Impact assessment:**
+- This is a **silent data loss** bug — no error messages, no warnings
+- Only affects schools where the wizard has configured `headerRowCount ≠ 5`
+- Currently mitigated by the fact that most schools use the default `headerRowCount=5`, but any future customization will trigger it
+- The same desync applies to `PREK_CONFIG`, meaning Pre-K progress tracking is also affected
+
+**Why this wasn't caught earlier:** Phase2 was written before UnifiedConfig.gs was introduced. When the config resolution layer was added, Phase2's constants were not refactored to use it. All test deployments happened to use the default header row count, masking the desync.
+
+---
+
+### 8.4 SharedConstants.gs — Proper Centralization (Positive Finding)
+
+`SharedConstants.gs` is the one shared-layer file that is **correctly centralized**. No other file redefines its constants, and all consumers reference it properly.
+
+**Constants defined (all canonical, no duplicates found):**
+
+| Constant | Used By | Duplication? |
+|---|---|---|
+| `LESSON_LABELS` (L1–L128 array) | SharedEngine.gs (`calculateBenchmark`, `calculateSectionPercentage`), Phase2 (via SharedEngine's `updateAllStats`), MixedGradeSupport (not directly) | ✅ None — single source of truth |
+| `SKILL_SECTIONS` (16 section definitions) | SharedEngine.gs (`calculateBenchmark`, `calculateSectionPercentage`) | ✅ None |
+| `REVIEW_LESSONS` / `REVIEW_LESSONS_SET` | SharedEngine.gs only (gateway test logic) | ✅ None |
+| `PERFORMANCE_THRESHOLDS` | SharedConstants.gs `getPerformanceStatus()` | ✅ None |
+| `STATUS_LABELS` | SharedConstants.gs `getPerformanceStatus()` | ✅ None |
+| `getPerformanceStatus()` | Called from SharedEngine.gs `computeStudentStats` / `updateAllStats`; no reimplementations found elsewhere | ✅ None |
+
+**Why this matters:** SharedConstants.gs demonstrates the correct pattern for centralization. The remaining configuration constants (`LAYOUT`, `PREK_CONFIG`, `COLORS`) should follow this same model — defined once, resolved by UnifiedConfig, consumed everywhere. Phase2's hardcoded constants are the exception that breaks this pattern.
+
+---
+
+### 8.5 Utility Function Duplication in the Shared Layer
+
+Beyond the function duplications cataloged in Section 2g, the shared/config layer introduces additional duplication concerns:
+
+#### 8.5.1 Logging: `log` vs `logMessage`
+
+| Aspect | SharedEngine.gs `log` (line 488) | SetupWizard.gs `logMessage` (line 260) |
+|---|---|---|
+| Signature | `log(functionName, message, level = 'INFO')` | `logMessage(functionName, message, level = 'INFO')` |
+| Format | `[LEVEL] functionName: message` | `[LEVEL] [functionName] message` |
+| Used by | Phase2, MixedGradeSupport (both call SE's `log()`) | SetupWizard only |
+| Risk | LOW — cosmetic format difference only | LOW |
+
+**Issue:** Two logging functions with identical signatures but different names and slightly different format strings. Violates single-responsibility — logging format should be defined once.
+
+#### 8.5.2 `extractLessonNumber` — Different Robustness Levels
+
+| Aspect | SharedEngine.gs (line 436) | SetupWizard.gs (line 2024) |
+|---|---|---|
+| Regex | `/L(\d+)/` | `/(?:LESSON\s*\|L\s*\|UFLI\s*L?\s*)?(\d{1,3})/i` |
+| Null guard | None | Returns `null` for null/undefined input |
+| Range validation | None | Validates result is 1–128 |
+| Handles "Lesson 5" | ❌ No | ✅ Yes |
+| Handles plain "5" | ❌ No | ✅ Yes |
+| Handles "UFLI L42" | ❌ Only matches "L42" part | ✅ Yes |
+
+**Risk:** MEDIUM — If SharedEngine's version is used in a context that receives non-standard lesson input (e.g., from a teacher typing "Lesson 5" in a form), it will return `null` where SetupWizard's version would correctly return `5`.
+
+#### 8.5.3 `getExistingGrades` — Different Edge-Case Handling
+
+| Aspect | Phase2 (line 1927) | SetupWizard (line 592) |
+|---|---|---|
+| Data source | Reads Grade Summary column B | Reads Grade Summary, OR falls back to hardcoded full list |
+| `.toString()` | ✅ Yes — applies to all values | ❌ No |
+| Sorting | Sorts by canonical grade order | Basic sort |
+| Null handling | Defensive null checks | Falls back to hardcoded list if sheet missing |
+
+**Risk:** MEDIUM — Different fallback behavior could produce different grade lists depending on which copy executes. P2's is more robust for production; SW's is more forgiving for initial setup.
+
+#### 8.5.4 `getSheetDataAsMap` — Key Type Safety
+
+| Aspect | Phase2 (line 1910) | SetupWizard (line 1763) |
+|---|---|---|
+| Implementation | Explicit `for` loop from `LAYOUT.DATA_START_ROW - 1` | `.slice()` + `new Map(dataRows.filter().map())` |
+| Key handling | `data[i][0].toString()` — forces string keys | No `.toString()` — keys may be numbers | 
+| Empty-sheet guard | Returns empty Map if no sheet | Returns empty Map if `lastRow < DATA_START_ROW` |
+
+**Risk:** HIGH — Student name lookup may fail if one version uses string keys and the other uses numeric or mixed-type keys. A student named `"123"` could be stored as number `123` in SW's Map but string `"123"` in P2's Map, causing lookup misses.
+
+---
+
+### 8.6 SITE_CONFIG Flow and SiteConfig_TEMPLATE.gs
+
+**SiteConfig_TEMPLATE.gs** defines the `SITE_CONFIG` object — the single point of configuration for each school deployment. It includes:
+
+```
+SITE_CONFIG = {
+  siteName: "School Name",
+  headerRowCount: 5,          ← Controls LAYOUT.DATA_START_ROW
+  dataStartRow: 6,            ← Should match headerRowCount + 1
+  gradeRangeModel: "K-5",     ← Determines which grades are available
+  features: {                  ← Feature flags for optional modules
+    coachingDashboard: false,
+    tutoringSystem: false,
+    grantReporting: false,
+    growthHighlighter: true,
+    unenrollmentAutomation: false,
+    adminImport: false,
+    mixedGradeSupport: false
+  },
+  branding: { ... },           ← Color overrides
+  layout: { ... }              ← Additional layout overrides
+}
+```
+
+**The intended consumer chain:**
+
+```
+SiteConfig_TEMPLATE.gs (SITE_CONFIG object definition)
+    └── UnifiedConfig.gs (getUnifiedConfig() reads SITE_CONFIG, resolves derived values)
+        ├── LAYOUT = { DATA_START_ROW: SITE_CONFIG.dataStartRow, HEADER_ROW_COUNT: SITE_CONFIG.headerRowCount, ... }
+        ├── PREK_CONFIG = { HEADER_ROW: SITE_CONFIG.headerRowCount, DATA_START_ROW: SITE_CONFIG.dataStartRow, ... }
+        ├── COLORS = merged(defaults, SITE_CONFIG.branding)
+        ├── GRADE_RANGE_MODELS / getGradeRangeModels() / getDefaultGradesForModel()
+        └── validateUnifiedConfig() — ensures all required SITE_CONFIG fields are present
+```
+
+**Broken link:** Phase2 defines `LAYOUT`, `PREK_CONFIG`, `COLORS`, and `DASHBOARD_COLORS` as hardcoded `const` values at file scope (lines 83–146). It never calls `getUnifiedConfig()`. This breaks the chain and makes SITE_CONFIG customization partially ineffective.
+
+---
+
+### 8.7 Recommendations
+
+#### R1. Phase2 Must Call `getUnifiedConfig()` (CRITICAL)
+
+Replace Phase2's hardcoded `LAYOUT`, `PREK_CONFIG`, and `COLORS` constants (lines 83–146) with a single call to `getUnifiedConfig()` at the top of the file or at the entry point of each public function. This is the highest-priority fix in this analysis — without it, wizard-configured `headerRowCount` values are silently ignored, creating a data integrity risk.
+
+**Suggested pattern:**
+```javascript
+// Replace hardcoded constants with:
+function getConfig_() {
+  if (!this._cachedConfig) {
+    this._cachedConfig = getUnifiedConfig();
+  }
+  return this._cachedConfig;
+}
+// Then use getConfig_().LAYOUT.DATA_START_ROW instead of LAYOUT.DATA_START_ROW
+```
+
+#### R2. Add `DASHBOARD_COLORS` to UnifiedConfig (MEDIUM)
+
+`DASHBOARD_COLORS` is currently defined only in Phase2 (lines 125–146) and not customizable. Add it to `getUnifiedConfig()` output with optional branding overrides from `SITE_CONFIG.branding`. This allows schools to customize dashboard appearance.
+
+#### R3. Consolidate `log`/`logMessage` into SharedEngine_IO.gs (LOW)
+
+Merge SetupWizard's `logMessage` (line 260) into SharedEngine's `log` (line 488). Adopt a single format string and function name. All files should use the same logging function. If the SharedEngine split into `SharedEngine_Core.gs` / `SharedEngine_IO.gs` proceeds, place the unified `log()` in `SharedEngine_IO.gs`.
+
+#### R4. Upgrade `extractLessonNumber` in SharedEngine (MEDIUM)
+
+Replace SharedEngine's simple `/L(\d+)/` regex (line 436) with SetupWizard's comprehensive version (line 2024) that handles `LESSON`, `L`, `UFLI L` patterns, null input, and 1–128 range validation. Then remove the duplicate from SetupWizard. This ensures all callers get the same robust parsing.
+
+#### R5. Consolidate `getSheetDataAsMap` with `.toString()` Safety (HIGH)
+
+Keep one copy of `getSheetDataAsMap` (recommend P2's explicit-loop version with `.toString()` on keys). Remove the SW version. Ensure all callers use string keys consistently to prevent type-mismatch lookup failures.
+
+#### R6. Consolidate `getExistingGrades` (HIGH)
+
+Merge P2's robust Grade Summary reader (with `.toString()`, deduplication, canonical sort) with SW's fallback-to-hardcoded-list logic into a single function. Place in SharedEngine or SharedHelpers. Remove both duplicates.
 
 ---
 
