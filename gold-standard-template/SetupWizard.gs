@@ -1417,6 +1417,7 @@ function updateStudentInSheet(ss, sheetName, studentName, studentData) {
   }
 }
 
+// NOTE: addStudentToSheet uses Phase2's LAYOUT.COL_CURRENT_LESSON via GAS flat namespace
 function addStudentToSheet(ss, sheetName, studentData) {
   const sheet = ss.getSheetByName(sheetName);
   if (!sheet) return;
@@ -2312,6 +2313,8 @@ function updateGroupSheetTargeted(ss, gradeSheetName, groupName, lessonName, stu
 /**
  * OPTIMIZED: Updates only the affected students in UFLI MAP
  * Uses Batch Read/Write to minimize API calls (2 writes total).
+ * NOTE: Uses Phase2's LAYOUT constant for system sheet column indices
+ *       (COL_FIRST_LESSON, COL_CURRENT_LESSON) via GAS flat namespace.
  */
 function updateUFLIMapTargeted(mapSheet, studentStatuses, lessonNum, timestamp) {
   const lastRow = mapSheet.getLastRow();
