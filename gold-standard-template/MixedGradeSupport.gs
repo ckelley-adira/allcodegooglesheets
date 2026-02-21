@@ -1535,34 +1535,7 @@ function getGradeHeaderText_MixedGrade(grades) {
 // UTILITY FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════
 
-/**
- * Natural sort for group names (handles numbers correctly)
- * 
- * @param {string} a - First string
- * @param {string} b - Second string
- * @returns {number} Sort comparison result
- */
-function naturalSort(a, b) {
-  const ax = [];
-  const bx = [];
-
-  a.replace(/(\d+)|(\D+)/g, (_, num, str) => {
-    ax.push([num || Infinity, str || ""]);
-  });
-  
-  b.replace(/(\d+)|(\D+)/g, (_, num, str) => {
-    bx.push([num || Infinity, str || ""]);
-  });
-
-  while (ax.length && bx.length) {
-    const an = ax.shift();
-    const bn = bx.shift();
-    const nn = (an[0] - bn[0]) || an[1].localeCompare(bn[1]);
-    if (nn) return nn;
-  }
-
-  return ax.length - bx.length;
-}
+// naturalSort is defined in modules/MixedGradeSupport.gs — single canonical implementation
 
 /**
  * Formats a date value safely

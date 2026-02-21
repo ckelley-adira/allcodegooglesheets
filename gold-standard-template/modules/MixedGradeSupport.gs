@@ -1593,21 +1593,6 @@ if (scClassroomSheet && !groupsBySheet["SC Classroom"]) {
 }
 
 
-/**
- * Natural sort for group names
- * Handles "Group 1", "Group 2", ... "Group 10" correctly
- */
-function naturalSort(a, b) {
-  // Extract numbers from group names
-  const numA = parseInt((a.match(/\d+/) || [])[0]) || 0;
-  const numB = parseInt((b.match(/\d+/) || [])[0]) || 0;
-  
-  if (numA !== numB) {
-    return numA - numB;
-  }
-  
-  return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
-}
 // ═══════════════════════════════════════════════════════════════════════════
 // SCHOOL SUMMARY - MIXED GRADE SUPPORT
 // Add this to MixedGradeSupport_Enhanced.gs
