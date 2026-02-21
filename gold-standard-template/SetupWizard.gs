@@ -590,29 +590,36 @@ function getExistingSheetLayout(configSheet) {
  * @returns {Array<string>} Array of grade values
  */
 function getExistingGrades(configSheet) {
-  if (!configSheet || typeof configSheet.getRange !== 'function') {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const summarySheet = ss.getSheetByName("Grade Summary");
-    
-    if (summarySheet && summarySheet.getLastRow() >= 6) {
-      const gradeData = summarySheet.getRange(6, 2, summarySheet.getLastRow() - 5, 1).getValues();
-      const uniqueGrades = [...new Set(gradeData.map(r => r[0]).filter(g => g))];
-      
-      const gradeOrder = ['PreK', 'KG', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8'];
-      uniqueGrades.sort((a, b) => {
-        const aIdx = gradeOrder.indexOf(a.toString());
-        const bIdx = gradeOrder.indexOf(b.toString());
-        if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
-        return a.toString().localeCompare(b.toString());
-      });
-      
-      return uniqueGrades;
-    }
-    
+  // Dynamically get grades from Grade Summary instead of hardcoded list
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const summarySheet = ss.getSheetByName(SHEET_NAMES_V2.GRADE_SUMMARY);
+  
+  if (!summarySheet || summarySheet.getLastRow() < ROSTER_LAYOUT.DATA_START_ROW) {
+    // Fallback to hardcoded list if no data
     return ['PreK', 'KG', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8'];
   }
   
-  return ['PreK', 'KG', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8'];
+  // Read all grades from column B (index 1)
+  const gradeData = summarySheet.getRange(ROSTER_LAYOUT.DATA_START_ROW, 2, 
+    summarySheet.getLastRow() - ROSTER_LAYOUT.DATA_START_ROW + 1, 1).getValues();
+  
+  // Get unique grades
+  const uniqueGrades = [...new Set(gradeData.map(r => r[0]).filter(g => g))];
+  
+  // Sort grades in logical order with toString() safety
+  const gradeOrder = ['PreK', 'KG', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8'];
+  uniqueGrades.sort((a, b) => {
+    const aStr = a.toString();
+    const bStr = b.toString();
+    const aIdx = gradeOrder.indexOf(aStr);
+    const bIdx = gradeOrder.indexOf(bStr);
+    if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+    if (aIdx !== -1) return -1;
+    if (bIdx !== -1) return 1;
+    return aStr.localeCompare(bStr);
+  });
+  
+  return uniqueGrades;
 }
 
 /**
@@ -1425,7 +1432,7 @@ function addStudentToSheet(ss, sheetName, studentData) {
   
   if (sheetName === SHEET_NAMES_V2.UFLI_MAP) {
     const currentLessonFormula = buildCurrentLessonFormula(newRowIndex);
-    sheet.getRange(newRowIndex, ROSTER_LAYOUT.COL_CURRENT_LESSON).setFormula(currentLessonFormula);
+    sheet.getRange(newRowIndex, LAYOUT.COL_CURRENT_LESSON).setFormula(currentLessonFormula);
     
   } else if (sheetName === SHEET_NAMES_V2.SKILLS) {
     addSkillFormulasForRow(sheet, newRowIndex);
@@ -1769,7 +1776,7 @@ function getSheetDataAsMap(ss, sheetName) {
   const data = sheet.getDataRange().getValues();
   const dataRows = data.slice(ROSTER_LAYOUT.DATA_START_ROW - 1);
   
-  return new Map(dataRows.filter(row => row[0]).map(row => [row[0], row]));
+  return new Map(dataRows.filter(row => row[0]).map(row => [row[0].toString(), row]));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -2316,8 +2323,8 @@ function updateUFLIMapTargeted(mapSheet, studentStatuses, lessonNum, timestamp) 
   const nameData = mapSheet.getRange(ROSTER_LAYOUT.DATA_START_ROW, 1, numRows, 1).getValues().flat();
   
   // 2. Identify target column indices
-  const lessonColIdx = ROSTER_LAYOUT.COL_FIRST_LESSON + lessonNum - 1; // 1-based column index
-  const currentLessonColIdx = ROSTER_LAYOUT.COL_CURRENT_LESSON;        // 1-based column index
+  const lessonColIdx = LAYOUT.COL_FIRST_LESSON + lessonNum - 1; // 1-based column index (from Phase2 LAYOUT)
+  const currentLessonColIdx = LAYOUT.COL_CURRENT_LESSON;        // 1-based column index (from Phase2 LAYOUT)
   
   // 3. Read the Data Columns (Lesson Column and Current Lesson Column)
   const lessonRange = mapSheet.getRange(ROSTER_LAYOUT.DATA_START_ROW, lessonColIdx, numRows, 1);

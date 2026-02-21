@@ -1907,55 +1907,8 @@ function calculateGradePacing(groups) {
 // HELPER FUNCTIONS
 // ═══════════════════════════════════════════════════════════════════════════
 
-function getSheetDataAsMap(ss, sheetName) {
-  const sheet = ss.getSheetByName(sheetName);
-  const map = new Map();
-  if (!sheet) return map;
-  
-  const data = sheet.getDataRange().getValues();
-  const startIndex = Math.max(0, LAYOUT.DATA_START_ROW - 1);
-
-  for (let i = startIndex; i < data.length; i++) {
-    const row = data[i];
-    if (row[0]) {
-      map.set(row[0].toString(), row);
-    }
-  }
-  return map;
-}
-
-function getExistingGrades(configSheet) {
-  // Dynamically get grades from Grade Summary instead of hardcoded list
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const summarySheet = ss.getSheetByName(SHEET_NAMES_V2.GRADE_SUMMARY);
-  
-  if (!summarySheet || summarySheet.getLastRow() < LAYOUT.DATA_START_ROW) {
-    // Fallback to hardcoded list if no data
-    return ['PreK', 'KG', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8'];
-  }
-  
-  // Read all grades from column B (index 1)
-  const gradeData = summarySheet.getRange(LAYOUT.DATA_START_ROW, 2, 
-    summarySheet.getLastRow() - LAYOUT.DATA_START_ROW + 1, 1).getValues();
-  
-  // Get unique grades
-  const uniqueGrades = [...new Set(gradeData.map(r => r[0]).filter(g => g))];
-  
-  // Sort grades in logical order
-  const gradeOrder = ['PreK', 'KG', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8'];
-  uniqueGrades.sort((a, b) => {
-    const aStr = a.toString();
-    const bStr = b.toString();
-    const aIdx = gradeOrder.indexOf(aStr);
-    const bIdx = gradeOrder.indexOf(bStr);
-    if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
-    if (aIdx !== -1) return -1;
-    if (bIdx !== -1) return 1;
-    return aStr.localeCompare(bStr);
-  });
-  
-  return uniqueGrades;
-}
+// getSheetDataAsMap — canonical implementation is in SetupWizard.gs (shared via GAS flat namespace)
+// getExistingGrades — canonical implementation is in SetupWizard.gs (shared via GAS flat namespace)
 
 // ═══════════════════════════════════════════════════════════════════════════
 // MAINTENANCE & REPAIR UTILITIES
@@ -2215,34 +2168,8 @@ function testGroupSheetStructure() {
   });
 }
 
-/**
- * Adds student to sheet dynamically (if enabled)
- * @feature dynamicStudentRoster - Enable with features.dynamicStudentRoster = true
- */
-function addStudentToSheet(ss, sheetName, studentData) {
-  if (typeof SITE_CONFIG === 'undefined' || !SITE_CONFIG.features || !SITE_CONFIG.features.dynamicStudentRoster) {
-    throw new Error('Dynamic student roster is disabled. Enable with features.dynamicStudentRoster = true');
-  }
-  
-  const sheet = ss.getSheetByName(sheetName);
-  if (!sheet) return;
-  const lastRow = sheet.getLastRow();
-  sheet.getRange(lastRow + 1, 1, 1, studentData.length).setValues([studentData]);
-}
-
-/**
- * Updates student data in sheet (if dynamic roster enabled)
- * @feature dynamicStudentRoster
- */
-function updateStudentInSheet(ss, sheetName, studentName, columnIndex, newValue) {
-  if (typeof SITE_CONFIG === 'undefined' || !SITE_CONFIG.features || !SITE_CONFIG.features.dynamicStudentRoster) {
-    throw new Error('Dynamic student roster is disabled. Enable with features.dynamicStudentRoster = true');
-  }
-  
-  const sheet = ss.getSheetByName(sheetName);
-  if (!sheet) return;
-  // Implementation details...
-}
+// addStudentToSheet — canonical implementation is in SetupWizard.gs (shared via GAS flat namespace)
+// updateStudentInSheet — canonical implementation is in SetupWizard.gs (shared via GAS flat namespace)
 
 
 // ═══════════════════════════════════════════════════════════════════════════
