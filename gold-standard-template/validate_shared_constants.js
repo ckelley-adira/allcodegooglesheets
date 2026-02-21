@@ -149,8 +149,82 @@ for (const file of PHASE7_FILES) {
   }
 }
 
-// 4. Validate SiteConfig_TEMPLATE.gs has Phase 7 settings
-console.log('\n4. Checking SiteConfig_TEMPLATE.gs for Phase 7 settings...\n');
+// 4. Validate SharedEngine split files (SharedEngine_Core.gs + SharedEngine_IO.gs)
+console.log('\n4. Checking SharedEngine split files...\n');
+
+const CORE_FUNCTIONS = [
+  'function getLessonColumnIndex(',
+  'function getLessonStatus(',
+  'function isReviewLesson(',
+  'function calculateBenchmark(',
+  'function calculateSectionPercentage(',
+  'function computeStudentStats(',
+  'function createMergedRow(',
+  'function getColumnLetter('
+];
+
+const IO_FUNCTIONS = [
+  'function getOrCreateSheet(',
+  'function log(',
+  'function updateAllStats('
+];
+
+const corePath = path.join(REPO_ROOT, 'SharedEngine_Core.gs');
+const ioPath = path.join(REPO_ROOT, 'SharedEngine_IO.gs');
+
+if (fs.existsSync(corePath)) {
+  const coreContent = fs.readFileSync(corePath, 'utf8');
+  console.log(`   ✅ SharedEngine_Core.gs exists (${(coreContent.length / 1024).toFixed(1)} KB)`);
+  for (const func of CORE_FUNCTIONS) {
+    if (coreContent.includes(func)) {
+      console.log(`      ✅ ${func.replace('function ', '').replace('(', '()')} defined`);
+    } else {
+      console.error(`      ❌ ${func.replace('function ', '').replace('(', '()')} NOT defined`);
+      allValid = false;
+    }
+  }
+  // Verify NO GAS API references in Core (skip comments — lines starting with // or *)
+  const gasApis = ['SpreadsheetApp', 'Logger.log', 'HtmlService', 'UrlFetchApp'];
+  const coreLines = coreContent.split('\n');
+  let hasGasApi = false;
+  for (const api of gasApis) {
+    for (let lineNum = 0; lineNum < coreLines.length; lineNum++) {
+      const line = coreLines[lineNum].trim();
+      // Skip comment lines
+      if (line.startsWith('//') || line.startsWith('*') || line.startsWith('/*')) continue;
+      if (line.includes(api)) {
+        console.error(`      ❌ SharedEngine_Core.gs line ${lineNum + 1}: non-comment reference to ${api}`);
+        hasGasApi = true;
+        allValid = false;
+      }
+    }
+  }
+  if (!hasGasApi) {
+    console.log(`      ✅ No GAS API references in executable code (pure logic confirmed)`);
+  }
+} else {
+  console.error('   ❌ SharedEngine_Core.gs NOT found');
+  allValid = false;
+}
+
+if (fs.existsSync(ioPath)) {
+  const ioContent = fs.readFileSync(ioPath, 'utf8');
+  console.log(`   ✅ SharedEngine_IO.gs exists (${(ioContent.length / 1024).toFixed(1)} KB)`);
+  for (const func of IO_FUNCTIONS) {
+    if (ioContent.includes(func)) {
+      console.log(`      ✅ ${func.replace('function ', '').replace('(', '()')} defined`);
+    } else {
+      console.error(`      ❌ ${func.replace('function ', '').replace('(', '()')} NOT defined`);
+      allValid = false;
+    }
+  }
+} else {
+  console.error('   ❌ SharedEngine_IO.gs NOT found');
+  allValid = false;
+}
+
+// 5. Validate SiteConfig_TEMPLATE.gs has Phase 7 settings
+console.log('\n5. Checking SiteConfig_TEMPLATE.gs for Phase 7 settings...\n');
 
 const siteConfigPath = path.join(REPO_ROOT, 'SiteConfig_TEMPLATE.gs');
 if (fs.existsSync(siteConfigPath)) {
