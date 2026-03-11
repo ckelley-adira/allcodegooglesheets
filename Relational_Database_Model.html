@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Adira Reads — Relational Database Model &amp; Migration Plan</title>
+<style>
+  :root {
+    --ink: #1a1a2e;
+    --accent: #e94560;
+    --blue: #0f3460;
+    --bg: #f8f9fc;
+    --card: #ffffff;
+    --border: #e2e6ee;
+    --green: #2d8a4e;
+    --amber: #d4880f;
+    --red: #c0392b;
+    --purple: #6c3483;
+    --teal: #0e6655;
+    --code-bg: #1e1e2e;
+    --code-fg: #cdd6f4;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.65;
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 2rem; color: var(--blue); border-bottom: 3px solid var(--accent); padding-bottom: .5rem; margin-bottom: .25rem; }
+  .subtitle { color: #666; font-size: .95rem; margin-bottom: 2rem; }
+  h2 { font-size: 1.35rem; color: var(--blue); margin: 2.5rem 0 .75rem; display: flex; align-items: center; gap: .5rem; }
+  h2 .num { background: var(--accent); color: white; border-radius: 50%; width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center; font-size: .85rem; flex-shrink: 0; }
+  h3 { font-size: 1.05rem; color: var(--ink); margin: 1.25rem 0 .5rem; }
+  p { margin-bottom: .75rem; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem 1.5rem; margin-bottom: 1rem; box-shadow: 0 1px 4px rgba(0,0,0,.04); }
+  .card.green { border-left: 4px solid var(--green); }
+  .card.amber { border-left: 4px solid var(--amber); }
+  .card.red { border-left: 4px solid var(--red); }
+  .card.purple { border-left: 4px solid var(--purple); }
+  .card.teal { border-left: 4px solid var(--teal); }
+  .card.blue { border-left: 4px solid var(--blue); }
+  table { width: 100%; border-collapse: collapse; margin: .75rem 0 1rem; font-size: .88rem; }
+  th { background: var(--blue); color: white; padding: .55rem .7rem; text-align: left; font-weight: 600; }
+  td { padding: .45rem .7rem; border-bottom: 1px solid var(--border); }
+  tr:nth-child(even) td { background: #f4f6fa; }
+  .toc { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; columns: 2; column-gap: 2rem; }
+  .toc a { display: block; color: var(--blue); text-decoration: none; padding: .2rem 0; font-size: .9rem; }
+  .toc a:hover { color: var(--accent); }
+  .callout { background: #eef3ff; border-radius: 8px; padding: 1rem 1.25rem; margin: 1rem 0; font-size: .92rem; }
+  .callout.warning { background: #fff8e6; border-left: 3px solid var(--amber); }
+  .callout.success { background: #eafaf0; border-left: 3px solid var(--green); }
+  .callout.info { background: #eef3ff; border-left: 3px solid var(--blue); }
+  code { font-family: 'Consolas', 'Fira Code', 'Courier New', monospace; font-size: .88em; background: #e8ecf4; padding: .1rem .35rem; border-radius: 3px; }
+  pre {
+    background: var(--code-bg);
+    color: var(--code-fg);
+    padding: 1.25rem 1.5rem;
+    border-radius: 10px;
+    overflow-x: auto;
+    font-family: 'Consolas', 'Fira Code', 'Courier New', monospace;
+    font-size: .82rem;
+    line-height: 1.55;
+    margin: .75rem 0 1rem;
+  }
+  pre code { background: none; padding: 0; color: inherit; }
+  .kw { color: #cba6f7; }
+  .ty { color: #89b4fa; }
+  .str { color: #a6e3a1; }
+  .cm { color: #6c7086; font-style: italic; }
+  .num-lit { color: #fab387; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1rem 0; }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.25rem; text-align: center; }
+  .stat .big { font-size: 2rem; font-weight: 700; color: var(--accent); }
+  .stat .label { font-size: .8rem; color: #777; margin-top: .15rem; }
+  .tag { display: inline-block; padding: .15rem .55rem; border-radius: 12px; font-size: .75rem; font-weight: 600; }
+  .tag.pk { background: #fde8e8; color: var(--red); }
+  .tag.fk { background: #e8daef; color: var(--purple); }
+  .tag.idx { background: #d4edda; color: #155724; }
+  .tag.phase { background: #fef3cd; color: #856404; }
+
+  /* ERD Styles */
+  .erd-container { overflow-x: auto; padding: 1rem 0; }
+  .erd-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; min-width: 900px; margin: 1rem 0; }
+  .erd-table {
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    font-size: .78rem;
+    overflow: hidden;
+  }
+  .erd-table .t-header {
+    background: var(--blue);
+    color: white;
+    padding: .5rem .65rem;
+    font-weight: 700;
+    font-size: .82rem;
+    text-align: center;
+  }
+  .erd-table.core .t-header { background: var(--blue); }
+  .erd-table.curriculum .t-header { background: var(--teal); }
+  .erd-table.tracking .t-header { background: var(--purple); }
+  .erd-table.admin .t-header { background: #555; }
+  .erd-table .t-row {
+    display: flex;
+    justify-content: space-between;
+    padding: .25rem .65rem;
+    border-bottom: 1px solid #eee;
+  }
+  .erd-table .t-row:last-child { border-bottom: none; }
+  .erd-table .col-name { font-family: 'Consolas', monospace; }
+  .erd-table .col-type { color: #888; font-size: .75rem; }
+  .erd-table .t-row.pk-row { background: #fef3f3; }
+  .erd-table .t-row.fk-row { background: #f5f0fa; }
+
+  .phase-header { display: flex; align-items: center; gap: .75rem; margin: 1.75rem 0 .5rem; }
+  .phase-tag { font-size: .85rem; padding: .3rem .85rem; border-radius: 15px; font-weight: 700; }
+  .phase-tag.p1 { background: #fde8e8; color: var(--red); }
+  .phase-tag.p2 { background: #fef3cd; color: #856404; }
+  .phase-tag.p3 { background: #d4edda; color: #155724; }
+  .phase-tag.p4 { background: #e8daef; color: var(--purple); }
+
+  .legend { display: flex; gap: 1.5rem; flex-wrap: wrap; margin: .75rem 0; font-size: .82rem; }
+  .legend-item { display: flex; align-items: center; gap: .35rem; }
+  .legend-swatch { width: 14px; height: 14px; border-radius: 3px; }
+
+  @media (max-width: 900px) {
+    body { padding: 1rem; }
+    .erd-grid { grid-template-columns: 1fr 1fr; }
+    .toc { columns: 1; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Adira Reads — Relational Database Model</h1>
+<p class="subtitle">Google Cloud SQL (PostgreSQL) &middot; Full Schema + ERD + Migration Plan &middot; Prepared for Christina Kelley &middot; March 2026</p>
+
+<div class="toc">
+  <a href="#overview">1. Design Overview</a>
+  <a href="#erd">2. Entity-Relationship Diagram</a>
+  <a href="#schema">3. Full PostgreSQL Schema</a>
+  <a href="#indexes">4. Indexing Strategy</a>
+  <a href="#mapping">5. Sheets-to-Tables Mapping</a>
+  <a href="#migration">6. Migration Plan</a>
+  <a href="#views">7. Key Views &amp; Queries</a>
+  <a href="#next">8. Implementation Roadmap</a>
+</div>
+
+<!-- ===== SECTION 1 ===== -->
+<h2 id="overview"><span class="num">1</span> Design Overview</h2>
+
+<p>This relational model replaces the entire 59-tab Google Sheets backend for the Adira Reads "School Lesson Tracking System." Every tab, every script-managed data store, and every hidden configuration sheet maps to a normalized PostgreSQL table on Google Cloud SQL. The design supports <strong>multi-school deployment from day one</strong> — the <code>school_id</code> foreign key threads through every table so the same database serves all Christel House campuses.</p>
+
+<div class="stat-grid">
+  <div class="stat"><div class="big">22</div><div class="label">Tables in the schema</div></div>
+  <div class="stat"><div class="big">4</div><div class="label">Domain groups</div></div>
+  <div class="stat"><div class="big">59 → 22</div><div class="label">Tabs consolidated to tables</div></div>
+  <div class="stat"><div class="big">PostgreSQL</div><div class="label">Target engine</div></div>
+</div>
+
+<h3>Domain Groups</h3>
+<div class="legend">
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--blue)"></div> Core (schools, people, groups)</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--teal)"></div> Curriculum &amp; Assessment</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--purple)"></div> Tracking &amp; Analytics</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:#555"></div> System &amp; Admin</div>
+</div>
+
+<div class="callout info">
+  <strong>Design principles:</strong> Third normal form (3NF) throughout. No data duplication — the "Big Gulp" script-calculated values (skill percentages, band assignments, coaching metrics) become materialized views or computed on read, not stored redundantly. All timestamps are <code>TIMESTAMPTZ</code> (UTC). Soft deletes via <code>is_active</code> flags — no data is ever physically removed.
+</div>
+
+<!-- ===== SECTION 2 ===== -->
+<h2 id="erd"><span class="num">2</span> Entity-Relationship Diagram</h2>
+
+<p>Tables are color-coded by domain. Primary keys are highlighted red, foreign keys purple. Read left-to-right: Core entities → Curriculum → Tracking → System.</p>
+
+<div class="erd-container">
+
+<h3 style="color:var(--blue)">Core Domain (Schools, People, Groups)</h3>
+<div class="erd-grid">
+  <div class="erd-table core">
+    <div class="t-header">schools</div>
+    <div class="t-row pk-row"><span class="col-name">school_id</span><span class="col-type">SERIAL PK</span></div>
+    <div class="t-row"><span class="col-name">name</span><span class="col-type">VARCHAR(150)</span></div>
+    <div class="t-row"><span class="col-name">short_code</span><span class="col-type">VARCHAR(10) UQ</span></div>
+    <div class="t-row"><span class="col-name">address</span><span class="col-type">TEXT</span></div>
+    <div class="t-row"><span class="col-name">city</span><span class="col-type">VARCHAR(100)</span></div>
+    <div class="t-row"><span class="col-name">state</span><span class="col-type">CHAR(2)</span></div>
+    <div class="t-row"><span class="col-name">is_active</span><span class="col-type">BOOLEAN</span></div>
+    <div class="t-row"><span class="col-name">created_at</span><span class="col-type">TIMESTAMPTZ</span></div>
+  </div>
+
+  <div class="erd-table core">
+    <div class="t-header">academic_years</div>
+    <div class="t-row pk-row"><span class="col-name">year_id</span><span class="col-type">SERIAL PK</span></div>
+    <div class="t-row fk-row"><span class="col-name">school_id</span><span class="col-type">INT FK→schools</span></div>
+    <div class="t-row"><span class="col-name">label</span><span class="col-type">VARCHAR(10)</span></div>
+    <div class="t-row"><span class="col-name">start_date</span><span class="col-type">DATE</span></div>
+    <div class="t-row"><span class="col-name">end_date</span><span class="col-type">DATE</span></div>
+    <div class="t-row"><span class="col-name">is_current</span><span class="col-type">BOOLEAN</span></div>
+  </div>
+
+  <div class="erd-table core">
+    <div class="t-header">grade_levels</div>
+    <div class="t-row pk-row"><span class="col-name">grade_id</span><span class="col-type">SERIAL PK</span></div>
+    <div class="t-row"><span class="col-name">name</span><span class="col-type">VARCHAR(5)</span></div>
+    <div class="t-row"><span class="col-name">sort_order</span><span class="col-type">SMALLINT</span></div>
+    <div class="t-row"><span class="col-name">grade_band</span><span class="col-type">VARCHAR(10)</span></div>
+  </div>
+
+  <div class="erd-table core">
+    <div class="t-header">teachers</div>
+    <div class="t-row pk-row"><span class="col-name">teacher_id</span><span class="col-type">SERIAL PK</span></div>
+    <div class="t-row fk-row"><span class="col-name">school_id</span><span class="col-type">INT FK→schools</span></div>
+    <div class="t-row"><span class="col-name">first_name</span><span class="col-type">VARCHAR(80)</span></div>
+    <div class="t-row"><span class="col-name">last_name</span><span class="col-type">VARCHAR(80)</span></div>
+    <div class="t-row"><span class="col-name">email</span><span class="col-type">VARCHAR(200) UQ</span></div>
+    <div class="t-row"><span class="col-name">role</span><span class="col-type">ENUM</span></div>
+    <div class="t-row"><span class="col-name">is_active</span><span class="col-type">BOOLEAN</span></div>
+  </div>
+</div>
+
+<div class="erd-grid" style="grid-template-columns: repeat(3, 1fr);">
+  <div class="erd-table core">
+    <div class="t-header">students</div>
+    <div class="t-row pk-row"><span class="col-name">student_id</span><span class="col-type">SERIAL PK</span></div>
+    <div class="t-row fk-row"><span class="col-name">school_id</span><span class="col-type">INT FK→schools</span></div>
+    <div class="t-row fk-row"><span class="col-name">grade_id</span><span class="col-type">INT FK→grade_levels</span></div>
+    <div class="t-row"><span class="col-name">first_name</span><span class="col-type">VARCHAR(80)</span></div>
+    <div class="t-row"><span class="col-name">last_name</span><span class="col-type">VARCHAR(80)</span></div>
+    <div class="t-row"><span class="col-name">student_number</span><span class="col-type">VARCHAR(20) UQ</span></div>
+    <div class="t-row"><span class="col-name">enrollment_status</span><span class="col-type">ENUM</span></div>
+    <div class="t-row"><span class="col-name">enrollment_date</span><span class="col-type">DATE</span></div>
+    <div class="t-row"><span class="col-name">withdrawal_date</span><span class="col-type">DATE NULL</span></div>
+    <div class="t-row"><span class="col-name">created_at</span><span class="col-type">TIMESTAMPTZ</span></div>
+  </div>
+
+  <div class="erd-table core">
+    <div class="t-header">instructional_groups</div>
+    <div class="t-row pk-row"><span class="col-name">group_id</span><span class="col-type">SERIAL PK</span></div>
+    <div class="t-row fk-row"><span class="col-name">school_id</span><span class="col-type">INT FK→schools</span></div>
+    <div class="t-row fk-row"><span class="col-name">grade_id</span><span class="col-type">INT FK→grade_levels</span></div>
+    <div class="t-row fk-row"><span class="col-name">year_id</span><span class="col-type">INT FK→academic_years</span></div>
+    <div class="t-row fk-row"><span class="col-name">teacher_id</span><span class="col-type">INT FK→teachers</span></div>
+    <div class="t-row"><span class="col-name">group_name</span><span class="col-type">VARCHAR(100)</span></div>
+    <div class="t-row"><span class="col-name">is_mixed_grade</span><span class="col-type">BOOLEAN</span></div>
+    <div class="t-row"><span class="col-name">is_active</span><span class="col-type">BOOLEAN</span></div>
+  </div>
+
+  <div class="erd-table core">
+    <div class="t-header">group_memberships</div>
+    <div class="t-row pk-row"><span class="col-name">membership_id</span><span class="col-type">SERIAL PK</span></div>
+    <div class="t-row fk-row"><span class="col-name">group_id</span><span class="col-type">INT FK→inst_groups</span></div>
+    <div class="t-row fk-row"><span class="col-name">student_id</span><span class="col-type">INT FK→students</span></div>
+    <div class="t-row"><span class="col-name">joined_date</span><span class="col-type">DATE</span></div>
+    <div class="t-row"><span class="col-name">left_date</span><span class="col-type">DATE NULL</span></div>
+    <div class="t-row"><span class="col-name">is_active</span><span class="col-type">BOOLEAN</span></div>
+  </div>
+</div>
+
+<h3 style="color:var(--teal)">Curriculum &amp; Assessment Domain</h3>
+<div class="erd-grid">
+  <div class="erd-table curriculum">
+    <div class="t-header">ufli_lessons</div>
+    <div class="t-row pk-row"><span class="col-name">lesson_id</span><span class="col-type">SERIAL PK</span></div>
+    <div class="t-row"><span class="col-name">lesson_number</span><span class="col-type">SMALLINT UQ</span></div>
+    <div class="t-row"><span class="col-name">lesson_name</span><span class="col-type">VARCHAR(150)</span></div>
+    <div class="t-row"><span class="col-name">skill_section</span><span class="col-type">VARCHAR(50)</span></div>
+    <div class="t-row"><span class="col-name">sort_order</span><span class="col-type">SMALLINT</span></div>
+  </div>
+
+  <div class="erd-table curriculum">
+    <div class="t-header">lesson_progress</div>
+    <div class="t-row pk-row"><span class="col-name">progress_id</span><span class="col-type">BIGSERIAL PK</span></div>
+    <div class="t-row fk-row"><span class="col-name">student_id</span><span class="col-type">INT FK→students</span></div>
+    <div class="t-row fk-row"><span class="col-name">group_id</span><span class="col-type">INT FK→inst_groups</span></div>
+    <div class="t-row fk-row"><span class="col-name">lesson_id</span><span class="col-type">INT FK→ufli_lessons</span></div>
+    <div class="t-row fk-row"><span class="col-name">year_id</span><span class="col-type">INT FK→academic_years</span></div>
+    <div class="t-row"><span class="col-name">status</span><span class="col-type">ENUM (Y/N/A)</span></div>
+    <div class="t-row"><span class="col-name">date_recorded</span><span class="col-type">DATE</span></div>
+    <div class="t-row fk-row"><span class="col-name">recorded_by</span><span class="col-type">INT FK→teachers</span></div>
+    <div class="t-row"><span class="col-name">source</span><span class="col-type">ENUM</span></div>
+    <div class="t-row"><span class="col-name">created_at</span><span class="col-type">TIMESTAMPTZ</span></div>
+  </div>
+
+  <div class="erd-table curriculum">
+    <div class="t-header">assessment_sequences</div>
+    <div class="t-row pk-row"><span class="col-name">sequence_id</span><span class="col-type">SERIAL PK</span></div>
+    <div class="t-row"><span class="col-name">grade_band</span><span class="col-type">VARCHAR(10)</span></div>
+    <div class="t-row"><span class="col-name">version</span><span class="col-type">VARCHAR(10)</span></div>
+    <div class="t-row"><span class="col-name">sequence_number</span><span class="col-type">SMALLINT</span></div>
+    <div class="t-row"><span class="col-name">lesson_range_start</span><span class="col-type">SMALLINT</span></div>
+    <div class="t-row"><span class="col-name">lesson_range_end</span><span class="col-type">SMALLINT</span></div>
+  </div>
+
+  <div class="erd-table curriculum">
+    <div class="t-header">assessment_results</div>
+    <div class="t-row pk-row"><span class="col-name">result_id</span><span class="col-type">BIGSERIAL PK</span></div>
+    <div class="t-row fk-row"><span class="col-name">student_id</span><span class="col-type">INT FK→students</span></div>
+    <div class="t-row fk-row"><span class="col-name">sequence_id</span><span class="col-type">INT FK→assess_seq</span></div>
+    <div class="t-row fk-row"><span class="col-name">year_id</span><span class="col-type">INT FK→academic_years</span></div>
+    <div class="t-row"><span class="col-name">score</span><span class="col-type">NUMERIC(5,2)</span></div>
+    <div class="t-row"><span class="col-name">passed</span><span class="col-type">BOOLEAN</span></div>
+    <div class="t-row"><span class="col-name">date_assessed</span><span class="col-type">DATE</span></div>
+    <div class="t-row fk-row"><span class="col-name">assessed_by</span><span class="col-type">INT FK→teachers</span></div>
+  </div>
+</div>
+
+<div class="erd-grid" style="grid-template-columns: repeat(3, 1fr);">
+  <div class="erd-table curriculum">
+    <div class="t-header">sound_inventory</div>
+    <div class="t-row pk-row"><span class="col-name">inventory_id</span><span class="col-type">BIGSERIAL PK</span></div>
+    <div class="t-row fk-row"><span class="col-name">student_id</span><span class="col-type">INT FK→students</span></div>
+    <div class="t-row fk-row"><span class="col-name">year_id</span><span class="col-type">INT FK→academic_years</span></div>
+    <div class="t-row"><span class="col-name">sound</span><span class="col-type">VARCHAR(20)</span></div>
+    <div class="t-row"><span class="col-name">mastered</span><span class="col-type">BOOLEAN</span></div>
+    <div class="t-row"><span class="col-name">date_assessed</span><span class="col-type">DATE</span></div>
+    <div class="t-row fk-row"><span class="col-name">assessed_by</span><span class="col-type">INT FK→teachers</span></div>
+  </div>
+
+  <div class="erd-table curriculum">
+    <div class="t-header">tutoring_sessions</div>
+    <div class="t-row pk-row"><span class="col-name">session_id</span><span class="col-type">BIGSERIAL PK</span></div>
+    <div class="t-row fk-row"><span class="col-name">student_id</span><span class="col-type">INT FK→students</span></div>
+    <div class="t-row fk-row"><span class="col-name">year_id</span><span class="col-type">INT FK→academic_years</span></div>
+    <div class="t-row fk-row"><span class="col-name">tutor_id</span><span class="col-type">INT FK→teachers</span></div>
+    <div class="t-row"><span class="col-name">session_type</span><span class="col-type">ENUM</span></div>
+    <div class="t-row fk-row"><span class="col-name">lesson_id</span><span class="col-type">INT FK→ufli NULL</span></div>
+    <div class="t-row"><span class="col-name">session_date</span><span class="col-type">DATE</span></div>
+    <div class="t-row"><span class="col-name">duration_min</span><span class="col-type">SMALLINT</span></div>
+    <div class="t-row"><span class="col-name">notes</span><span class="col-type">TEXT NULL</span></div>
+  </div>
+
+  <div class="erd-table curriculum">
+    <div class="t-header">sounds_catalog</div>
+    <div class="t-row pk-row"><span class="col-name">sound_id</span><span class="col-type">SERIAL PK</span></div>
+    <div class="t-row"><span class="col-name">sound</span><span class="col-type">VARCHAR(20) UQ</span></div>
+    <div class="t-row"><span class="col-name">category</span><span class="col-type">VARCHAR(50)</span></div>
+    <div class="t-row"><span class="col-name">sort_order</span><span class="col-type">SMALLINT</span></div>
+  </div>
+</div>
+
+<h3 style="color:var(--purple)">Tracking &amp; Analytics Domain</h3>
+<div class="erd-grid" style="grid-template-columns: repeat(3, 1fr);">
+  <div class="erd-table tracking">
+    <div class="t-header">benchmark_records</div>
+    <div class="t-row pk-row"><span class="col-name">benchmark_id</span><span class="col-type">BIGSERIAL PK</span></div>
+    <div class="t-row fk-row"><span class="col-name">student_id</span><span class="col-type">INT FK→students</span></div>
+    <div class="t-row fk-row"><span class="col-name">year_id</span><span class="col-type">INT FK→academic_years</span></div>
+    <div class="t-row"><span class="col-name">benchmark_type</span><span class="col-type">ENUM (initial/current)</span></div>
+    <div class="t-row"><span class="col-name">band_label</span><span class="col-type">ENUM</span></div>
+    <div class="t-row"><span class="col-name">percentage</span><span class="col-type">NUMERIC(5,2)</span></div>
+    <div class="t-row"><span class="col-name">recorded_date</span><span class="col-type">DATE</span></div>
+  </div>
+
+  <div class="erd-table tracking">
+    <div class="t-header">weekly_snapshots</div>
+    <div class="t-row pk-row"><span class="col-name">snapshot_id</span><span class="col-type">BIGSERIAL PK</span></div>
+    <div class="t-row fk-row"><span class="col-name">student_id</span><span class="col-type">INT FK→students</span></div>
+    <div class="t-row fk-row"><span class="col-name">year_id</span><span class="col-type">INT FK→academic_years</span></div>
+    <div class="t-row"><span class="col-name">week_number</span><span class="col-type">SMALLINT</span></div>
+    <div class="t-row"><span class="col-name">week_start_date</span><span class="col-type">DATE</span></div>
+    <div class="t-row"><span class="col-name">growth_pct</span><span class="col-type">NUMERIC(5,2)</span></div>
+    <div class="t-row"><span class="col-name">lessons_taken</span><span class="col-type">SMALLINT</span></div>
+    <div class="t-row"><span class="col-name">lessons_passed</span><span class="col-type">SMALLINT</span></div>
+  </div>
+
+  <div class="erd-table tracking">
+    <div class="t-header">coaching_metrics</div>
+    <div class="t-row pk-row"><span class="col-name">metric_id</span><span class="col-type">BIGSERIAL PK</span></div>
+    <div class="t-row fk-row"><span class="col-name">group_id</span><span class="col-type">INT FK→inst_groups</span></div>
+    <div class="t-row fk-row"><span class="col-name">year_id</span><span class="col-type">INT FK→academic_years</span></div>
+    <div class="t-row"><span class="col-name">week_start_date</span><span class="col-type">DATE</span></div>
+    <div class="t-row"><span class="col-name">reteach_freq</span><span class="col-type">NUMERIC(5,2)</span></div>
+    <div class="t-row"><span class="col-name">pass_rate</span><span class="col-type">NUMERIC(5,2)</span></div>
+    <div class="t-row"><span class="col-name">growth_slope</span><span class="col-type">NUMERIC(7,4)</span></div>
+    <div class="t-row"><span class="col-name">absenteeism_rate</span><span class="col-type">NUMERIC(5,2)</span></div>
+    <div class="t-row"><span class="col-name">coaching_priority</span><span class="col-type">ENUM</span></div>
+  </div>
+</div>
+
+<h3 style="color:#555">System &amp; Admin Domain</h3>
+<div class="erd-grid">
+  <div class="erd-table admin">
+    <div class="t-header">feature_settings</div>
+    <div class="t-row pk-row"><span class="col-name">setting_id</span><span class="col-type">SERIAL PK</span></div>
+    <div class="t-row fk-row"><span class="col-name">school_id</span><span class="col-type">INT FK→schools</span></div>
+    <div class="t-row"><span class="col-name">feature_key</span><span class="col-type">VARCHAR(100)</span></div>
+    <div class="t-row"><span class="col-name">feature_value</span><span class="col-type">TEXT</span></div>
+    <div class="t-row"><span class="col-name">updated_at</span><span class="col-type">TIMESTAMPTZ</span></div>
+  </div>
+
+  <div class="erd-table admin">
+    <div class="t-header">import_log</div>
+    <div class="t-row pk-row"><span class="col-name">import_id</span><span class="col-type">SERIAL PK</span></div>
+    <div class="t-row fk-row"><span class="col-name">school_id</span><span class="col-type">INT FK→schools</span></div>
+    <div class="t-row"><span class="col-name">import_type</span><span class="col-type">VARCHAR(50)</span></div>
+    <div class="t-row"><span class="col-name">records_total</span><span class="col-type">INT</span></div>
+    <div class="t-row"><span class="col-name">records_success</span><span class="col-type">INT</span></div>
+    <div class="t-row"><span class="col-name">records_failed</span><span class="col-type">INT</span></div>
+    <div class="t-row"><span class="col-name">status</span><span class="col-type">ENUM</span></div>
+    <div class="t-row"><span class="col-name">created_at</span><span class="col-type">TIMESTAMPTZ</span></div>
+  </div>
+
+  <div class="erd-table admin">
+    <div class="t-header">import_exceptions</div>
+    <div class="t-row pk-row"><span class="col-name">exception_id</span><span class="col-type">BIGSERIAL PK</span></div>
+    <div class="t-row fk-row"><span class="col-name">import_id</span><span class="col-type">INT FK→import_log</span></div>
+    <div class="t-row"><span class="col-name">student_ref</span><span class="col-type">VARCHAR(100)</span></div>
+    <div class="t-row"><span class="col-name">field_name</span><span class="col-type">VARCHAR(100)</span></div>
+    <div class="t-row"><span class="col-name">error_msg</span><span class="col-type">TEXT</span></div>
+    <div class="t-row"><span class="col-name">raw_value</span><span class="col-type">TEXT</span></div>
+    <div class="t-row"><span class="col-name">resolved</span><span class="col-type">BOOLEAN</span></div>
+  </div>
+
+  <div class="erd-table admin">
+    <div class="t-header">audit_log</div>
+    <div class="t-row pk-row"><span class="col-name">log_id</span><span class="col-type">BIGSERIAL PK</span></div>
+    <div class="t-row fk-row"><span class="col-name">school_id</span><span class="col-type">INT FK→schools</span></div>
+    <div class="t-row fk-row"><span class="col-name">user_id</span><span class="col-type">INT FK→teachers</span></div>
+    <div class="t-row"><span class="col-name">action</span><span class="col-type">VARCHAR(50)</span></div>
+    <div class="t-row"><span class="col-name">table_name</span><span class="col-type">VARCHAR(50)</span></div>
+    <div class="t-row"><span class="col-name">record_id</span><span class="col-type">BIGINT</span></div>
+    <div class="t-row"><span class="col-name">old_value</span><span class="col-type">JSONB NULL</span></div>
+    <div class="t-row"><span class="col-name">new_value</span><span class="col-type">JSONB NULL</span></div>
+    <div class="t-row"><span class="col-name">created_at</span><span class="col-type">TIMESTAMPTZ</span></div>
+  </div>
+</div>
+
+</div><!-- end erd-container -->
+
+<!-- ===== SECTION 3 ===== -->
+<h2 id="schema"><span class="num">3</span> Full PostgreSQL Schema (DDL)</h2>
+
+<p>Copy-paste ready. Run against a fresh Cloud SQL PostgreSQL 15+ instance. Enum types are defined first, then tables in dependency order.</p>
+
+<pre><code><span class="cm">-- ============================================================</span>
+<span class="cm">-- Adira Reads: Relational Database Schema</span>
+<span class="cm">-- Target: Google Cloud SQL — PostgreSQL 15+</span>
+<span class="cm">-- Generated: March 2026</span>
+<span class="cm">-- ============================================================</span>
+
+<span class="cm">-- ======================== ENUM TYPES ========================</span>
+
+<span class="kw">CREATE TYPE</span> teacher_role <span class="kw">AS ENUM</span> (
+  <span class="str">'teacher'</span>, <span class="str">'coach'</span>, <span class="str">'admin'</span>, <span class="str">'tutor'</span>
+);
+
+<span class="kw">CREATE TYPE</span> enrollment_status <span class="kw">AS ENUM</span> (
+  <span class="str">'active'</span>, <span class="str">'withdrawn'</span>, <span class="str">'transferred'</span>, <span class="str">'graduated'</span>
+);
+
+<span class="kw">CREATE TYPE</span> lesson_status <span class="kw">AS ENUM</span> (
+  <span class="str">'Y'</span>, <span class="str">'N'</span>, <span class="str">'A'</span>   <span class="cm">-- Yes (passed), No (attempted/failed), Absent</span>
+);
+
+<span class="kw">CREATE TYPE</span> data_source <span class="kw">AS ENUM</span> (
+  <span class="str">'form'</span>, <span class="str">'import'</span>, <span class="str">'manual'</span>, <span class="str">'api'</span>
+);
+
+<span class="kw">CREATE TYPE</span> benchmark_type <span class="kw">AS ENUM</span> (
+  <span class="str">'initial'</span>, <span class="str">'current'</span>
+);
+
+<span class="kw">CREATE TYPE</span> band_label <span class="kw">AS ENUM</span> (
+  <span class="str">'on_track'</span>, <span class="str">'progressing'</span>, <span class="str">'needs_support'</span>
+);
+
+<span class="kw">CREATE TYPE</span> session_type <span class="kw">AS ENUM</span> (
+  <span class="str">'reteach'</span>, <span class="str">'comprehension'</span>, <span class="str">'intervention'</span>, <span class="str">'enrichment'</span>
+);
+
+<span class="kw">CREATE TYPE</span> coaching_priority <span class="kw">AS ENUM</span> (
+  <span class="str">'critical'</span>, <span class="str">'high'</span>, <span class="str">'medium'</span>, <span class="str">'low'</span>
+);
+
+<span class="kw">CREATE TYPE</span> import_status <span class="kw">AS ENUM</span> (
+  <span class="str">'pending'</span>, <span class="str">'processing'</span>, <span class="str">'completed'</span>, <span class="str">'failed'</span>
+);
+
+
+<span class="cm">-- =================== CORE DOMAIN ===========================</span>
+
+<span class="kw">CREATE TABLE</span> <span class="ty">schools</span> (
+  school_id     <span class="ty">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+  name          <span class="ty">VARCHAR</span>(<span class="num-lit">150</span>) <span class="kw">NOT NULL</span>,
+  short_code    <span class="ty">VARCHAR</span>(<span class="num-lit">10</span>)  <span class="kw">NOT NULL UNIQUE</span>,
+  address       <span class="ty">TEXT</span>,
+  city          <span class="ty">VARCHAR</span>(<span class="num-lit">100</span>),
+  state         <span class="ty">CHAR</span>(<span class="num-lit">2</span>),
+  is_active     <span class="ty">BOOLEAN</span> <span class="kw">NOT NULL DEFAULT</span> <span class="num-lit">TRUE</span>,
+  created_at    <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT</span> now(),
+  updated_at    <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT</span> now()
+);
+
+<span class="kw">CREATE TABLE</span> <span class="ty">academic_years</span> (
+  year_id       <span class="ty">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+  school_id     <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> schools(school_id),
+  label         <span class="ty">VARCHAR</span>(<span class="num-lit">10</span>) <span class="kw">NOT NULL</span>,  <span class="cm">-- e.g. 'FY26'</span>
+  start_date    <span class="ty">DATE</span> <span class="kw">NOT NULL</span>,
+  end_date      <span class="ty">DATE</span> <span class="kw">NOT NULL</span>,
+  is_current    <span class="ty">BOOLEAN</span> <span class="kw">NOT NULL DEFAULT</span> <span class="num-lit">FALSE</span>,
+  <span class="kw">UNIQUE</span>(school_id, label)
+);
+
+<span class="kw">CREATE TABLE</span> <span class="ty">grade_levels</span> (
+  grade_id      <span class="ty">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+  name          <span class="ty">VARCHAR</span>(<span class="num-lit">5</span>) <span class="kw">NOT NULL UNIQUE</span>,  <span class="cm">-- 'KG','G1'...'G8'</span>
+  sort_order    <span class="ty">SMALLINT</span> <span class="kw">NOT NULL</span>,
+  grade_band    <span class="ty">VARCHAR</span>(<span class="num-lit">10</span>) <span class="kw">NOT NULL</span>  <span class="cm">-- 'K-2', '3-5', '6-8'</span>
+);
+
+<span class="kw">CREATE TABLE</span> <span class="ty">teachers</span> (
+  teacher_id    <span class="ty">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+  school_id     <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> schools(school_id),
+  first_name    <span class="ty">VARCHAR</span>(<span class="num-lit">80</span>) <span class="kw">NOT NULL</span>,
+  last_name     <span class="ty">VARCHAR</span>(<span class="num-lit">80</span>) <span class="kw">NOT NULL</span>,
+  email         <span class="ty">VARCHAR</span>(<span class="num-lit">200</span>) <span class="kw">NOT NULL UNIQUE</span>,
+  role          teacher_role <span class="kw">NOT NULL DEFAULT</span> <span class="str">'teacher'</span>,
+  is_active     <span class="ty">BOOLEAN</span> <span class="kw">NOT NULL DEFAULT</span> <span class="num-lit">TRUE</span>,
+  created_at    <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT</span> now(),
+  updated_at    <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT</span> now()
+);
+
+<span class="kw">CREATE TABLE</span> <span class="ty">students</span> (
+  student_id        <span class="ty">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+  school_id         <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> schools(school_id),
+  grade_id          <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> grade_levels(grade_id),
+  first_name        <span class="ty">VARCHAR</span>(<span class="num-lit">80</span>) <span class="kw">NOT NULL</span>,
+  last_name         <span class="ty">VARCHAR</span>(<span class="num-lit">80</span>) <span class="kw">NOT NULL</span>,
+  student_number    <span class="ty">VARCHAR</span>(<span class="num-lit">20</span>) <span class="kw">NOT NULL UNIQUE</span>,
+  enrollment_status enrollment_status <span class="kw">NOT NULL DEFAULT</span> <span class="str">'active'</span>,
+  enrollment_date   <span class="ty">DATE</span> <span class="kw">NOT NULL</span>,
+  withdrawal_date   <span class="ty">DATE</span>,
+  created_at        <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT</span> now(),
+  updated_at        <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT</span> now()
+);
+
+<span class="kw">CREATE TABLE</span> <span class="ty">instructional_groups</span> (
+  group_id      <span class="ty">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+  school_id     <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> schools(school_id),
+  grade_id      <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> grade_levels(grade_id),
+  year_id       <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> academic_years(year_id),
+  teacher_id    <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> teachers(teacher_id),
+  group_name    <span class="ty">VARCHAR</span>(<span class="num-lit">100</span>) <span class="kw">NOT NULL</span>,
+  is_mixed_grade <span class="ty">BOOLEAN</span> <span class="kw">NOT NULL DEFAULT</span> <span class="num-lit">FALSE</span>,
+  is_active     <span class="ty">BOOLEAN</span> <span class="kw">NOT NULL DEFAULT</span> <span class="num-lit">TRUE</span>,
+  created_at    <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT</span> now(),
+  updated_at    <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT</span> now(),
+  <span class="kw">UNIQUE</span>(school_id, year_id, group_name)
+);
+
+<span class="kw">CREATE TABLE</span> <span class="ty">group_memberships</span> (
+  membership_id <span class="ty">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+  group_id      <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> instructional_groups(group_id),
+  student_id    <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> students(student_id),
+  joined_date   <span class="ty">DATE</span> <span class="kw">NOT NULL DEFAULT</span> CURRENT_DATE,
+  left_date     <span class="ty">DATE</span>,
+  is_active     <span class="ty">BOOLEAN</span> <span class="kw">NOT NULL DEFAULT</span> <span class="num-lit">TRUE</span>,
+  <span class="kw">UNIQUE</span>(group_id, student_id, joined_date)
+);
+
+
+<span class="cm">-- ================ CURRICULUM & ASSESSMENT ===================</span>
+
+<span class="kw">CREATE TABLE</span> <span class="ty">ufli_lessons</span> (
+  lesson_id     <span class="ty">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+  lesson_number <span class="ty">SMALLINT</span> <span class="kw">NOT NULL UNIQUE</span>,
+  lesson_name   <span class="ty">VARCHAR</span>(<span class="num-lit">150</span>),
+  skill_section <span class="ty">VARCHAR</span>(<span class="num-lit">50</span>) <span class="kw">NOT NULL</span>,  <span class="cm">-- e.g. 'CVC','Digraphs','R-Controlled'</span>
+  sort_order    <span class="ty">SMALLINT</span> <span class="kw">NOT NULL</span>
+);
+
+<span class="kw">CREATE TABLE</span> <span class="ty">lesson_progress</span> (
+  progress_id   <span class="ty">BIGSERIAL</span> <span class="kw">PRIMARY KEY</span>,
+  student_id    <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> students(student_id),
+  group_id      <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> instructional_groups(group_id),
+  lesson_id     <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> ufli_lessons(lesson_id),
+  year_id       <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> academic_years(year_id),
+  status        lesson_status <span class="kw">NOT NULL</span>,
+  date_recorded <span class="ty">DATE</span> <span class="kw">NOT NULL</span>,
+  recorded_by   <span class="ty">INT</span> <span class="kw">REFERENCES</span> teachers(teacher_id),
+  source        data_source <span class="kw">NOT NULL DEFAULT</span> <span class="str">'form'</span>,
+  created_at    <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT</span> now(),
+  <span class="kw">UNIQUE</span>(student_id, lesson_id, year_id, date_recorded)
+);
+
+<span class="kw">CREATE TABLE</span> <span class="ty">assessment_sequences</span> (
+  sequence_id       <span class="ty">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+  grade_band        <span class="ty">VARCHAR</span>(<span class="num-lit">10</span>) <span class="kw">NOT NULL</span>,  <span class="cm">-- 'K-2','3-5','6-8'</span>
+  version           <span class="ty">VARCHAR</span>(<span class="num-lit">10</span>) <span class="kw">NOT NULL</span>,  <span class="cm">-- 'AIS3','AIS4','IS5','IS6'</span>
+  sequence_number   <span class="ty">SMALLINT</span> <span class="kw">NOT NULL</span>,
+  lesson_range_start <span class="ty">SMALLINT</span> <span class="kw">NOT NULL</span>,
+  lesson_range_end  <span class="ty">SMALLINT</span> <span class="kw">NOT NULL</span>,
+  <span class="kw">UNIQUE</span>(grade_band, version, sequence_number)
+);
+
+<span class="kw">CREATE TABLE</span> <span class="ty">assessment_results</span> (
+  result_id     <span class="ty">BIGSERIAL</span> <span class="kw">PRIMARY KEY</span>,
+  student_id    <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> students(student_id),
+  sequence_id   <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> assessment_sequences(sequence_id),
+  year_id       <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> academic_years(year_id),
+  score         <span class="ty">NUMERIC</span>(<span class="num-lit">5</span>,<span class="num-lit">2</span>),
+  passed        <span class="ty">BOOLEAN</span> <span class="kw">NOT NULL</span>,
+  date_assessed <span class="ty">DATE</span> <span class="kw">NOT NULL</span>,
+  assessed_by   <span class="ty">INT</span> <span class="kw">REFERENCES</span> teachers(teacher_id),
+  created_at    <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT</span> now(),
+  <span class="kw">UNIQUE</span>(student_id, sequence_id, year_id, date_assessed)
+);
+
+<span class="kw">CREATE TABLE</span> <span class="ty">sounds_catalog</span> (
+  sound_id      <span class="ty">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+  sound         <span class="ty">VARCHAR</span>(<span class="num-lit">20</span>) <span class="kw">NOT NULL UNIQUE</span>,
+  category      <span class="ty">VARCHAR</span>(<span class="num-lit">50</span>),
+  sort_order    <span class="ty">SMALLINT</span> <span class="kw">NOT NULL</span>
+);
+
+<span class="kw">CREATE TABLE</span> <span class="ty">sound_inventory</span> (
+  inventory_id  <span class="ty">BIGSERIAL</span> <span class="kw">PRIMARY KEY</span>,
+  student_id    <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> students(student_id),
+  sound_id      <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> sounds_catalog(sound_id),
+  year_id       <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> academic_years(year_id),
+  mastered      <span class="ty">BOOLEAN</span> <span class="kw">NOT NULL DEFAULT</span> <span class="num-lit">FALSE</span>,
+  date_assessed <span class="ty">DATE</span> <span class="kw">NOT NULL</span>,
+  assessed_by   <span class="ty">INT</span> <span class="kw">REFERENCES</span> teachers(teacher_id),
+  <span class="kw">UNIQUE</span>(student_id, sound_id, year_id)
+);
+
+<span class="kw">CREATE TABLE</span> <span class="ty">tutoring_sessions</span> (
+  session_id    <span class="ty">BIGSERIAL</span> <span class="kw">PRIMARY KEY</span>,
+  student_id    <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> students(student_id),
+  year_id       <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> academic_years(year_id),
+  tutor_id      <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> teachers(teacher_id),
+  session_type  session_type <span class="kw">NOT NULL</span>,
+  lesson_id     <span class="ty">INT</span> <span class="kw">REFERENCES</span> ufli_lessons(lesson_id),  <span class="cm">-- nullable</span>
+  session_date  <span class="ty">DATE</span> <span class="kw">NOT NULL</span>,
+  duration_min  <span class="ty">SMALLINT</span>,
+  notes         <span class="ty">TEXT</span>,
+  created_at    <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT</span> now()
+);
+
+
+<span class="cm">-- ================ TRACKING & ANALYTICS =====================</span>
+
+<span class="kw">CREATE TABLE</span> <span class="ty">benchmark_records</span> (
+  benchmark_id    <span class="ty">BIGSERIAL</span> <span class="kw">PRIMARY KEY</span>,
+  student_id      <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> students(student_id),
+  year_id         <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> academic_years(year_id),
+  benchmark_type  benchmark_type <span class="kw">NOT NULL</span>,
+  band_label      band_label <span class="kw">NOT NULL</span>,
+  percentage      <span class="ty">NUMERIC</span>(<span class="num-lit">5</span>,<span class="num-lit">2</span>) <span class="kw">NOT NULL</span>,
+  recorded_date   <span class="ty">DATE</span> <span class="kw">NOT NULL</span>,
+  <span class="kw">UNIQUE</span>(student_id, year_id, benchmark_type)
+);
+
+<span class="kw">CREATE TABLE</span> <span class="ty">weekly_snapshots</span> (
+  snapshot_id     <span class="ty">BIGSERIAL</span> <span class="kw">PRIMARY KEY</span>,
+  student_id      <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> students(student_id),
+  year_id         <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> academic_years(year_id),
+  week_number     <span class="ty">SMALLINT</span> <span class="kw">NOT NULL</span>,
+  week_start_date <span class="ty">DATE</span> <span class="kw">NOT NULL</span>,
+  growth_pct      <span class="ty">NUMERIC</span>(<span class="num-lit">5</span>,<span class="num-lit">2</span>) <span class="kw">NOT NULL</span>,
+  lessons_taken   <span class="ty">SMALLINT</span> <span class="kw">NOT NULL DEFAULT</span> <span class="num-lit">0</span>,
+  lessons_passed  <span class="ty">SMALLINT</span> <span class="kw">NOT NULL DEFAULT</span> <span class="num-lit">0</span>,
+  created_at      <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT</span> now(),
+  <span class="kw">UNIQUE</span>(student_id, year_id, week_number)
+);
+
+<span class="kw">CREATE TABLE</span> <span class="ty">coaching_metrics</span> (
+  metric_id         <span class="ty">BIGSERIAL</span> <span class="kw">PRIMARY KEY</span>,
+  group_id          <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> instructional_groups(group_id),
+  year_id           <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> academic_years(year_id),
+  week_start_date   <span class="ty">DATE</span> <span class="kw">NOT NULL</span>,
+  reteach_freq      <span class="ty">NUMERIC</span>(<span class="num-lit">5</span>,<span class="num-lit">2</span>),   <span class="cm">-- "Sticky Factor"</span>
+  pass_rate         <span class="ty">NUMERIC</span>(<span class="num-lit">5</span>,<span class="num-lit">2</span>),
+  growth_slope      <span class="ty">NUMERIC</span>(<span class="num-lit">7</span>,<span class="num-lit">4</span>),
+  absenteeism_rate  <span class="ty">NUMERIC</span>(<span class="num-lit">5</span>,<span class="num-lit">2</span>),
+  coaching_priority coaching_priority,
+  created_at        <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT</span> now(),
+  <span class="kw">UNIQUE</span>(group_id, year_id, week_start_date)
+);
+
+
+<span class="cm">-- =================== SYSTEM & ADMIN ========================</span>
+
+<span class="kw">CREATE TABLE</span> <span class="ty">feature_settings</span> (
+  setting_id    <span class="ty">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+  school_id     <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> schools(school_id),
+  feature_key   <span class="ty">VARCHAR</span>(<span class="num-lit">100</span>) <span class="kw">NOT NULL</span>,
+  feature_value <span class="ty">TEXT</span>,
+  updated_at    <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT</span> now(),
+  <span class="kw">UNIQUE</span>(school_id, feature_key)
+);
+
+<span class="kw">CREATE TABLE</span> <span class="ty">import_log</span> (
+  import_id       <span class="ty">SERIAL</span> <span class="kw">PRIMARY KEY</span>,
+  school_id       <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> schools(school_id),
+  import_type     <span class="ty">VARCHAR</span>(<span class="num-lit">50</span>) <span class="kw">NOT NULL</span>,
+  file_name       <span class="ty">VARCHAR</span>(<span class="num-lit">255</span>),
+  records_total   <span class="ty">INT</span> <span class="kw">NOT NULL DEFAULT</span> <span class="num-lit">0</span>,
+  records_success <span class="ty">INT</span> <span class="kw">NOT NULL DEFAULT</span> <span class="num-lit">0</span>,
+  records_failed  <span class="ty">INT</span> <span class="kw">NOT NULL DEFAULT</span> <span class="num-lit">0</span>,
+  status          import_status <span class="kw">NOT NULL DEFAULT</span> <span class="str">'pending'</span>,
+  imported_by     <span class="ty">INT</span> <span class="kw">REFERENCES</span> teachers(teacher_id),
+  created_at      <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT</span> now()
+);
+
+<span class="kw">CREATE TABLE</span> <span class="ty">import_exceptions</span> (
+  exception_id  <span class="ty">BIGSERIAL</span> <span class="kw">PRIMARY KEY</span>,
+  import_id     <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> import_log(import_id),
+  student_ref   <span class="ty">VARCHAR</span>(<span class="num-lit">100</span>),
+  field_name    <span class="ty">VARCHAR</span>(<span class="num-lit">100</span>),
+  error_msg     <span class="ty">TEXT</span> <span class="kw">NOT NULL</span>,
+  raw_value     <span class="ty">TEXT</span>,
+  resolved      <span class="ty">BOOLEAN</span> <span class="kw">NOT NULL DEFAULT</span> <span class="num-lit">FALSE</span>,
+  resolved_by   <span class="ty">INT</span> <span class="kw">REFERENCES</span> teachers(teacher_id),
+  resolved_at   <span class="ty">TIMESTAMPTZ</span>
+);
+
+<span class="kw">CREATE TABLE</span> <span class="ty">audit_log</span> (
+  log_id        <span class="ty">BIGSERIAL</span> <span class="kw">PRIMARY KEY</span>,
+  school_id     <span class="ty">INT</span> <span class="kw">NOT NULL REFERENCES</span> schools(school_id),
+  user_id       <span class="ty">INT</span> <span class="kw">REFERENCES</span> teachers(teacher_id),
+  action        <span class="ty">VARCHAR</span>(<span class="num-lit">50</span>) <span class="kw">NOT NULL</span>,  <span class="cm">-- 'INSERT','UPDATE','DELETE','LOGIN'</span>
+  table_name    <span class="ty">VARCHAR</span>(<span class="num-lit">50</span>),
+  record_id     <span class="ty">BIGINT</span>,
+  old_value     <span class="ty">JSONB</span>,
+  new_value     <span class="ty">JSONB</span>,
+  created_at    <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT</span> now()
+);
+
+
+<span class="cm">-- =================== UPDATED_AT TRIGGER ======================</span>
+
+<span class="kw">CREATE OR REPLACE FUNCTION</span> update_updated_at()
+<span class="kw">RETURNS TRIGGER AS</span> $$
+<span class="kw">BEGIN</span>
+  NEW.updated_at = now();
+  <span class="kw">RETURN</span> NEW;
+<span class="kw">END</span>;
+$$ <span class="kw">LANGUAGE</span> plpgsql;
+
+<span class="cm">-- Apply to all tables with updated_at columns</span>
+<span class="kw">CREATE TRIGGER</span> trg_schools_updated
+  <span class="kw">BEFORE UPDATE ON</span> schools
+  <span class="kw">FOR EACH ROW EXECUTE FUNCTION</span> update_updated_at();
+
+<span class="kw">CREATE TRIGGER</span> trg_teachers_updated
+  <span class="kw">BEFORE UPDATE ON</span> teachers
+  <span class="kw">FOR EACH ROW EXECUTE FUNCTION</span> update_updated_at();
+
+<span class="kw">CREATE TRIGGER</span> trg_students_updated
+  <span class="kw">BEFORE UPDATE ON</span> students
+  <span class="kw">FOR EACH ROW EXECUTE FUNCTION</span> update_updated_at();
+
+<span class="kw">CREATE TRIGGER</span> trg_groups_updated
+  <span class="kw">BEFORE UPDATE ON</span> instructional_groups
+  <span class="kw">FOR EACH ROW EXECUTE FUNCTION</span> update_updated_at();
+</code></pre>
+
+
+<!-- ===== SECTION 4 ===== -->
+<h2 id="indexes"><span class="num">4</span> Indexing Strategy</h2>
+
+<p>These indexes target the actual query patterns the Adira Reads system runs — report generation, student lookups, weekly coaching metrics, and band movement analysis.</p>
+
+<pre><code><span class="cm">-- =================== PERFORMANCE INDEXES ====================</span>
+
+<span class="cm">-- lesson_progress: the largest table — every query pattern needs coverage</span>
+<span class="kw">CREATE INDEX</span> idx_progress_student_year
+  <span class="kw">ON</span> lesson_progress(student_id, year_id);
+<span class="kw">CREATE INDEX</span> idx_progress_group_date
+  <span class="kw">ON</span> lesson_progress(group_id, date_recorded);
+<span class="kw">CREATE INDEX</span> idx_progress_lesson_status
+  <span class="kw">ON</span> lesson_progress(lesson_id, status);
+<span class="kw">CREATE INDEX</span> idx_progress_year_status
+  <span class="kw">ON</span> lesson_progress(year_id, status)
+  <span class="kw">WHERE</span> status = <span class="str">'Y'</span>;  <span class="cm">-- partial index for pass-rate queries</span>
+
+<span class="cm">-- students: filtered by school, grade, enrollment status</span>
+<span class="kw">CREATE INDEX</span> idx_students_school_grade
+  <span class="kw">ON</span> students(school_id, grade_id)
+  <span class="kw">WHERE</span> enrollment_status = <span class="str">'active'</span>;
+
+<span class="cm">-- group_memberships: join table queried constantly</span>
+<span class="kw">CREATE INDEX</span> idx_memberships_student
+  <span class="kw">ON</span> group_memberships(student_id)
+  <span class="kw">WHERE</span> is_active = <span class="num-lit">TRUE</span>;
+<span class="kw">CREATE INDEX</span> idx_memberships_group
+  <span class="kw">ON</span> group_memberships(group_id)
+  <span class="kw">WHERE</span> is_active = <span class="num-lit">TRUE</span>;
+
+<span class="cm">-- weekly_snapshots: time-series queries</span>
+<span class="kw">CREATE INDEX</span> idx_snapshots_student_week
+  <span class="kw">ON</span> weekly_snapshots(student_id, year_id, week_number);
+
+<span class="cm">-- coaching_metrics: Friday Dashboard lookups</span>
+<span class="kw">CREATE INDEX</span> idx_coaching_group_week
+  <span class="kw">ON</span> coaching_metrics(group_id, week_start_date <span class="kw">DESC</span>);
+<span class="kw">CREATE INDEX</span> idx_coaching_priority
+  <span class="kw">ON</span> coaching_metrics(coaching_priority, year_id)
+  <span class="kw">WHERE</span> coaching_priority <span class="kw">IN</span> (<span class="str">'critical'</span>, <span class="str">'high'</span>);
+
+<span class="cm">-- benchmark_records: band movement queries</span>
+<span class="kw">CREATE INDEX</span> idx_benchmarks_student_year
+  <span class="kw">ON</span> benchmark_records(student_id, year_id);
+
+<span class="cm">-- assessment_results: per-student assessment lookups</span>
+<span class="kw">CREATE INDEX</span> idx_assessments_student_year
+  <span class="kw">ON</span> assessment_results(student_id, year_id);
+
+<span class="cm">-- tutoring_sessions: dual-track queries</span>
+<span class="kw">CREATE INDEX</span> idx_tutoring_student_year
+  <span class="kw">ON</span> tutoring_sessions(student_id, year_id);
+
+<span class="cm">-- audit_log: admin queries by school and date</span>
+<span class="kw">CREATE INDEX</span> idx_audit_school_date
+  <span class="kw">ON</span> audit_log(school_id, created_at <span class="kw">DESC</span>);
+</code></pre>
+
+<div class="callout info">
+  <strong>Why partial indexes?</strong> The <code>WHERE status = 'Y'</code> partial index on lesson_progress means pass-rate calculations only scan rows that actually passed — not the full table. With 405 students × 128 lessons = ~51,840 rows per year (and growing with multi-school), this matters. The <code>WHERE is_active = TRUE</code> filters on group_memberships and students mean current-state queries skip historical records entirely.
+</div>
+
+
+<!-- ===== SECTION 5 ===== -->
+<h2 id="mapping"><span class="num">5</span> Sheets-to-Tables Mapping</h2>
+
+<p>Every one of the 59 tabs maps to a table, a view, or is eliminated entirely because the database makes it unnecessary.</p>
+
+<table>
+  <tr><th>Sheet Tab(s)</th><th>Destination</th><th>Notes</th></tr>
+  <tr>
+    <td>Site Configuration</td>
+    <td><code>schools</code> + <code>feature_settings</code></td>
+    <td>School metadata → schools table. Feature toggles → key-value feature_settings table.</td>
+  </tr>
+  <tr>
+    <td>Student Roster</td>
+    <td><code>students</code></td>
+    <td>Direct 1:1 migration. enrollment_status replaces manual "Active" column.</td>
+  </tr>
+  <tr>
+    <td>Teacher Roster</td>
+    <td><code>teachers</code></td>
+    <td>Direct 1:1. Role column maps to enum. Email becomes unique key.</td>
+  </tr>
+  <tr>
+    <td>Group Configuration</td>
+    <td><code>instructional_groups</code> + <code>group_memberships</code></td>
+    <td>Group definitions → groups table. Student assignments → junction table with history.</td>
+  </tr>
+  <tr>
+    <td>KG Groups, G1 Groups, ... (×24)</td>
+    <td><span style="color:var(--red);font-weight:600;">ELIMINATED</span> → Replaced by database <code>VIEW</code></td>
+    <td>These 24 tabs are just filtered views of lesson_progress joined to group_memberships. One parameterized query replaces all of them.</td>
+  </tr>
+  <tr>
+    <td>UFLI Map</td>
+    <td><code>lesson_progress</code></td>
+    <td>The 128-column student×lesson grid becomes normalized rows in lesson_progress. This is the biggest structural change.</td>
+  </tr>
+  <tr>
+    <td>Skills Tracker</td>
+    <td><span style="color:var(--green);font-weight:600;">COMPUTED VIEW</span></td>
+    <td>Skill percentages are calculated on-the-fly by aggregating lesson_progress grouped by skill_section. No stored data needed.</td>
+  </tr>
+  <tr>
+    <td>KG AIS4, G1 AIS4, ... (×10)</td>
+    <td><code>assessment_sequences</code> + <code>assessment_results</code></td>
+    <td>AIS definitions → reference table. Student scores → results table. 10 tabs → 2 tables + filtered views.</td>
+  </tr>
+  <tr>
+    <td>Small Group Progress</td>
+    <td><code>lesson_progress</code> (filtered by group)</td>
+    <td>Already captured in lesson_progress with group_id FK.</td>
+  </tr>
+  <tr>
+    <td>Tutoring Progress Log + Tutoring Summary</td>
+    <td><code>tutoring_sessions</code></td>
+    <td>Individual sessions tracked. Summary stats computed via aggregate query.</td>
+  </tr>
+  <tr>
+    <td>School Summary</td>
+    <td><span style="color:var(--green);font-weight:600;">MATERIALIZED VIEW</span></td>
+    <td>Growth metrics aggregated from lesson_progress + benchmark_records. Refreshed on demand.</td>
+  </tr>
+  <tr>
+    <td>Grade Summary</td>
+    <td><span style="color:var(--green);font-weight:600;">MATERIALIZED VIEW</span></td>
+    <td>Per-student skill percentages computed from lesson_progress. Parameterized by grade.</td>
+  </tr>
+  <tr>
+    <td>Band Movement Analysis</td>
+    <td><code>benchmark_records</code> + <span style="color:var(--green);font-weight:600;">VIEW</span></td>
+    <td>Initial vs. current benchmark comparison query on benchmark_records table.</td>
+  </tr>
+  <tr>
+    <td>Friday Dashboard</td>
+    <td><code>coaching_metrics</code> + <span style="color:var(--green);font-weight:600;">VIEW</span></td>
+    <td>Weekly coaching metrics stored after computation. Dashboard is a view of latest week.</td>
+  </tr>
+  <tr>
+    <td>Pacing Dashboard</td>
+    <td><span style="color:var(--green);font-weight:600;">COMPUTED VIEW</span></td>
+    <td>Pass rates and pacing % calculated from lesson_progress counts vs. expected pace.</td>
+  </tr>
+  <tr>
+    <td>Sound Inventory - K, Sound Inventory - 1</td>
+    <td><code>sounds_catalog</code> + <code>sound_inventory</code></td>
+    <td>Sound definitions in catalog. Mastery records per student in inventory.</td>
+  </tr>
+  <tr>
+    <td>Import Staging, Import Exceptions, Miss Match Students</td>
+    <td><code>import_log</code> + <code>import_exceptions</code></td>
+    <td>Import pipeline tracked with full exception detail. Reconciliation queries replace MissingStudents.gs logic.</td>
+  </tr>
+  <tr>
+    <td>Sync Queue</td>
+    <td><span style="color:var(--red);font-weight:600;">ELIMINATED</span></td>
+    <td>No longer needed. The SyncQueueProcessor existed to work around Sheets API limits. PostgreSQL handles concurrent writes natively.</td>
+  </tr>
+  <tr>
+    <td>Archive Data</td>
+    <td><code>audit_log</code> + soft deletes on <code>students</code></td>
+    <td>Withdrawal/archive handled by setting enrollment_status + audit_log entry. Full data preserved.</td>
+  </tr>
+  <tr>
+    <td>Feature Settings</td>
+    <td><code>feature_settings</code></td>
+    <td>Key-value store per school. Same pattern, proper table.</td>
+  </tr>
+</table>
+
+<div class="stat-grid">
+  <div class="stat"><div class="big" style="color:var(--red);">24</div><div class="label">Tabs eliminated (group sheets)</div></div>
+  <div class="stat"><div class="big" style="color:var(--green);">6</div><div class="label">Tabs become computed views</div></div>
+  <div class="stat"><div class="big" style="color:var(--blue);">22</div><div class="label">Tables in final schema</div></div>
+  <div class="stat"><div class="big" style="color:var(--purple);">1</div><div class="label">Sync Queue eliminated</div></div>
+</div>
+
+
+<!-- ===== SECTION 6 ===== -->
+<h2 id="migration"><span class="num">6</span> Migration Plan: Sheets → Cloud SQL</h2>
+
+<div class="phase-header">
+  <span class="phase-tag p1">Phase 1</span>
+  <h3 style="margin:0">Infrastructure Setup (Week 1)</h3>
+</div>
+<div class="card blue">
+  <p><strong>Provision Cloud SQL instance:</strong> PostgreSQL 15, <code>db-custom-2-8192</code> (2 vCPU, 8GB RAM) is sufficient for the current 405-student, single-school workload. Enable automated backups and point-in-time recovery. Region: <code>us-central1</code> (closest to Indianapolis).</p>
+  <p><strong>Networking:</strong> Private IP within a VPC. Set up Cloud SQL Auth Proxy for secure local connections during migration. If an AppSheet front-end is planned, enable public IP with SSL enforcement + authorized networks.</p>
+  <p><strong>Run the DDL:</strong> Execute the full schema (Section 3) and indexes (Section 4) against the new instance. Validate with <code>\dt</code> and <code>\di</code> to confirm all 22 tables and indexes are created.</p>
+</div>
+
+<div class="phase-header">
+  <span class="phase-tag p1">Phase 2</span>
+  <h3 style="margin:0">Reference Data Load (Week 1–2)</h3>
+</div>
+<div class="card blue">
+  <p><strong>Static reference tables first:</strong> These tables have no foreign key dependencies on transactional data:</p>
+  <table>
+    <tr><th>Table</th><th>Source</th><th>Method</th><th>Row Estimate</th></tr>
+    <tr><td><code>grade_levels</code></td><td>Hardcoded (KG–G8)</td><td>INSERT script</td><td>9</td></tr>
+    <tr><td><code>ufli_lessons</code></td><td>UFLI Map column headers</td><td>CSV export → COPY</td><td>128</td></tr>
+    <tr><td><code>assessment_sequences</code></td><td>AIS tab headers</td><td>Manual INSERT</td><td>~30</td></tr>
+    <tr><td><code>sounds_catalog</code></td><td>Sound Inventory column headers</td><td>CSV export → COPY</td><td>~50</td></tr>
+    <tr><td><code>schools</code></td><td>Site Configuration tab</td><td>INSERT script</td><td>1 (initially)</td></tr>
+    <tr><td><code>academic_years</code></td><td>Manual entry</td><td>INSERT script</td><td>1 (FY26)</td></tr>
+  </table>
+</div>
+
+<div class="phase-header">
+  <span class="phase-tag p2">Phase 3</span>
+  <h3 style="margin:0">Core Entity Migration (Week 2–3)</h3>
+</div>
+<div class="card blue">
+  <p><strong>Extract from hidden Sheets tabs using Apps Script:</strong> The Student Roster, Teacher Roster, and Group Configuration tabs are hidden. Write an Apps Script function to export each as CSV to Google Drive, then import via <code>COPY</code>.</p>
+  <table>
+    <tr><th>Table</th><th>Source Tab</th><th>Row Estimate</th><th>Complexity</th></tr>
+    <tr><td><code>teachers</code></td><td>Teacher Roster</td><td>~40</td><td>Low — direct column mapping</td></tr>
+    <tr><td><code>students</code></td><td>Student Roster</td><td>~405</td><td>Medium — need to map grade names to grade_id FKs</td></tr>
+    <tr><td><code>instructional_groups</code></td><td>Group Configuration</td><td>~30</td><td>Medium — need teacher_id FK lookup</td></tr>
+    <tr><td><code>group_memberships</code></td><td>Group sheets (KG Groups, etc.)</td><td>~405</td><td>Medium — extract student→group assignments from each group tab</td></tr>
+  </table>
+
+  <div class="callout warning">
+    <strong>Critical data mapping:</strong> The current system uses student names as identifiers in group sheets. The database uses <code>student_id</code>. The migration script must fuzzy-match student names from group sheets to the Student Roster to establish correct foreign keys. The <code>studentrecon.gs</code> script already does something similar — reuse its matching logic.
+  </div>
+</div>
+
+<div class="phase-header">
+  <span class="phase-tag p2">Phase 4</span>
+  <h3 style="margin:0">Lesson Progress Migration (Week 3–4)</h3>
+</div>
+<div class="card red">
+  <p><strong>This is the biggest transformation.</strong> The UFLI Map tab stores lesson progress as a wide table: one row per student, 128 columns (one per lesson), with Y/N/A values. The database stores this as a narrow table: one row per student-lesson pair.</p>
+
+  <p><strong>Unpivot strategy:</strong></p>
+  <ol style="padding-left: 1.5rem; margin: .5rem 0;">
+    <li>Export the UFLI Map tab as CSV (Apps Script → Drive → download)</li>
+    <li>Write a Python script that reads the wide CSV and unpivots: for each student row, iterate columns 1–128, emit a <code>(student_id, lesson_id, status, date_recorded, source='import')</code> row</li>
+    <li>Bulk load via <code>COPY</code> — expect ~51,840 rows (405 students × 128 lessons)</li>
+    <li>Validate: <code>SELECT COUNT(*) FROM lesson_progress WHERE source = 'import'</code> should match expected total</li>
+  </ol>
+
+  <p><strong>Date handling:</strong> The Sheets system doesn't store individual lesson dates in the UFLI Map — it only has the current status. For imported data, set <code>date_recorded = date of migration</code> and <code>source = 'import'</code>. Going forward, the form-based entry will capture actual dates.</p>
+</div>
+
+<div class="phase-header">
+  <span class="phase-tag p3">Phase 5</span>
+  <h3 style="margin:0">Analytics & Assessment Data (Week 4–5)</h3>
+</div>
+<div class="card blue">
+  <table>
+    <tr><th>Table</th><th>Source</th><th>Strategy</th></tr>
+    <tr><td><code>assessment_results</code></td><td>AIS tabs (×10)</td><td>Export each AIS tab as CSV. Map student names → student_id, sequence headers → sequence_id. Bulk COPY.</td></tr>
+    <tr><td><code>benchmark_records</code></td><td>Band Movement Analysis tab</td><td>Extract initial and current band columns. Two rows per student (one per benchmark_type).</td></tr>
+    <tr><td><code>weekly_snapshots</code></td><td>StudentHistory.gs output</td><td>Run the StudentHistory script to generate current data, export paired columns, normalize into rows.</td></tr>
+    <tr><td><code>coaching_metrics</code></td><td>Friday Dashboard tab</td><td>Export current dashboard data. Historical data may be limited — start fresh and accumulate going forward.</td></tr>
+    <tr><td><code>tutoring_sessions</code></td><td>Tutoring Progress Log tab</td><td>Direct CSV export → COPY. Map student names and tutor names to FKs.</td></tr>
+    <tr><td><code>sound_inventory</code></td><td>Sound Inventory - K/1 tabs</td><td>Unpivot wide-format (student × sound grid) into narrow rows, like lesson_progress.</td></tr>
+  </table>
+</div>
+
+<div class="phase-header">
+  <span class="phase-tag p3">Phase 6</span>
+  <h3 style="margin:0">Validation & Parallel Run (Week 5–6)</h3>
+</div>
+<div class="card green">
+  <p><strong>Data integrity checks:</strong></p>
+  <ul style="padding-left: 1.5rem; margin: .5rem 0;">
+    <li>Row count comparison: <code>SELECT COUNT(*) FROM students WHERE school_id = 1</code> should equal the Sheets roster count (405)</li>
+    <li>Lesson progress spot-check: pick 10 random students, compare their lesson_progress rows against the UFLI Map tab</li>
+    <li>Aggregate validation: run the School Summary materialized view and compare growth percentages to the current Sheets School Summary tab</li>
+    <li>Band movement check: run the band movement view and compare the movement matrix to the Sheets Band Movement Analysis tab</li>
+    <li>Foreign key integrity: <code>SELECT * FROM lesson_progress WHERE student_id NOT IN (SELECT student_id FROM students)</code> — should return 0 rows</li>
+  </ul>
+
+  <p><strong>Parallel run:</strong> Keep the Sheets system operational for 2–4 weeks. New data enters BOTH systems. Compare outputs weekly. When the database matches Sheets consistently, cut over.</p>
+</div>
+
+<div class="phase-header">
+  <span class="phase-tag p4">Phase 7</span>
+  <h3 style="margin:0">Cutover & Decommission (Week 7–8)</h3>
+</div>
+<div class="card purple">
+  <ul style="padding-left: 1.5rem; margin: .5rem 0;">
+    <li>Point the front-end (AppSheet, web app, or new Forms integration) to Cloud SQL</li>
+    <li>Disable Apps Script triggers in the Google Sheet</li>
+    <li>Set the Sheet to read-only as an archive</li>
+    <li>Enable the Monday Digest email as a Cloud Function triggered by Cloud Scheduler (replaces the Apps Script Sunday trigger)</li>
+    <li>Document the new architecture and train the team</li>
+  </ul>
+</div>
+
+
+<!-- ===== SECTION 7 ===== -->
+<h2 id="views"><span class="num">7</span> Key Views &amp; Queries</h2>
+
+<p>These views replace the script-calculated dashboard tabs. They're computed from live data — no stale caches, no "Big Gulp" batch needed.</p>
+
+<h3>School Summary View (replaces School Summary tab)</h3>
+<pre><code><span class="kw">CREATE MATERIALIZED VIEW</span> <span class="ty">mv_school_summary</span> <span class="kw">AS</span>
+<span class="kw">WITH</span> student_progress <span class="kw">AS</span> (
+  <span class="kw">SELECT</span>
+    s.student_id,
+    s.school_id,
+    g.name <span class="kw">AS</span> grade_name,
+    g.sort_order,
+    <span class="kw">COUNT</span>(lp.progress_id) <span class="kw">FILTER</span> (<span class="kw">WHERE</span> lp.status = <span class="str">'Y'</span>) <span class="kw">AS</span> passed,
+    <span class="kw">COUNT</span>(lp.progress_id) <span class="kw">FILTER</span> (<span class="kw">WHERE</span> lp.status <span class="kw">IN</span> (<span class="str">'Y'</span>,<span class="str">'N'</span>)) <span class="kw">AS</span> attempted,
+    <span class="kw">ROUND</span>(
+      <span class="num-lit">100.0</span> * <span class="kw">COUNT</span>(lp.progress_id) <span class="kw">FILTER</span> (<span class="kw">WHERE</span> lp.status = <span class="str">'Y'</span>)
+      / <span class="kw">NULLIF</span>(<span class="kw">COUNT</span>(lp.progress_id) <span class="kw">FILTER</span> (<span class="kw">WHERE</span> lp.status <span class="kw">IN</span> (<span class="str">'Y'</span>,<span class="str">'N'</span>)), <span class="num-lit">0</span>),
+    <span class="num-lit">1</span>) <span class="kw">AS</span> current_pct
+  <span class="kw">FROM</span> students s
+  <span class="kw">JOIN</span> grade_levels g <span class="kw">ON</span> g.grade_id = s.grade_id
+  <span class="kw">LEFT JOIN</span> lesson_progress lp <span class="kw">ON</span> lp.student_id = s.student_id
+  <span class="kw">WHERE</span> s.enrollment_status = <span class="str">'active'</span>
+  <span class="kw">GROUP BY</span> s.student_id, s.school_id, g.name, g.sort_order
+)
+<span class="kw">SELECT</span>
+  school_id,
+  grade_name,
+  sort_order,
+  <span class="kw">COUNT</span>(*) <span class="kw">AS</span> total_students,
+  <span class="kw">COUNT</span>(*) <span class="kw">FILTER</span> (<span class="kw">WHERE</span> current_pct >= <span class="num-lit">80</span>) <span class="kw">AS</span> on_track,
+  <span class="kw">COUNT</span>(*) <span class="kw">FILTER</span> (<span class="kw">WHERE</span> current_pct >= <span class="num-lit">50</span> <span class="kw">AND</span> current_pct &lt; <span class="num-lit">80</span>) <span class="kw">AS</span> progressing,
+  <span class="kw">COUNT</span>(*) <span class="kw">FILTER</span> (<span class="kw">WHERE</span> current_pct &lt; <span class="num-lit">50</span>) <span class="kw">AS</span> needs_support,
+  <span class="kw">ROUND</span>(<span class="kw">AVG</span>(current_pct), <span class="num-lit">1</span>) <span class="kw">AS</span> avg_current_pct
+<span class="kw">FROM</span> student_progress
+<span class="kw">GROUP BY</span> school_id, grade_name, sort_order
+<span class="kw">ORDER BY</span> sort_order;
+</code></pre>
+
+<h3>Band Movement View (replaces Band Movement Analysis tab)</h3>
+<pre><code><span class="kw">CREATE VIEW</span> <span class="ty">v_band_movement</span> <span class="kw">AS</span>
+<span class="kw">SELECT</span>
+  s.student_id,
+  s.first_name || <span class="str">' '</span> || s.last_name <span class="kw">AS</span> student_name,
+  g.name <span class="kw">AS</span> grade,
+  bi.band_label <span class="kw">AS</span> initial_band,
+  bi.percentage <span class="kw">AS</span> initial_pct,
+  bc.band_label <span class="kw">AS</span> current_band,
+  bc.percentage <span class="kw">AS</span> current_pct,
+  bc.percentage - bi.percentage <span class="kw">AS</span> growth,
+  <span class="kw">CASE</span>
+    <span class="kw">WHEN</span> bc.band_label > bi.band_label <span class="kw">THEN</span> <span class="str">'improved'</span>
+    <span class="kw">WHEN</span> bc.band_label = bi.band_label <span class="kw">THEN</span> <span class="str">'stable'</span>
+    <span class="kw">ELSE</span> <span class="str">'declined'</span>
+  <span class="kw">END AS</span> movement
+<span class="kw">FROM</span> students s
+<span class="kw">JOIN</span> grade_levels g <span class="kw">ON</span> g.grade_id = s.grade_id
+<span class="kw">LEFT JOIN</span> benchmark_records bi
+  <span class="kw">ON</span> bi.student_id = s.student_id <span class="kw">AND</span> bi.benchmark_type = <span class="str">'initial'</span>
+<span class="kw">LEFT JOIN</span> benchmark_records bc
+  <span class="kw">ON</span> bc.student_id = s.student_id <span class="kw">AND</span> bc.benchmark_type = <span class="str">'current'</span>
+<span class="kw">WHERE</span> s.enrollment_status = <span class="str">'active'</span>;
+</code></pre>
+
+<h3>Group Progress View (replaces all 24 Group Sheet tabs)</h3>
+<pre><code><span class="cm">-- One view replaces KG Groups, G1 Groups, G2 Groups, ... (×24 tabs)</span>
+<span class="kw">CREATE VIEW</span> <span class="ty">v_group_progress</span> <span class="kw">AS</span>
+<span class="kw">SELECT</span>
+  ig.group_name,
+  g.name <span class="kw">AS</span> grade,
+  s.first_name || <span class="str">' '</span> || s.last_name <span class="kw">AS</span> student_name,
+  ul.lesson_number,
+  ul.skill_section,
+  lp.status,
+  lp.date_recorded
+<span class="kw">FROM</span> instructional_groups ig
+<span class="kw">JOIN</span> group_memberships gm <span class="kw">ON</span> gm.group_id = ig.group_id <span class="kw">AND</span> gm.is_active = <span class="num-lit">TRUE</span>
+<span class="kw">JOIN</span> students s <span class="kw">ON</span> s.student_id = gm.student_id
+<span class="kw">JOIN</span> grade_levels g <span class="kw">ON</span> g.grade_id = s.grade_id
+<span class="kw">LEFT JOIN</span> lesson_progress lp <span class="kw">ON</span> lp.student_id = s.student_id <span class="kw">AND</span> lp.group_id = ig.group_id
+<span class="kw">LEFT JOIN</span> ufli_lessons ul <span class="kw">ON</span> ul.lesson_id = lp.lesson_id
+<span class="kw">WHERE</span> ig.is_active = <span class="num-lit">TRUE</span>
+<span class="kw">ORDER BY</span> ig.group_name, s.last_name, ul.lesson_number;
+</code></pre>
+
+<h3>Skills Tracker View (replaces Skills Tracker tab)</h3>
+<pre><code><span class="kw">CREATE VIEW</span> <span class="ty">v_skills_tracker</span> <span class="kw">AS</span>
+<span class="kw">SELECT</span>
+  s.student_id,
+  s.first_name || <span class="str">' '</span> || s.last_name <span class="kw">AS</span> student_name,
+  g.name <span class="kw">AS</span> grade,
+  ul.skill_section,
+  <span class="kw">COUNT</span>(*) <span class="kw">FILTER</span> (<span class="kw">WHERE</span> lp.status <span class="kw">IN</span> (<span class="str">'Y'</span>,<span class="str">'N'</span>)) <span class="kw">AS</span> lessons_taken,
+  <span class="kw">COUNT</span>(*) <span class="kw">FILTER</span> (<span class="kw">WHERE</span> lp.status = <span class="str">'Y'</span>) <span class="kw">AS</span> lessons_passed,
+  <span class="kw">ROUND</span>(
+    <span class="num-lit">100.0</span> * <span class="kw">COUNT</span>(*) <span class="kw">FILTER</span> (<span class="kw">WHERE</span> lp.status = <span class="str">'Y'</span>)
+    / <span class="kw">NULLIF</span>(<span class="kw">COUNT</span>(*) <span class="kw">FILTER</span> (<span class="kw">WHERE</span> lp.status <span class="kw">IN</span> (<span class="str">'Y'</span>,<span class="str">'N'</span>)), <span class="num-lit">0</span>),
+  <span class="num-lit">1</span>) <span class="kw">AS</span> pass_pct
+<span class="kw">FROM</span> students s
+<span class="kw">JOIN</span> grade_levels g <span class="kw">ON</span> g.grade_id = s.grade_id
+<span class="kw">JOIN</span> lesson_progress lp <span class="kw">ON</span> lp.student_id = s.student_id
+<span class="kw">JOIN</span> ufli_lessons ul <span class="kw">ON</span> ul.lesson_id = lp.lesson_id
+<span class="kw">WHERE</span> s.enrollment_status = <span class="str">'active'</span>
+<span class="kw">GROUP BY</span> s.student_id, s.first_name, s.last_name, g.name, ul.skill_section
+<span class="kw">ORDER BY</span> g.name, s.last_name, ul.skill_section;
+</code></pre>
+
+
+<!-- ===== SECTION 8 ===== -->
+<h2 id="next"><span class="num">8</span> Implementation Roadmap</h2>
+
+<table>
+  <tr><th>Week</th><th>Phase</th><th>Deliverable</th><th>Owner</th></tr>
+  <tr><td>1</td><td>Infrastructure</td><td>Cloud SQL instance provisioned, schema deployed, networking configured</td><td>DevOps / DB Admin</td></tr>
+  <tr><td>1–2</td><td>Reference Data</td><td>grade_levels, ufli_lessons, assessment_sequences, sounds_catalog, schools populated</td><td>Developer</td></tr>
+  <tr><td>2–3</td><td>Core Migration</td><td>teachers, students, groups, memberships migrated and validated</td><td>Developer + Data Lead</td></tr>
+  <tr><td>3–4</td><td>Lesson Progress</td><td>UFLI Map unpivoted and loaded (~52K rows). Spot-checked against source.</td><td>Developer</td></tr>
+  <tr><td>4–5</td><td>Analytics Data</td><td>Assessments, benchmarks, snapshots, coaching metrics, tutoring, sound inventory loaded</td><td>Developer</td></tr>
+  <tr><td>5–6</td><td>Validation</td><td>Parallel run. Views match Sheets dashboards. Edge cases resolved.</td><td>Developer + Coaches</td></tr>
+  <tr><td>7–8</td><td>Cutover</td><td>Front-end pointed to Cloud SQL. Sheets set to read-only archive. Monitoring enabled.</td><td>Full Team</td></tr>
+</table>
+
+<div class="callout success">
+  <strong>What you gain:</strong> No more 6-minute script limits. No more 59-tab navigation. No more single-file corruption risk. No more SyncQueue workarounds. No more "Big Gulp" batch calculations. One database serves all schools. Role-based access controls. Real-time dashboards. And the data model is ready for AppSheet, Looker Studio, or a custom web app to sit on top of it — you pick the front-end, the database doesn't care.
+</div>
+
+<div class="callout warning">
+  <strong>What to watch for:</strong> The biggest migration risk is the student name → student_id mapping during the lesson progress unpivot. If student names in the UFLI Map don't exactly match the Student Roster (typos, nicknames, missing middle initials), those rows will fail to match. Plan for a manual reconciliation step — the <code>studentrecon.gs</code> script's logic should be ported into the migration tooling.
+</div>
+
+</body>
+</html>
