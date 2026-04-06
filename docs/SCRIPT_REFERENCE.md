@@ -28,7 +28,7 @@ These files live directly in `gold-standard-template/` and form the engine that 
 | `UnifiedConfig.gs` | ~10 KB | Runtime config loader. Reads `SITE_CONFIG` and exposes `getUnifiedConfig()`, `getGradeRangeModels()`, and feature-flag helpers. | [→ docs](scripts/UnifiedConfig.md) |
 | `Phase2_ProgressTracking.gs` | ~108 KB | Main UFLI engine. Generates and updates progress-tracking sheets, calculates benchmarks, produces the School Summary dashboard, pacing reports, and growth metrics. | [→ docs](scripts/Phase2_ProgressTracking.md) |
 | `SetupWizard.gs` | ~113 KB | Onboarding wizard, dynamic menu builder, lesson-entry handler, and student/group CRUD. Central control point for all user-facing operations. | [→ docs](scripts/SetupWizard.md) |
-| `AdminImport.gs` | ~39 KB | Bulk student and roster import from CSV or a source spreadsheet. Validates headers, resolves duplicates, and writes cleaned data to the Roster sheet. | [→ docs](scripts/AdminImport.md) |
+| `AdminImport.gs` | ~39 KB | Administrative historical data import pipeline. Stages and validates assessment/lesson imports, flags exceptions, and writes approved data into UFLI MAP and Initial Assessment destinations. | [→ docs](scripts/AdminImport.md) |
 | `MixedGradeSupport.gs` | ~56 KB | Mixed-grade group logic: creates combined lesson ranges, manages cross-grade grouping rules, and exposes `naturalSort`. | [→ docs](scripts/MixedGradeSupport.md) |
 | `PreKMainCode.gs` | ~96 KB | Pre-K subsystem backend. Separate from K-5 UFLI — tracks early-literacy skills for pre-kindergarten students and serves all Pre-K HTML dialogs. | [→ docs](scripts/PreKMainCode.md) |
 
@@ -57,10 +57,10 @@ These files live in `gold-standard-template/modules/`. Each module is gated by a
 | File | Size | Feature Flag | Summary | Docs |
 |------|------|--------------|---------|------|
 | `modules/ModuleLoader.gs` | ~9 KB | _(loader)_ | Reads `SITE_CONFIG.features` at `onOpen` time and dynamically adds enabled-module menu items. | [→ docs](scripts/modules/ModuleLoader.md) |
-| `modules/CoachingDashboard.gs` | ~16 KB | `coachingDashboard` | Generates a per-coach view of student caseloads, progress summaries, and action items. | [→ docs](scripts/modules/CoachingDashboard.md) |
-| `modules/TutoringSystem.gs` | ~32 KB | `tutoringSystem` | Tracks one-on-one tutoring sessions, session logs, attendance, and tutor assignments. | [→ docs](scripts/modules/TutoringSystem.md) |
-| `modules/GrantReporting.gs` | ~47 KB | `grantReporting` | Generates grant-compliance reports: enrollment counts, attendance rates, lesson-completion metrics, and demographic breakdowns. | [→ docs](scripts/modules/GrantReporting.md) |
-| `modules/GrowthHighlighter.gs` | ~8 KB | `growthHighlighter` | Sidebar that scans all students for significant lesson-count growth since the last snapshot and highlights them. | [→ docs](scripts/modules/GrowthHighlighter.md) |
+| `modules/CoachingDashboard.gs` | ~16 KB | `coachingDashboard` | Builds the Weekly Coaching Dashboard with weekly pass/absent rates and week-over-week change by group. | [→ docs](scripts/modules/CoachingDashboard.md) |
+| `modules/TutoringSystem.gs` | ~32 KB | `tutoringSystem` | Tracks tutoring sessions and session logs, and syncs tutoring data into UFLI MAP. | [→ docs](scripts/modules/TutoringSystem.md) |
+| `modules/GrantReporting.gs` | ~47 KB | `grantReporting` | Generates the Mind Trust Summary with skill gaps, growth, and attendance sections. | [→ docs](scripts/modules/GrantReporting.md) |
+| `modules/GrowthHighlighter.gs` | ~8 KB | `growthHighlighter` | Sidebar that highlights unenrolled or finished-sequence students showing AG% growth. | [→ docs](scripts/modules/GrowthHighlighter.md) |
 | `modules/UnenrollmentAutomation.gs` | ~39 KB | `unenrollmentAutomation` | Automates student unenrollment: archives records, removes from active groups, and logs the exit event. | [→ docs](scripts/modules/UnenrollmentAutomation.md) |
 | `modules/AdminImport.gs` | ~36 KB | `adminImport` | Module-level version of the bulk import utility, providing a menu-driven import dialog with field-mapping UI. | [→ docs](scripts/modules/AdminImport.md) |
 | `modules/MixedGradeSupport.gs` | ~80 KB | `mixedGradeSupport` | Module-level mixed-grade logic: cross-grade group creation wizard, combined lesson-range resolution, and `naturalSort`. | [→ docs](scripts/modules/MixedGradeSupport.md) |
@@ -74,12 +74,12 @@ These HTML files live in `gold-standard-template/ui/` and are served as Google S
 
 | File | Size | Summary | Docs |
 |------|------|---------|------|
-| `ui/SetupWizardUI.html` | ~67 KB | Multi-step setup wizard dialog (9 steps): school identity, programs, grade levels, groups, students, staff, schedule, Pre-K options, and final review. | [→ docs](scripts/ui/SetupWizardUI.md) |
-| `ui/LessonEntryForm.html` | ~36 KB | Four-step lesson data-entry form: select group → select student → enter lesson scores → confirm save. | [→ docs](scripts/ui/LessonEntryForm.md) |
-| `ui/ManageGroupsUI.html` | ~11 KB | Dialog for editing group counts and names. Reads existing groups and writes updates back via the server. | [→ docs](scripts/ui/ManageGroupsUI.md) |
+| `ui/SetupWizardUI.html` | ~67 KB | Multi-step setup wizard dialog (9 steps): school, grades, rosters, groups, features, branding, layout, and final review. | [→ docs](scripts/ui/SetupWizardUI.md) |
+| `ui/LessonEntryForm.html` | ~36 KB | Group-session lesson-entry form: choose grade → group → lesson, then mark statuses for multiple students before saving. | [→ docs](scripts/ui/LessonEntryForm.md) |
+| `ui/ManageGroupsUI.html` | ~11 KB | Dialog for editing group counts and triggering a group rebuild via the server. | [→ docs](scripts/ui/ManageGroupsUI.md) |
 | `ui/ManageStudentsUI.html` | ~17 KB | Full student-management CRUD dialog: add, edit, and remove students from the Roster with inline modal forms. | [→ docs](scripts/ui/ManageStudentsUI.md) |
-| `ui/GenerateReportsUI.html` | ~14 KB | Report-generation configuration dialog: select report type, date range, grade level, and output format before triggering server-side report generation. | [→ docs](scripts/ui/GenerateReportsUI.md) |
-| `ui/GrowthHighlighterSidebar.html` | ~14 KB | Sidebar UI for the growth-highlighter scan: shows students with notable lesson growth and allows the coach to copy or export results. | [→ docs](scripts/ui/GrowthHighlighterSidebar.md) |
+| `ui/GenerateReportsUI.html` | ~14 KB | Report-generation dialog for selecting columns and filtering by grade, group, and student before triggering server-side report generation. | [→ docs](scripts/ui/GenerateReportsUI.md) |
+| `ui/GrowthHighlighterSidebar.html` | ~14 KB | Sidebar UI for the growth-highlighter scan: highlights AG% growth for the configured target group. | [→ docs](scripts/ui/GrowthHighlighterSidebar.md) |
 
 ---
 

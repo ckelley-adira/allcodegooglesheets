@@ -2,7 +2,7 @@
 
 ## 📋 Overview
 
-`UnifiedConfig.gs` is the **runtime configuration resolver** for the unified UFLI template (Version 7.0, Phase 7 Logic Layer Unification). Its central function, `getUnifiedConfig()`, reads the school-specific `SITE_CONFIG` object (defined in `SiteConfig_TEMPLATE.gs` by the Setup Wizard) and resolves it into the complete, structured configuration object consumed by all other modules.
+`UnifiedConfig.gs` is the **runtime configuration resolver** for the unified UFLI template (Version 7.0, Phase 7 Logic Layer Unification). Its central function, `getUnifiedConfig()`, reads the school-specific `SITE_CONFIG` object (defined in `SiteConfig_TEMPLATE.gs`, maintained by direct editing of the per-school copy of that file) and resolves it into the complete, structured configuration object consumed by all other modules.
 
 Before this module existed, every school maintained its own copy of `Phase2_ProgressTracking.gs` containing hardcoded layout constants, sheet names, colors, and grade metrics. `UnifiedConfig.gs` eliminates all per-school constant definitions — a single call to `getUnifiedConfig()` produces the same structured config that any school-specific file previously defined manually.
 

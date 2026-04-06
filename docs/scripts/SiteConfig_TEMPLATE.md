@@ -9,8 +9,8 @@
 **Version:** 7.0 — Unified School Site Template (Phase 7)
 
 **Key design principles:**
-- All optional features default to `false`; opt-in by setting the flag to `true`
-- The Setup Wizard writes these values automatically; direct editing is also supported
+- Feature defaults are defined per flag in this file; many optional modules are opt-in (`false` by default), but some operational and security flags ship enabled by default (e.g., `ufliMapQueue`, `syncQueueProcessing`, `nightlySyncAutomation`, `lessonArrayTracking`, `enhancedSecurity` all default to `true`)
+- The Setup Wizard captures and persists deployment configuration for the spreadsheet (to sheets); direct editing of `SITE_CONFIG` in this file is also supported when preparing or customising a site copy
 - Feature-specific configuration objects (`COACHING_CONFIG`, `TUTORING_CONFIG`, etc.) live alongside `SITE_CONFIG` in this file and are read by their respective modules
 - `BRANDING_CONFIG` is a computed constant that mirrors `SITE_CONFIG.branding` for modules that read it directly
 
@@ -40,7 +40,7 @@
 ## 📥 Data Inputs
 
 This file does not read from any sheet. It is a **static configuration** file that is:
-- Populated by the Setup Wizard writing back to it (or via direct editing)
+- Maintained by direct editing of the `.gs` source file (copy-and-rename per school) or deployment-time configuration; the Setup Wizard persists settings to spreadsheet sheets (e.g., Site Configuration / Feature Settings) — it does **not** modify `.gs` source files at runtime, as Apps Script cannot edit its own source code
 - Read by every other `.gs` file at script load time as globally scoped constants
 
 Helper functions accept no parameters (they read from the module-level `SITE_CONFIG` constant directly).

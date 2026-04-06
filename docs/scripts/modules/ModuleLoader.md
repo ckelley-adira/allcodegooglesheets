@@ -13,7 +13,7 @@ Plain-English summary: *When the spreadsheet opens, `buildFeatureMenu()` is call
 1. A feature menu item is **never** shown when its flag is `false` or absent — the menu is built dynamically, not filtered after the fact.
 2. The Pre-K submenu appears only when `features.preKSystem === "hwt"` (the full Handwriting Without Tears track); the light-mode Pre-K variant has no dedicated submenu items.
 3. `getGradeList()` returns a single-element array (`[gradeCode]`) when `mixedGradeSupport` is disabled, ensuring downstream callers need no conditional logic.
-4. Mixed-grade combinations follow the format `"G6+G7+G8, G1+G2+G3+G4"` in `SITE_CONFIG.features.mixedGradeSupport.combinations`; a grade that appears in no combination falls back to the standard `"<grade> Groups"` sheet name.
+4. Mixed-grade combinations are configured via `MIXED_GRADE_CONFIG.combinations` (not a sub-property of the boolean `SITE_CONFIG.features.mixedGradeSupport` flag); `getGradeList()` calls `getFeatureConfig('mixedGradeSupport')` to retrieve this config at runtime. A grade that appears in no combination falls back to the standard `"<grade> Groups"` sheet name.
 5. `initializeFeatureModules()` logs warnings for misconfigured integrations (e.g., Monday.com `createMondayTask` enabled without a `mondayBoardId`) but does not throw — setup errors are non-fatal.
 6. `getEnabledFeaturesDisplay()` returns an HTML fragment (not plain text) suitable for embedding directly in a GAS `HtmlService` dialog.
 

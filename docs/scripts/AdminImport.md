@@ -2,7 +2,7 @@
 
 ## 📋 Overview
 
-`AdminImport.gs` is an optional feature module (`features.adminImport = true`) that provides bulk data import capabilities for migrating historical assessment records into the UFLI tracking system. It lives in `gold-standard-template/modules/AdminImport.gs`.
+This document covers the root-level `gold-standard-template/AdminImport.gs` file, which provides bulk data import capabilities for migrating historical assessment records into the UFLI tracking system. It is distinct from the separate module-level file at `gold-standard-template/modules/AdminImport.gs`.
 
 **Role in the system:** When a school switches to this system mid-year or needs to load prior-year data, admins use this module to import either **Initial Assessment** (baseline) data or **Lesson Progress** (growth) data from a CSV file. The workflow is:
 
