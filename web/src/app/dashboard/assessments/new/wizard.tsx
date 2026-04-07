@@ -32,8 +32,10 @@ import {
   submitAssessmentAction,
   type AssessmentFormState,
 } from "../actions";
-import type { SnapshotType } from "@/lib/dal/assessments";
-import { SNAPSHOT_LABELS } from "@/lib/dal/assessments";
+import {
+  SNAPSHOT_LABELS,
+  type SnapshotType,
+} from "@/lib/assessment/snapshots";
 import { cn } from "@/lib/utils";
 
 export interface WizardStudent {

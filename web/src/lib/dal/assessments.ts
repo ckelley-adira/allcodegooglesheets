@@ -17,16 +17,12 @@ import {
   type SubmittedSection,
   type LessonResult,
 } from "@/lib/assessment/scoring";
+import { SNAPSHOT_LABELS, type SnapshotType } from "@/lib/assessment/snapshots";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
-export type SnapshotType = "baseline" | "semester_1_end" | "semester_2_end";
-
-export const SNAPSHOT_LABELS: Record<SnapshotType, string> = {
-  baseline: "Baseline (BOY)",
-  semester_1_end: "Semester 1 End",
-  semester_2_end: "Semester 2 End",
-};
+export { SNAPSHOT_LABELS };
+export type { SnapshotType };
 
 export interface AssessmentSummary {
   assessmentId: number;

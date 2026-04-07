@@ -14,6 +14,11 @@ import { requireAuth } from "@/lib/auth";
 import { getActiveSchoolId } from "@/lib/auth/school-context";
 import { getStudentDetail } from "@/lib/dal/student-detail";
 import { listAcademicYears } from "@/lib/dal/groups";
+import {
+  getStudentAssessments,
+  SNAPSHOT_LABELS,
+  type SnapshotType,
+} from "@/lib/dal/assessments";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatPct, pctColor } from "@/lib/format/percent";
@@ -65,12 +70,20 @@ export default async function StudentDetailPage({
     notFound();
   }
 
-  const detail = await getStudentDetail(
-    studentId,
-    activeSchoolId,
-    currentYear.yearId,
-  );
+  const [detail, assessments] = await Promise.all([
+    getStudentDetail(studentId, activeSchoolId, currentYear.yearId),
+    getStudentAssessments(studentId, activeSchoolId, currentYear.yearId),
+  ]);
   if (!detail) notFound();
+
+  const baseline = assessments.find((a) => a.snapshotType === "baseline");
+  const latestNonBaseline = [...assessments]
+    .reverse()
+    .find((a) => a.snapshotType !== "baseline");
+  const growthOverall =
+    baseline?.overallPct != null && latestNonBaseline?.overallPct != null
+      ? latestNonBaseline.overallPct - baseline.overallPct
+      : null;
 
   const { header, bigFour, skillSections, recentActivity, attendance, highWaterMarks, currentGroup } = detail;
   const highWaterSet = new Set(highWaterMarks);
@@ -296,6 +309,146 @@ export default async function StudentDetailPage({
             </p>
           </div>
         </div>
+      </section>
+
+      {/* Initial assessment snapshots */}
+      <section className="space-y-3">
+        <div className="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              Initial Assessments
+            </h2>
+            <p className="text-xs text-zinc-400">
+              Baseline (BOY), Semester 1 end, Semester 2 end snapshots for {currentYear.label}
+            </p>
+          </div>
+          <Link
+            href="/dashboard/assessments/new"
+            className="text-xs font-medium text-blue-600 hover:underline dark:text-blue-400"
+          >
+            + New assessment
+          </Link>
+        </div>
+        {assessments.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-4 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900/50 dark:text-zinc-400">
+            No initial assessments captured yet for this year.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {growthOverall !== null && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm dark:border-blue-900 dark:bg-blue-950/40">
+                <span className="font-semibold">Growth from baseline:</span>{" "}
+                <span
+                  className={cn(
+                    "font-bold",
+                    growthOverall > 0
+                      ? "text-green-600 dark:text-green-400"
+                      : growthOverall < 0
+                        ? "text-red-600 dark:text-red-400"
+                        : "text-zinc-500",
+                  )}
+                >
+                  {growthOverall > 0 ? "+" : ""}
+                  {growthOverall.toFixed(1)}%
+                </span>{" "}
+                <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                  ({formatPct(baseline?.overallPct ?? null)} →{" "}
+                  {formatPct(latestNonBaseline?.overallPct ?? null)}, latest:{" "}
+                  {latestNonBaseline
+                    ? SNAPSHOT_LABELS[latestNonBaseline.snapshotType as SnapshotType]
+                    : ""}
+                  )
+                </span>
+              </div>
+            )}
+            <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+              <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+                <thead className="bg-zinc-50 dark:bg-zinc-900">
+                  <tr>
+                    <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                      Snapshot
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                      Date
+                    </th>
+                    <th className="px-4 py-2 text-right text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                      Foundational
+                    </th>
+                    <th className="px-4 py-2 text-right text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                      G1 Skills
+                    </th>
+                    <th className="px-4 py-2 text-right text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                      G2 Skills
+                    </th>
+                    <th className="px-4 py-2 text-right text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                      Overall
+                    </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                      Scorer
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {assessments.map((a) => (
+                    <tr key={a.assessmentId}>
+                      <td className="px-4 py-2 text-sm">
+                        <Badge
+                          variant={
+                            a.snapshotType === "baseline"
+                              ? "default"
+                              : a.snapshotType === "semester_1_end"
+                                ? "warning"
+                                : "success"
+                          }
+                        >
+                          {SNAPSHOT_LABELS[a.snapshotType]}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-2 text-sm text-zinc-500 dark:text-zinc-400">
+                        {a.assessmentDate}
+                      </td>
+                      <td
+                        className={cn(
+                          "whitespace-nowrap px-4 py-2 text-right text-sm tabular-nums",
+                          pctColor(a.foundationalPct),
+                        )}
+                      >
+                        {formatPct(a.foundationalPct)}
+                      </td>
+                      <td
+                        className={cn(
+                          "whitespace-nowrap px-4 py-2 text-right text-sm tabular-nums",
+                          pctColor(a.firstGradePct),
+                        )}
+                      >
+                        {formatPct(a.firstGradePct)}
+                      </td>
+                      <td
+                        className={cn(
+                          "whitespace-nowrap px-4 py-2 text-right text-sm tabular-nums",
+                          pctColor(a.secondGradePct),
+                        )}
+                      >
+                        {formatPct(a.secondGradePct)}
+                      </td>
+                      <td
+                        className={cn(
+                          "whitespace-nowrap px-4 py-2 text-right text-sm font-semibold tabular-nums",
+                          pctColor(a.overallPct),
+                        )}
+                      >
+                        {formatPct(a.overallPct)}
+                      </td>
+                      <td className="px-4 py-2 text-sm text-zinc-500 dark:text-zinc-400">
+                        {a.scorerName ?? "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Recent activity */}
