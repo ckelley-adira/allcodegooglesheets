@@ -77,3 +77,18 @@ export const importStatusEnum = pgEnum("import_status", [
   "completed",
   "failed",
 ]);
+
+/** Instructional sequence lifecycle status */
+export const sequenceStatusEnum = pgEnum("sequence_status", [
+  "draft",
+  "active",
+  "completed",
+]);
+
+/** Per-lesson status within a sequence */
+export const sequenceLessonStatusEnum = pgEnum("sequence_lesson_status", [
+  "upcoming",
+  "current",
+  "completed",
+  "skipped",
+]);

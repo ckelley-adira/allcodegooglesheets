@@ -10,6 +10,7 @@
 import { useActionState } from "react";
 import { updateSchoolAction, type SchoolFormState } from "../actions";
 import type { SchoolRow } from "@/lib/dal/schools";
+import { CADENCE_DAY_CODES } from "@/config/cadence";
 
 const initialState: SchoolFormState = { error: null, success: false };
 
@@ -105,6 +106,35 @@ export function EditSchoolForm({ school }: EditSchoolFormProps) {
               defaultValue={school.state ?? ""}
               className="block w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm uppercase shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-900"
             />
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          {/* Sentinel so the action knows to interpret cadenceDays even when
+              all checkboxes are unchecked (unchecked boxes don't post). */}
+          <input type="hidden" name="cadenceDaysPresent" value="1" />
+          <p className="text-xs font-medium">
+            Instructional Cadence Days{" "}
+            <span className="text-zinc-400">
+              (used when building new sequences)
+            </span>
+          </p>
+          <div className="flex flex-wrap gap-2 rounded-lg border border-zinc-300 bg-zinc-50 p-2 dark:border-zinc-700 dark:bg-zinc-900">
+            {CADENCE_DAY_CODES.map((code) => (
+              <label
+                key={code}
+                className="flex cursor-pointer items-center gap-1.5 rounded-md bg-white px-2.5 py-1.5 text-sm shadow-sm ring-1 ring-zinc-200 hover:bg-zinc-50 has-[:checked]:bg-zinc-900 has-[:checked]:text-white has-[:checked]:ring-zinc-900 dark:bg-zinc-950 dark:ring-zinc-700 dark:hover:bg-zinc-900 dark:has-[:checked]:bg-zinc-100 dark:has-[:checked]:text-zinc-900 dark:has-[:checked]:ring-zinc-100"
+              >
+                <input
+                  type="checkbox"
+                  name="cadenceDays"
+                  value={code}
+                  defaultChecked={school.cadenceDays.includes(code)}
+                  className="sr-only"
+                />
+                {code}
+              </label>
+            ))}
           </div>
         </div>
 

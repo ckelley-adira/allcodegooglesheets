@@ -26,6 +26,8 @@ import {
   lessonStatusEnum,
   dataSourceEnum,
   sessionTypeEnum,
+  sequenceStatusEnum,
+  sequenceLessonStatusEnum,
 } from "./enums";
 import { students, instructionalGroups, academicYears, staff } from "./core";
 
@@ -196,3 +198,82 @@ export const tutoringSessions = pgTable("tutoring_sessions", {
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+
+// ---------------------------------------------------------------------------
+// instructional_sequences — per-group ordered lesson plans
+// ---------------------------------------------------------------------------
+// A group has multiple sequences across a school year, one active at a time.
+// The active sequence holds the current lesson pointer (via the 'current'
+// status on exactly one sequence_lesson row), which the Tutor Input Form
+// pre-selects so tutors don't have to hunt through all 128 lessons.
+
+export const instructionalSequences = pgTable("instructional_sequences", {
+  sequenceId: serial("sequence_id").primaryKey(),
+  groupId: integer("group_id")
+    .notNull()
+    .references(() => instructionalGroups.groupId, { onDelete: "cascade" }),
+  yearId: integer("year_id")
+    .notNull()
+    .references(() => academicYears.yearId),
+  name: varchar("name", { length: 100 }).notNull(),
+  startDate: date("start_date"),
+  endDate: date("end_date"),
+  status: sequenceStatusEnum("status").notNull().default("active"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const instructionalSequencesRelations = relations(
+  instructionalSequences,
+  ({ one, many }) => ({
+    group: one(instructionalGroups, {
+      fields: [instructionalSequences.groupId],
+      references: [instructionalGroups.groupId],
+    }),
+    academicYear: one(academicYears, {
+      fields: [instructionalSequences.yearId],
+      references: [academicYears.yearId],
+    }),
+    lessons: many(instructionalSequenceLessons),
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// instructional_sequence_lessons — ordered lessons within a sequence
+// ---------------------------------------------------------------------------
+// Exactly one lesson per active sequence has status='current' (enforced by
+// a partial unique index in SQL). Advancement flips the current lesson to
+// 'completed' and promotes the next 'upcoming' lesson to 'current'.
+
+export const instructionalSequenceLessons = pgTable(
+  "instructional_sequence_lessons",
+  {
+    sequenceId: integer("sequence_id")
+      .notNull()
+      .references(() => instructionalSequences.sequenceId, { onDelete: "cascade" }),
+    lessonId: integer("lesson_id")
+      .notNull()
+      .references(() => ufliLessons.lessonId),
+    sortOrder: integer("sort_order").notNull(),
+    plannedDate: date("planned_date"),
+    status: sequenceLessonStatusEnum("status").notNull().default("upcoming"),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (t) => [unique().on(t.sequenceId, t.lessonId)],
+);
+
+export const instructionalSequenceLessonsRelations = relations(
+  instructionalSequenceLessons,
+  ({ one }) => ({
+    sequence: one(instructionalSequences, {
+      fields: [instructionalSequenceLessons.sequenceId],
+      references: [instructionalSequences.sequenceId],
+    }),
+    lesson: one(ufliLessons, {
+      fields: [instructionalSequenceLessons.lessonId],
+      references: [ufliLessons.lessonId],
+    }),
+  }),
+);

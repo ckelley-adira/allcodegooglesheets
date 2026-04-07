@@ -14,12 +14,22 @@ import {
   listGroupMembers,
   listAvailableStudents,
   listActiveStaff,
+  listAcademicYears,
 } from "@/lib/dal/groups";
 import { listGradeLevels } from "@/lib/dal/students";
+import { getSchool } from "@/lib/dal/schools";
+import {
+  getSequenceWithLessons,
+  listSequencesForGroup,
+} from "@/lib/dal/sequences";
+import { listLessons } from "@/lib/dal/sessions";
+import { getMaxGradeDenominator } from "@/config/ufli";
 import { Badge } from "@/components/ui/badge";
 import { AddStudentForm } from "./add-student-form";
 import { RemoveStudentButton } from "./remove-student-button";
 import { EditGroupForm } from "./edit-group-form";
+import { SequencePanel } from "./sequences/sequence-panel";
+import { BuildSequenceForm } from "./sequences/build-sequence-form";
 
 interface GroupDetailPageProps {
   params: Promise<{ groupId: string }>;
@@ -36,16 +46,46 @@ export default async function GroupDetailPage({ params }: GroupDetailPageProps) 
   const group = await getGroup(groupId, activeSchoolId);
   if (!group) notFound();
 
-  const [members, available, staffList, grades] = await Promise.all([
+  const canEdit =
+    ["coach", "school_admin", "tilt_admin"].includes(user.role) ||
+    user.isTiltAdmin;
+
+  const [
+    members,
+    available,
+    staffList,
+    grades,
+    school,
+    allSequences,
+    academicYears,
+    // Only tutors-who-can-edit open the Build Sequence form, and it's the
+    // sole consumer of the 128-row UFLI lesson list. Skip the fetch for
+    // everyone else to keep the per-render cost down.
+    allLessons,
+  ] = await Promise.all([
     listGroupMembers(groupId),
     listAvailableStudents(groupId, activeSchoolId),
     listActiveStaff(activeSchoolId),
     listGradeLevels(),
+    getSchool(activeSchoolId),
+    listSequencesForGroup(groupId),
+    listAcademicYears(activeSchoolId),
+    canEdit ? listLessons() : Promise.resolve([]),
   ]);
 
-  const canEdit =
-    ["coach", "school_admin", "tilt_admin"].includes(user.role) ||
-    user.isTiltAdmin;
+  // Derive the active sequence from allSequences (no extra round-trip
+  // against instructional_sequences) and fetch only its lessons.
+  const activeSequenceRow = allSequences.find((s) => s.status === "active");
+  const activeSequence = activeSequenceRow
+    ? await getSequenceWithLessons(activeSequenceRow.sequenceId)
+    : null;
+
+  const maxGradeRangeLesson = getMaxGradeDenominator(group.gradeNames);
+  const currentYear = academicYears.find((y) => y.isCurrent);
+  const nextSequenceNumber = allSequences.length + 1;
+  const completedSequences = allSequences.filter(
+    (s) => s.status === "completed",
+  );
 
   return (
     <div className="space-y-6">
@@ -85,6 +125,65 @@ export default async function GroupDetailPage({ params }: GroupDetailPageProps) 
           staffList={staffList}
         />
       )}
+
+      {/* Instructional Sequence section */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold">Instructional Sequence</h2>
+          {canEdit && currentYear && (
+            <BuildSequenceForm
+              groupId={groupId}
+              yearId={currentYear.yearId}
+              defaultCadenceDays={
+                school?.cadenceDays && school.cadenceDays.length > 0
+                  ? school.cadenceDays
+                  : ["TUE", "THU"]
+              }
+              defaultName={`Sequence ${nextSequenceNumber}`}
+              maxGradeRangeLesson={
+                maxGradeRangeLesson > 0 ? maxGradeRangeLesson : undefined
+              }
+              allLessons={allLessons}
+            />
+          )}
+        </div>
+
+        {activeSequence ? (
+          <SequencePanel
+            sequence={activeSequence}
+            groupId={groupId}
+            canEdit={canEdit}
+          />
+        ) : (
+          <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-6 text-center dark:border-zinc-700 dark:bg-zinc-900/50">
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              No active sequence for this group yet.
+              {canEdit && " Click \u201CBuild New Sequence\u201D above to start."}
+            </p>
+          </div>
+        )}
+
+        {completedSequences.length > 0 && (
+          <details className="rounded-lg border border-zinc-200 bg-white p-3 text-sm dark:border-zinc-800 dark:bg-zinc-950">
+            <summary className="cursor-pointer text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
+              Previous sequences ({completedSequences.length})
+            </summary>
+            <ul className="mt-3 space-y-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+              {completedSequences.map((s) => (
+                <li key={s.sequenceId} className="flex items-center justify-between">
+                  <span>
+                    <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                      {s.name}
+                    </span>{" "}
+                    &middot; {s.completedCount}/{s.lessonCount} lessons
+                  </span>
+                  {s.endDate && <span>{s.endDate}</span>}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+      </section>
 
       {/* Student roster */}
       <div className="space-y-3">

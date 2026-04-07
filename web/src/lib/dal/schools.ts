@@ -20,6 +20,7 @@ export interface SchoolRow {
   address: string | null;
   city: string | null;
   state: string | null;
+  cadenceDays: string[]; // e.g. ["TUE","THU"]
   isActive: boolean;
   createdAt: Date;
   studentCount: number;
@@ -32,6 +33,7 @@ export interface CreateSchoolInput {
   address?: string;
   city?: string;
   state?: string;
+  cadenceDays?: string[];
 }
 
 export interface UpdateSchoolInput {
@@ -41,7 +43,34 @@ export interface UpdateSchoolInput {
   address?: string | null;
   city?: string | null;
   state?: string | null;
+  cadenceDays?: string[];
   isActive?: boolean;
+}
+
+import { CADENCE_DAY_CODES } from "@/config/cadence";
+export { CADENCE_DAY_CODES, type CadenceDayCode } from "@/config/cadence";
+
+/** Parses a "TUE,THU" string into an array, stripping invalid values */
+export function parseCadenceDays(value: string | null | undefined): string[] {
+  if (!value) return [];
+  const validSet = new Set(CADENCE_DAY_CODES as readonly string[]);
+  return value
+    .split(",")
+    .map((s) => s.trim().toUpperCase())
+    .filter((s) => validSet.has(s));
+}
+
+/** Serializes a cadence-days array back to the "TUE,THU" storage format */
+export function serializeCadenceDays(days: string[]): string {
+  const validSet = new Set<string>(CADENCE_DAY_CODES);
+  const order = new Map<string, number>(
+    CADENCE_DAY_CODES.map((d, i) => [d as string, i]),
+  );
+  const filtered = days
+    .map((d) => d.trim().toUpperCase())
+    .filter((d) => validSet.has(d));
+  filtered.sort((a, b) => (order.get(a) ?? 99) - (order.get(b) ?? 99));
+  return filtered.join(",");
 }
 
 export interface AcademicYearRow {
@@ -68,12 +97,28 @@ interface RawSchoolRow {
   address: string | null;
   city: string | null;
   state: string | null;
+  cadence_days: string | null;
   is_active: boolean;
   created_at: string;
 }
 
 const SCHOOL_COLUMNS =
-  "school_id, name, short_code, address, city, state, is_active, created_at";
+  "school_id, name, short_code, address, city, state, cadence_days, is_active, created_at";
+
+/** Maps a raw schools row to the SchoolRow shape (without counts) */
+function rawToSchoolBase(r: RawSchoolRow): Omit<SchoolRow, "studentCount" | "staffCount"> {
+  return {
+    schoolId: r.school_id,
+    name: r.name,
+    shortCode: r.short_code,
+    address: r.address,
+    city: r.city,
+    state: r.state,
+    cadenceDays: parseCadenceDays(r.cadence_days),
+    isActive: r.is_active,
+    createdAt: new Date(r.created_at),
+  };
+}
 
 // ── Schools ──────────────────────────────────────────────────────────────
 
@@ -143,14 +188,7 @@ export async function listSchools(): Promise<SchoolRow[]> {
   return schools.map((s) => {
     const r = s as unknown as RawSchoolRow;
     return {
-      schoolId: r.school_id,
-      name: r.name,
-      shortCode: r.short_code,
-      address: r.address,
-      city: r.city,
-      state: r.state,
-      isActive: r.is_active,
-      createdAt: new Date(r.created_at),
+      ...rawToSchoolBase(r),
       studentCount: studentCountMap.get(r.school_id) ?? 0,
       staffCount: staffCountMap.get(r.school_id) ?? 0,
     };
@@ -185,16 +223,8 @@ export async function getSchool(schoolId: number): Promise<SchoolRow | null> {
     .eq("school_id", schoolId)
     .eq("is_active", true);
 
-  const r = data as unknown as RawSchoolRow;
   return {
-    schoolId: r.school_id,
-    name: r.name,
-    shortCode: r.short_code,
-    address: r.address,
-    city: r.city,
-    state: r.state,
-    isActive: r.is_active,
-    createdAt: new Date(r.created_at),
+    ...rawToSchoolBase(data as unknown as RawSchoolRow),
     studentCount: studentCount ?? 0,
     staffCount: staffCount ?? 0,
   };
@@ -209,15 +239,20 @@ export async function createSchool(
   input: CreateSchoolInput,
 ): Promise<number> {
   const supabase = await createClient();
+  const insert: Record<string, unknown> = {
+    name: input.name,
+    short_code: input.shortCode.toUpperCase(),
+    address: input.address ?? null,
+    city: input.city ?? null,
+    state: input.state ? input.state.toUpperCase() : null,
+  };
+  if (input.cadenceDays !== undefined) {
+    insert.cadence_days = serializeCadenceDays(input.cadenceDays);
+  }
+
   const { data, error } = await supabase
     .from("schools")
-    .insert({
-      name: input.name,
-      short_code: input.shortCode.toUpperCase(),
-      address: input.address ?? null,
-      city: input.city ?? null,
-      state: input.state ? input.state.toUpperCase() : null,
-    })
+    .insert(insert)
     .select("school_id")
     .single();
 
@@ -240,6 +275,8 @@ export async function updateSchool(
   if (input.address !== undefined) updates.address = input.address;
   if (input.city !== undefined) updates.city = input.city;
   if (input.state !== undefined) updates.state = input.state ? input.state.toUpperCase() : null;
+  if (input.cadenceDays !== undefined)
+    updates.cadence_days = serializeCadenceDays(input.cadenceDays);
   if (input.isActive !== undefined) updates.is_active = input.isActive;
 
   if (Object.keys(updates).length === 0) return false;
