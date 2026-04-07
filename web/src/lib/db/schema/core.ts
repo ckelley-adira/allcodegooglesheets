@@ -198,6 +198,40 @@ export const instructionalGroupsRelations = relations(
       references: [staff.staffId],
     }),
     memberships: many(groupMemberships),
+    additionalGrades: many(instructionalGroupGrades),
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// instructional_group_grades — junction for mixed-grade groups (D-008)
+// ---------------------------------------------------------------------------
+// Every group has at least one row here matching the "primary" grade_id on
+// instructional_groups. Mixed-grade groups have multiple rows.
+
+export const instructionalGroupGrades = pgTable(
+  "instructional_group_grades",
+  {
+    groupId: integer("group_id")
+      .notNull()
+      .references(() => instructionalGroups.groupId, { onDelete: "cascade" }),
+    gradeId: integer("grade_id")
+      .notNull()
+      .references(() => gradeLevels.gradeId),
+  },
+  (t) => [unique().on(t.groupId, t.gradeId)],
+);
+
+export const instructionalGroupGradesRelations = relations(
+  instructionalGroupGrades,
+  ({ one }) => ({
+    group: one(instructionalGroups, {
+      fields: [instructionalGroupGrades.groupId],
+      references: [instructionalGroups.groupId],
+    }),
+    grade: one(gradeLevels, {
+      fields: [instructionalGroupGrades.gradeId],
+      references: [gradeLevels.gradeId],
+    }),
   }),
 );
 

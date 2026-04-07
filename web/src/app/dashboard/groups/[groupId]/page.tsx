@@ -63,7 +63,10 @@ export default async function GroupDetailPage({ params }: GroupDetailPageProps) 
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{group.groupName}</h1>
           <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
-            {group.gradeName} &middot; {group.yearLabel} &middot; {group.staffName}
+            {group.isMixedGrade && group.gradeNames.length > 1
+              ? group.gradeNames.join(" / ")
+              : group.gradeName}{" "}
+            &middot; {group.yearLabel} &middot; {group.staffName}
           </p>
           <div className="mt-2 flex gap-1.5">
             {group.isMixedGrade && <Badge variant="info">Mixed Grade</Badge>}
@@ -96,7 +99,7 @@ export default async function GroupDetailPage({ params }: GroupDetailPageProps) 
           <AddStudentForm groupId={groupId} availableStudents={available} />
         )}
 
-        {/* Members table */}
+        {/* Members table — grouped visually by grade */}
         <div className="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
           <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
             <thead className="bg-zinc-50 dark:bg-zinc-900">
@@ -106,9 +109,6 @@ export default async function GroupDetailPage({ params }: GroupDetailPageProps) 
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                   Student ID
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                  Grade
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                   Joined
@@ -124,41 +124,68 @@ export default async function GroupDetailPage({ params }: GroupDetailPageProps) 
               {members.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={canEdit ? 5 : 4}
+                    colSpan={canEdit ? 4 : 3}
                     className="px-4 py-8 text-center text-sm text-zinc-400"
                   >
                     No students in this group yet.
                   </td>
                 </tr>
               ) : (
-                members.map((m) => (
-                  <tr
-                    key={m.membershipId}
-                    className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
-                  >
-                    <td className="whitespace-nowrap px-4 py-3 text-sm font-medium">
-                      {m.firstName} {m.lastName}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm font-mono text-zinc-500 dark:text-zinc-400">
-                      {m.studentNumber}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm">
-                      {m.gradeName}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
-                      {m.joinedDate}
-                    </td>
-                    {canEdit && (
-                      <td className="whitespace-nowrap px-4 py-3 text-right text-sm">
-                        <RemoveStudentButton
-                          membershipId={m.membershipId}
-                          groupId={groupId}
-                          studentName={`${m.firstName} ${m.lastName}`}
-                        />
-                      </td>
-                    )}
-                  </tr>
-                ))
+                (() => {
+                  // Render rows with a grade subheader each time the grade changes
+                  const rows: React.ReactNode[] = [];
+                  let lastGradeId: number | null = null;
+                  for (const m of members) {
+                    if (m.gradeId !== lastGradeId) {
+                      const count = members.filter(
+                        (x) => x.gradeId === m.gradeId,
+                      ).length;
+                      rows.push(
+                        <tr
+                          key={`grade-${m.gradeId}`}
+                          className="bg-zinc-100/60 dark:bg-zinc-900/60"
+                        >
+                          <td
+                            colSpan={canEdit ? 4 : 3}
+                            className="px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:text-zinc-400"
+                          >
+                            {m.gradeName}{" "}
+                            <span className="font-normal text-zinc-400">
+                              &middot; {count}
+                            </span>
+                          </td>
+                        </tr>,
+                      );
+                      lastGradeId = m.gradeId;
+                    }
+                    rows.push(
+                      <tr
+                        key={m.membershipId}
+                        className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
+                      >
+                        <td className="whitespace-nowrap px-4 py-3 text-sm font-medium">
+                          {m.firstName} {m.lastName}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm font-mono text-zinc-500 dark:text-zinc-400">
+                          {m.studentNumber}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
+                          {m.joinedDate}
+                        </td>
+                        {canEdit && (
+                          <td className="whitespace-nowrap px-4 py-3 text-right text-sm">
+                            <RemoveStudentButton
+                              membershipId={m.membershipId}
+                              groupId={groupId}
+                              studentName={`${m.firstName} ${m.lastName}`}
+                            />
+                          </td>
+                        )}
+                      </tr>,
+                    );
+                  }
+                  return rows;
+                })()
               )}
             </tbody>
           </table>

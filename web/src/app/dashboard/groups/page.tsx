@@ -66,7 +66,10 @@ export default async function GroupsPage() {
                     {group.groupName}
                   </h3>
                   <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
-                    {group.gradeName} &middot; {group.yearLabel}
+                    {group.isMixedGrade && group.gradeNames.length > 1
+                      ? group.gradeNames.join(" / ")
+                      : group.gradeName}{" "}
+                    &middot; {group.yearLabel}
                   </p>
                 </div>
                 <div className="flex gap-1.5">
