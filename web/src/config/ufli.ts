@@ -97,3 +97,42 @@ export const TOTAL_LESSONS = 128;
 
 /** Foundational skills range (L1-L34) */
 export const FOUNDATIONAL_RANGE = { start: 1, end: 34 } as const;
+
+/**
+ * Current Year Goal denominators (Big Four metric #3) per grade.
+ * The number of lessons each grade is expected to teach during this
+ * school year, EXCLUDING review lessons. Per Christina + the original spec.
+ */
+export const CURRENT_YEAR_GOAL_DENOMINATOR: Record<string, number> = {
+  KG: 34,
+  G1: 23,
+  G2: 18,
+  G3: 107,
+  G4: 107,
+  G5: 107,
+  G6: 107,
+  G7: 107,
+  G8: 107,
+} as const;
+
+/**
+ * Target instructional cadence: 2 lessons per week ("catch them before
+ * they fall"). Used by the Big Four growth slope metric (Metric C) as
+ * the expected pace.
+ */
+export const TARGET_LESSONS_PER_WEEK = 2;
+
+/** Number of weeks in the rolling growth slope window (Big Four metric #4) */
+export const GROWTH_SLOPE_WEEKS = 4;
+
+/**
+ * Pace classification thresholds for the growth slope metric.
+ * `slope = actual_lessons / max(expected - absences, 1)`.
+ */
+export const GROWTH_SLOPE_THRESHOLDS = {
+  /** ≥ this value = on pace */
+  ON_PACE: 0.85,
+  /** ≥ this value but < ON_PACE = behind, monitor */
+  BEHIND: 0.5,
+  /** < BEHIND = significantly behind, intervention */
+} as const;
