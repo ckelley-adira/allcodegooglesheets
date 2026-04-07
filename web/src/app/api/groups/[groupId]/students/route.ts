@@ -1,8 +1,9 @@
 /**
  * @file api/groups/[groupId]/students/route.ts — Group students API
  *
- * Returns the active students in a group. Used by the Tutor Input Form
- * to dynamically load students when a group is selected.
+ * Returns the active students in a group. When lessonId and yearId query
+ * params are provided, also returns any existing lesson outcomes so the
+ * Tutor Input Form can pre-populate the Y/N/A grid for editing.
  *
  * @rls Verifies the group belongs to the authenticated user's school.
  */
@@ -10,10 +11,10 @@
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
 import { getGroup } from "@/lib/dal/groups";
-import { getGroupStudentsForEntry } from "@/lib/dal/sessions";
+import { getGroupStudentsForEntry, getExistingOutcomes } from "@/lib/dal/sessions";
 
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ groupId: string }> },
 ) {
   const user = await getUser();
@@ -34,5 +35,16 @@ export async function GET(
   }
 
   const students = await getGroupStudentsForEntry(groupId);
-  return NextResponse.json({ students });
+
+  // If lessonId and yearId are provided, also fetch existing outcomes
+  const url = new URL(request.url);
+  const lessonId = Number(url.searchParams.get("lessonId"));
+  const yearId = Number(url.searchParams.get("yearId"));
+
+  let existingOutcomes: { studentId: number; status: "Y" | "N" | "A" }[] = [];
+  if (lessonId && yearId) {
+    existingOutcomes = await getExistingOutcomes(groupId, lessonId, yearId);
+  }
+
+  return NextResponse.json({ students, existingOutcomes });
 }

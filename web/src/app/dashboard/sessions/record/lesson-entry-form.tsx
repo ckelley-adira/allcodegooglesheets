@@ -81,12 +81,14 @@ export function LessonEntryForm({
   const [students, setStudents] = useState<StudentEntry[]>([]);
   const [statuses, setStatuses] = useState<Map<number, Status>>(new Map());
   const [isLoadingStudents, setIsLoadingStudents] = useState(false);
+  const [isEditingExisting, setIsEditingExisting] = useState(false);
 
   // Load students when group changes
   useEffect(() => {
     if (!selectedGroupId) {
       setStudents([]);
       setStatuses(new Map());
+      setIsEditingExisting(false);
       return;
     }
 
@@ -96,6 +98,7 @@ export function LessonEntryForm({
       .then((data) => {
         setStudents(data.students ?? []);
         setStatuses(new Map());
+        setIsEditingExisting(false);
       })
       .catch(() => {
         setStudents([]);
@@ -105,10 +108,43 @@ export function LessonEntryForm({
       });
   }, [selectedGroupId]);
 
+  // Load existing outcomes when lesson changes (for edit pre-population)
+  useEffect(() => {
+    if (!selectedGroupId || !selectedLessonId || !yearId) {
+      setStatuses(new Map());
+      setIsEditingExisting(false);
+      return;
+    }
+
+    fetch(
+      `/api/groups/${selectedGroupId}/students?lessonId=${selectedLessonId}&yearId=${yearId}`,
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        const existing: { studentId: number; status: "Y" | "N" | "A" }[] =
+          data.existingOutcomes ?? [];
+        if (existing.length > 0) {
+          const pre = new Map<number, Status>();
+          existing.forEach((o) => pre.set(o.studentId, o.status));
+          setStatuses(pre);
+          setIsEditingExisting(true);
+        } else {
+          setStatuses(new Map());
+          setIsEditingExisting(false);
+        }
+      })
+      .catch(() => {
+        // On error, just start with a blank grid
+        setStatuses(new Map());
+        setIsEditingExisting(false);
+      });
+  }, [selectedGroupId, selectedLessonId, yearId]);
+
   // Reset on success
   useEffect(() => {
     if (state.success) {
       setStatuses(new Map());
+      setIsEditingExisting(false);
     }
   }, [state.success]);
 
@@ -295,6 +331,14 @@ export function LessonEntryForm({
                 Clear
               </button>
             </div>
+
+            {/* Editing existing data indicator */}
+            {isEditingExisting && (
+              <div className="mb-3 rounded-lg bg-blue-50 p-3 text-sm text-blue-800 dark:bg-blue-950/50 dark:text-blue-300">
+                Editing previously submitted data for this lesson. Change any
+                values and re-submit to update.
+              </div>
+            )}
 
             {/* Student list */}
             {isLoadingStudents ? (
