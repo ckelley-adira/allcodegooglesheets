@@ -70,6 +70,33 @@ export default async function GroupsNeedingAttentionPage() {
         </p>
       </div>
 
+      <div className="grid gap-4 sm:grid-cols-3">
+        <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+            Stale 1+ Week
+          </p>
+          <p className="mt-1 text-3xl font-bold text-amber-600 dark:text-amber-400">
+            {pacing.staleOneWeekGroupCount}
+          </p>
+        </div>
+        <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+            Stale 2+ Weeks
+          </p>
+          <p className="mt-1 text-3xl font-bold text-red-600 dark:text-red-400">
+            {pacing.staleTwoWeekGroupCount}
+          </p>
+        </div>
+        <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+            Never Logged
+          </p>
+          <p className="mt-1 text-3xl font-bold text-zinc-700 dark:text-zinc-300">
+            {pacing.neverLoggedGroupCount}
+          </p>
+        </div>
+      </div>
+
       {attentionGroups.length === 0 ? (
         <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900/50 dark:text-zinc-400">
           All active groups are fresh. Nothing needs attention.
