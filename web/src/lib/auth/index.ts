@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/server";
 /** The app_metadata shape embedded in Supabase JWTs */
 export interface AppMetadata {
   school_id: number;
+  staff_id: number;
   role: "tutor" | "coach" | "school_admin" | "tilt_admin";
   is_tilt_admin: boolean;
 }
@@ -23,6 +24,7 @@ export interface AuthUser {
   id: string;
   email: string;
   schoolId: number;
+  staffId: number;
   role: AppMetadata["role"];
   isTiltAdmin: boolean;
 }
@@ -47,6 +49,7 @@ export async function getUser(): Promise<AuthUser | null> {
     id: user.id,
     email: user.email ?? "",
     schoolId: meta.school_id ?? 0,
+    staffId: meta.staff_id ?? 0,
     role: meta.role ?? "tutor",
     isTiltAdmin: meta.is_tilt_admin ?? false,
   };
