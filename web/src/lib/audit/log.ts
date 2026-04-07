@@ -33,7 +33,8 @@ export type AuditAction =
   | "LOGIN"
   | "LOGOUT"
   | "ADVANCE_SEQUENCE"
-  | "RECORD_LESSON_OUTCOMES";
+  | "RECORD_LESSON_OUTCOMES"
+  | "SUBMIT_INITIAL_ASSESSMENT";
 
 export interface AuditLogInput {
   /** School the row belongs to (for RLS scoping) */

@@ -60,9 +60,9 @@ export const lessonProgress = pgTable(
     studentId: integer("student_id")
       .notNull()
       .references(() => students.studentId),
-    groupId: integer("group_id")
-      .notNull()
-      .references(() => instructionalGroups.groupId),
+    // Nullable for source='assessment' rows: initial assessments often
+    // precede group placement. Tutor sessions always set group_id.
+    groupId: integer("group_id").references(() => instructionalGroups.groupId),
     lessonId: integer("lesson_id")
       .notNull()
       .references(() => ufliLessons.lessonId),
