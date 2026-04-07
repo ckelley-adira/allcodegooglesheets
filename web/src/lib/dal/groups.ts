@@ -13,8 +13,14 @@ import { createClient } from "@/lib/supabase/server";
 export interface GroupRow {
   groupId: number;
   groupName: string;
+  /** Primary grade label (for single-grade groups, the only grade; for mixed-grade, the lowest grade) */
   gradeName: string;
+  /** Primary grade ID */
   gradeId: number;
+  /** All grade IDs associated with the group (includes primary) */
+  gradeIds: number[];
+  /** All grade names, sorted by sort_order (e.g. ["KG", "G1"]) */
+  gradeNames: string[];
   yearLabel: string;
   yearId: number;
   staffName: string;
@@ -26,7 +32,10 @@ export interface GroupRow {
 
 export interface CreateGroupInput {
   schoolId: number;
+  /** Primary grade ID (the first/lowest grade for mixed-grade groups) */
   gradeId: number;
+  /** All grade IDs for the group (must include primary). For single-grade groups, length is 1. */
+  gradeIds: number[];
   yearId: number;
   staffId: number;
   groupName: string;
@@ -36,7 +45,10 @@ export interface CreateGroupInput {
 export interface UpdateGroupInput {
   groupId: number;
   groupName?: string;
+  /** Primary grade ID */
   gradeId?: number;
+  /** All grade IDs (must include primary if provided). When set, replaces all existing grades. */
+  gradeIds?: number[];
   staffId?: number;
   isMixedGrade?: boolean;
   isActive?: boolean;
@@ -48,7 +60,9 @@ export interface MembershipRow {
   firstName: string;
   lastName: string;
   studentNumber: string;
+  gradeId: number;
   gradeName: string;
+  gradeSortOrder: number;
   joinedDate: string;
   isActive: boolean;
 }
@@ -66,12 +80,19 @@ interface RawGroupRow {
   staff: { first_name: string; last_name: string } | null;
 }
 
-function mapGroupRow(r: RawGroupRow, memberCount: number): GroupRow {
+function mapGroupRow(
+  r: RawGroupRow,
+  memberCount: number,
+  gradeIds: number[],
+  gradeNames: string[],
+): GroupRow {
   return {
     groupId: r.group_id,
     groupName: r.group_name,
     gradeName: r.grade_levels?.name ?? "",
     gradeId: r.grade_id,
+    gradeIds,
+    gradeNames,
     yearLabel: r.academic_years?.label ?? "",
     yearId: r.year_id,
     staffName: `${r.staff?.first_name ?? ""} ${r.staff?.last_name ?? ""}`.trim(),
@@ -80,6 +101,54 @@ function mapGroupRow(r: RawGroupRow, memberCount: number): GroupRow {
     isActive: r.is_active,
     memberCount,
   };
+}
+
+/**
+ * Fetches the full set of (group_id → gradeIds, gradeNames) for a list of
+ * groups via the instructional_group_grades junction table. Grade names are
+ * ordered by the grade_levels.sort_order.
+ */
+async function fetchGroupGrades(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  groupIds: number[],
+): Promise<Map<number, { gradeIds: number[]; gradeNames: string[] }>> {
+  if (groupIds.length === 0) return new Map();
+
+  const { data, error } = await supabase
+    .from("instructional_group_grades")
+    .select("group_id, grade_id, grade_levels(name, sort_order)")
+    .in("group_id", groupIds);
+
+  if (error) throw new Error(error.message);
+
+  // Build a map of group_id -> sorted grades
+  const rawMap = new Map<
+    number,
+    { gradeId: number; name: string; sortOrder: number }[]
+  >();
+  for (const row of data ?? []) {
+    const raw = row as unknown as {
+      group_id: number;
+      grade_id: number;
+      grade_levels: { name: string; sort_order: number } | null;
+    };
+    if (!rawMap.has(raw.group_id)) rawMap.set(raw.group_id, []);
+    rawMap.get(raw.group_id)!.push({
+      gradeId: raw.grade_id,
+      name: raw.grade_levels?.name ?? "",
+      sortOrder: raw.grade_levels?.sort_order ?? 0,
+    });
+  }
+
+  const result = new Map<number, { gradeIds: number[]; gradeNames: string[] }>();
+  for (const [groupId, grades] of rawMap) {
+    grades.sort((a, b) => a.sortOrder - b.sortOrder);
+    result.set(groupId, {
+      gradeIds: grades.map((g) => g.gradeId),
+      gradeNames: grades.map((g) => g.name),
+    });
+  }
+  return result;
 }
 
 const GROUP_COLUMNS =
@@ -101,12 +170,16 @@ export async function listGroups(schoolId: number): Promise<GroupRow[]> {
     .eq("school_id", schoolId);
 
   if (groupsError) throw new Error(groupsError.message);
+  if (!groups || groups.length === 0) return [];
+
+  const groupIds = (groups as unknown as RawGroupRow[]).map((g) => g.group_id);
 
   // Get member counts for each group
   const { data: memberships, error: memError } = await supabase
     .from("group_memberships")
     .select("group_id")
-    .eq("is_active", true);
+    .eq("is_active", true)
+    .in("group_id", groupIds);
 
   if (memError) throw new Error(memError.message);
 
@@ -115,18 +188,30 @@ export async function listGroups(schoolId: number): Promise<GroupRow[]> {
     countMap.set(m.group_id, (countMap.get(m.group_id) ?? 0) + 1);
   });
 
-  const rows = (groups ?? []).map((g) =>
-    mapGroupRow(g as unknown as RawGroupRow, countMap.get((g as { group_id: number }).group_id) ?? 0),
-  );
+  // Get the full grade list for every group via the junction table
+  const gradeMap = await fetchGroupGrades(supabase, groupIds);
+
+  const rows = (groups as unknown as RawGroupRow[]).map((g) => {
+    const grades = gradeMap.get(g.group_id) ?? {
+      gradeIds: g.grade_id ? [g.grade_id] : [],
+      gradeNames: g.grade_levels?.name ? [g.grade_levels.name] : [],
+    };
+    return mapGroupRow(
+      g,
+      countMap.get(g.group_id) ?? 0,
+      grades.gradeIds,
+      grades.gradeNames,
+    );
+  });
 
   // Sort by grade sort_order, then group_name
   rows.sort((a, b) => {
-    const ag = (groups ?? []).find(
-      (x) => (x as { group_id: number }).group_id === a.groupId,
-    ) as unknown as RawGroupRow | undefined;
-    const bg = (groups ?? []).find(
-      (x) => (x as { group_id: number }).group_id === b.groupId,
-    ) as unknown as RawGroupRow | undefined;
+    const ag = (groups as unknown as RawGroupRow[]).find(
+      (x) => x.group_id === a.groupId,
+    );
+    const bg = (groups as unknown as RawGroupRow[]).find(
+      (x) => x.group_id === b.groupId,
+    );
     const aOrder = ag?.grade_levels?.sort_order ?? 0;
     const bOrder = bg?.grade_levels?.sort_order ?? 0;
     if (aOrder !== bOrder) return aOrder - bOrder;
@@ -162,16 +247,28 @@ export async function getGroup(
     .eq("group_id", groupId)
     .eq("is_active", true);
 
-  return mapGroupRow(data as unknown as RawGroupRow, count ?? 0);
+  const raw = data as unknown as RawGroupRow;
+  const gradeMap = await fetchGroupGrades(supabase, [raw.group_id]);
+  const grades = gradeMap.get(raw.group_id) ?? {
+    gradeIds: raw.grade_id ? [raw.grade_id] : [],
+    gradeNames: raw.grade_levels?.name ? [raw.grade_levels.name] : [],
+  };
+
+  return mapGroupRow(raw, count ?? 0, grades.gradeIds, grades.gradeNames);
 }
 
 /**
- * Creates a new instructional group.
+ * Creates a new instructional group. Also writes the junction table rows
+ * for every grade in gradeIds (including the primary).
  *
  * @rls School-scoped via RLS policy.
  */
 export async function createGroup(input: CreateGroupInput): Promise<number> {
   const supabase = await createClient();
+
+  // Normalize: ensure the primary grade is in gradeIds, deduplicate
+  const allGradeIds = Array.from(new Set([input.gradeId, ...input.gradeIds]));
+
   const { data, error } = await supabase
     .from("instructional_groups")
     .insert({
@@ -186,7 +283,16 @@ export async function createGroup(input: CreateGroupInput): Promise<number> {
     .single();
 
   if (error) throw new Error(error.message);
-  return data.group_id;
+  const groupId = data.group_id;
+
+  // Write junction rows for every grade
+  const { error: junctionError } = await supabase
+    .from("instructional_group_grades")
+    .insert(allGradeIds.map((gradeId) => ({ group_id: groupId, grade_id: gradeId })));
+
+  if (junctionError) throw new Error(junctionError.message);
+
+  return groupId;
 }
 
 /**
@@ -206,17 +312,63 @@ export async function updateGroup(
   if (input.isMixedGrade !== undefined) updates.is_mixed_grade = input.isMixedGrade;
   if (input.isActive !== undefined) updates.is_active = input.isActive;
 
-  if (Object.keys(updates).length === 0) return false;
+  // If nothing to update on the main row and no grade changes, bail
+  if (Object.keys(updates).length === 0 && input.gradeIds === undefined) {
+    return false;
+  }
 
-  const { error, data } = await supabase
-    .from("instructional_groups")
-    .update(updates)
-    .eq("group_id", input.groupId)
-    .eq("school_id", schoolId)
-    .select("group_id");
+  // Update the main row if we have field changes
+  if (Object.keys(updates).length > 0) {
+    const { error, data } = await supabase
+      .from("instructional_groups")
+      .update(updates)
+      .eq("group_id", input.groupId)
+      .eq("school_id", schoolId)
+      .select("group_id");
 
-  if (error) throw new Error(error.message);
-  return (data?.length ?? 0) > 0;
+    if (error) throw new Error(error.message);
+    if ((data?.length ?? 0) === 0) return false;
+  }
+
+  // Replace the junction rows if gradeIds were provided
+  if (input.gradeIds !== undefined) {
+    // Normalize: if the primary grade was also updated, include it; otherwise
+    // include the existing primary grade in the new set
+    const primaryGradeId =
+      input.gradeId ??
+      (
+        await supabase
+          .from("instructional_groups")
+          .select("grade_id")
+          .eq("group_id", input.groupId)
+          .single()
+      ).data?.grade_id;
+
+    const allGradeIds = Array.from(
+      new Set([primaryGradeId, ...input.gradeIds].filter((id): id is number => !!id)),
+    );
+
+    // Delete existing junction rows and insert the new set
+    const { error: delError } = await supabase
+      .from("instructional_group_grades")
+      .delete()
+      .eq("group_id", input.groupId);
+    if (delError) throw new Error(delError.message);
+
+    if (allGradeIds.length > 0) {
+      const { error: insError } = await supabase
+        .from("instructional_group_grades")
+        .insert(
+          allGradeIds.map((gradeId) => ({
+            group_id: input.groupId,
+            grade_id: gradeId,
+          })),
+        );
+      if (insError) throw new Error(insError.message);
+    }
+  }
+
+  return true;
 }
 
 // ── Membership queries ───────────────────────────────────────────────────
@@ -230,12 +382,15 @@ interface RawMembershipRow {
     first_name: string;
     last_name: string;
     student_number: string;
-    grade_levels: { name: string } | null;
+    grade_id: number;
+    grade_levels: { name: string; sort_order: number } | null;
   } | null;
 }
 
 /**
- * Lists active members of a group with student details.
+ * Lists active members of a group with student details, ordered by
+ * grade sort_order then last name then first name. The page can group
+ * visually using the gradeSortOrder field.
  *
  * @rls School-scoped via RLS policy.
  */
@@ -246,7 +401,7 @@ export async function listGroupMembers(
   const { data, error } = await supabase
     .from("group_memberships")
     .select(
-      "membership_id, joined_date, is_active, students(student_id, first_name, last_name, student_number, grade_levels(name))",
+      "membership_id, joined_date, is_active, students(student_id, first_name, last_name, student_number, grade_id, grade_levels(name, sort_order))",
     )
     .eq("group_id", groupId)
     .eq("is_active", true);
@@ -261,13 +416,20 @@ export async function listGroupMembers(
       firstName: raw.students?.first_name ?? "",
       lastName: raw.students?.last_name ?? "",
       studentNumber: raw.students?.student_number ?? "",
+      gradeId: raw.students?.grade_id ?? 0,
       gradeName: raw.students?.grade_levels?.name ?? "",
+      gradeSortOrder: raw.students?.grade_levels?.sort_order ?? 0,
       joinedDate: raw.joined_date,
       isActive: raw.is_active,
     };
   });
 
+  // Sort by grade (so rows are contiguous per grade for visual grouping),
+  // then by last name, then first name
   rows.sort((a, b) => {
+    if (a.gradeSortOrder !== b.gradeSortOrder) {
+      return a.gradeSortOrder - b.gradeSortOrder;
+    }
     const ln = a.lastName.localeCompare(b.lastName);
     if (ln !== 0) return ln;
     return a.firstName.localeCompare(b.firstName);

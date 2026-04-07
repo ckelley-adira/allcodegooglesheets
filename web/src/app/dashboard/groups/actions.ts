@@ -38,16 +38,39 @@ export async function createGroupAction(
   const activeSchoolId = await getActiveSchoolId(user);
 
   const groupName = (formData.get("groupName") as string)?.trim();
-  const gradeId = Number(formData.get("gradeId"));
   const yearId = Number(formData.get("yearId"));
   const staffId = Number(formData.get("staffId"));
   const isMixedGrade = formData.get("isMixedGrade") === "true";
 
+  // When mixed grade: read gradeIds[] from the checkbox group.
+  // When single grade: read gradeId from the dropdown.
+  let gradeIds: number[];
+  if (isMixedGrade) {
+    gradeIds = formData
+      .getAll("gradeIds")
+      .map((v) => Number(v))
+      .filter((n) => !isNaN(n) && n > 0);
+  } else {
+    const single = Number(formData.get("gradeId"));
+    gradeIds = single && !isNaN(single) ? [single] : [];
+  }
+
   if (!groupName) {
     return { error: "Group name is required.", success: false };
   }
-  if (!gradeId || isNaN(gradeId)) {
-    return { error: "Please select a grade level.", success: false };
+  if (gradeIds.length === 0) {
+    return {
+      error: isMixedGrade
+        ? "Please select at least one grade level."
+        : "Please select a grade level.",
+      success: false,
+    };
+  }
+  if (isMixedGrade && gradeIds.length < 2) {
+    return {
+      error: "Mixed-grade groups must have at least two grades.",
+      success: false,
+    };
   }
   if (!yearId || isNaN(yearId)) {
     return { error: "Please select an academic year.", success: false };
@@ -56,10 +79,16 @@ export async function createGroupAction(
     return { error: "Please assign a staff member.", success: false };
   }
 
+  // Primary grade is the lowest-sorted grade (smallest gradeId isn't
+  // reliable — we'll use the first one from the form; the DAL
+  // deduplicates and stores all in the junction)
+  const primaryGradeId = gradeIds[0];
+
   try {
     await dalCreateGroup({
       schoolId: activeSchoolId,
-      gradeId,
+      gradeId: primaryGradeId,
+      gradeIds,
       yearId,
       staffId,
       groupName,
@@ -100,9 +129,6 @@ export async function updateGroupAction(
   }
 
   const groupName = (formData.get("groupName") as string)?.trim() || undefined;
-  const gradeId = formData.get("gradeId")
-    ? Number(formData.get("gradeId"))
-    : undefined;
   const staffId = formData.get("staffId")
     ? Number(formData.get("staffId"))
     : undefined;
@@ -113,9 +139,37 @@ export async function updateGroupAction(
   const isActive =
     isActiveRaw !== null ? isActiveRaw === "true" : undefined;
 
+  // Read grades based on mixed-grade intent. When the checkbox is on,
+  // the form posts gradeIds[]. When off, the form posts a single gradeId.
+  let gradeId: number | undefined;
+  let gradeIds: number[] | undefined;
+  if (isMixedGrade) {
+    const ids = formData
+      .getAll("gradeIds")
+      .map((v) => Number(v))
+      .filter((n) => !isNaN(n) && n > 0);
+    if (ids.length > 0) {
+      gradeIds = ids;
+      gradeId = ids[0];
+    }
+  } else if (formData.get("gradeId")) {
+    const single = Number(formData.get("gradeId"));
+    if (!isNaN(single) && single > 0) {
+      gradeId = single;
+      gradeIds = [single];
+    }
+  }
+
+  if (isMixedGrade && gradeIds && gradeIds.length < 2) {
+    return {
+      error: "Mixed-grade groups must have at least two grades.",
+      success: false,
+    };
+  }
+
   try {
     const updated = await dalUpdateGroup(
-      { groupId, groupName, gradeId, staffId, isMixedGrade, isActive },
+      { groupId, groupName, gradeId, gradeIds, staffId, isMixedGrade, isActive },
       activeSchoolId,
     );
     if (!updated) {

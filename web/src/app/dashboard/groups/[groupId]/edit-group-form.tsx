@@ -1,8 +1,9 @@
 /**
  * @file edit-group-form.tsx — Collapsible edit form for group settings
  *
- * Allows changing group name, grade, assigned staff, mixed-grade flag,
- * and active/inactive status.
+ * Allows changing group name, grade(s), assigned staff, mixed-grade flag,
+ * and active/inactive status. When "Mixed grade" is on the form shows a
+ * multi-select of grade checkboxes; when off it shows a single dropdown.
  */
 
 "use client";
@@ -36,6 +37,7 @@ export function EditGroupForm({
   staffList,
 }: EditGroupFormProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isMixedGrade, setIsMixedGrade] = useState(group.isMixedGrade);
   const [state, formAction, isPending] = useActionState(
     updateGroupAction,
     initialState,
@@ -46,6 +48,13 @@ export function EditGroupForm({
       setIsOpen(false);
     }
   }, [state.success]);
+
+  // Reset mixed-grade state when reopening the form
+  useEffect(() => {
+    if (isOpen) {
+      setIsMixedGrade(group.isMixedGrade);
+    }
+  }, [isOpen, group.isMixedGrade]);
 
   if (!isOpen) {
     return (
@@ -59,6 +68,9 @@ export function EditGroupForm({
     );
   }
 
+  // Set of current grade IDs on the group for default-checking the checkboxes
+  const currentGradeIdSet = new Set(group.gradeIds);
+
   return (
     <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
       <h2 className="mb-3 text-sm font-semibold">Edit Group</h2>
@@ -71,7 +83,7 @@ export function EditGroupForm({
           </div>
         )}
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <input
             name="groupName"
             type="text"
@@ -79,18 +91,6 @@ export function EditGroupForm({
             placeholder="Group name"
             className="rounded-lg border border-zinc-300 px-3 py-2 text-sm shadow-sm placeholder:text-zinc-400 focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 dark:placeholder:text-zinc-500"
           />
-
-          <select
-            name="gradeId"
-            defaultValue={group.gradeId}
-            className="rounded-lg border border-zinc-300 px-3 py-2 text-sm shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-900"
-          >
-            {grades.map((g) => (
-              <option key={g.gradeId} value={g.gradeId}>
-                {g.name}
-              </option>
-            ))}
-          </select>
 
           <select
             name="staffId"
@@ -118,11 +118,59 @@ export function EditGroupForm({
               name="isMixedGrade"
               type="checkbox"
               value="true"
-              defaultChecked={group.isMixedGrade}
+              checked={isMixedGrade}
+              onChange={(e) => setIsMixedGrade(e.target.checked)}
               className="rounded border-zinc-300 dark:border-zinc-700"
             />
             Mixed grade
           </label>
+        </div>
+
+        {/* Grade selector — single dropdown or multi-checkbox depending on mixed grade */}
+        <div className="space-y-1">
+          {!isMixedGrade ? (
+            <>
+              <label htmlFor="gradeId" className="text-xs font-medium">
+                Grade
+              </label>
+              <select
+                id="gradeId"
+                name="gradeId"
+                defaultValue={group.gradeId}
+                className="block w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-900 sm:w-64"
+              >
+                {grades.map((g) => (
+                  <option key={g.gradeId} value={g.gradeId}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+            </>
+          ) : (
+            <>
+              <p className="text-xs font-medium">
+                Grades{" "}
+                <span className="text-zinc-400">(select at least 2)</span>
+              </p>
+              <div className="flex flex-wrap gap-2 rounded-lg border border-zinc-300 bg-zinc-50 p-2 dark:border-zinc-700 dark:bg-zinc-900">
+                {grades.map((g) => (
+                  <label
+                    key={g.gradeId}
+                    className="flex cursor-pointer items-center gap-1.5 rounded-md bg-white px-2.5 py-1.5 text-sm shadow-sm ring-1 ring-zinc-200 hover:bg-zinc-50 has-[:checked]:bg-zinc-900 has-[:checked]:text-white has-[:checked]:ring-zinc-900 dark:bg-zinc-950 dark:ring-zinc-700 dark:hover:bg-zinc-900 dark:has-[:checked]:bg-zinc-100 dark:has-[:checked]:text-zinc-900 dark:has-[:checked]:ring-zinc-100"
+                  >
+                    <input
+                      type="checkbox"
+                      name="gradeIds"
+                      value={g.gradeId}
+                      defaultChecked={currentGradeIdSet.has(g.gradeId)}
+                      className="sr-only"
+                    />
+                    {g.name}
+                  </label>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         <div className="flex gap-2">
