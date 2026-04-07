@@ -10,6 +10,7 @@
 
 import Link from "next/link";
 import { requireAuth } from "@/lib/auth";
+import { getActiveSchoolId } from "@/lib/auth/school-context";
 import { listGroups, listAcademicYears } from "@/lib/dal/groups";
 import { listLessons } from "@/lib/dal/sessions";
 import { LessonEntryForm } from "./lesson-entry-form";
@@ -21,11 +22,12 @@ interface RecordPageProps {
 export default async function RecordPage({ searchParams }: RecordPageProps) {
   const { groupId: groupIdParam } = await searchParams;
   const user = await requireAuth();
+  const activeSchoolId = await getActiveSchoolId(user);
 
   const [groups, lessons, years] = await Promise.all([
-    listGroups(user.schoolId),
+    listGroups(activeSchoolId),
     listLessons(),
-    listAcademicYears(user.schoolId),
+    listAcademicYears(activeSchoolId),
   ]);
 
   const activeGroups = groups.filter((g) => g.isActive);

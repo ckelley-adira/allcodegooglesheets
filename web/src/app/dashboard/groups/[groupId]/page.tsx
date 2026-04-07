@@ -8,6 +8,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { requireAuth } from "@/lib/auth";
+import { getActiveSchoolId } from "@/lib/auth/school-context";
 import {
   getGroup,
   listGroupMembers,
@@ -28,16 +29,17 @@ export default async function GroupDetailPage({ params }: GroupDetailPageProps) 
   const { groupId: groupIdParam } = await params;
   const groupId = Number(groupIdParam);
   const user = await requireAuth();
+  const activeSchoolId = await getActiveSchoolId(user);
 
   if (!groupId || isNaN(groupId)) notFound();
 
-  const group = await getGroup(groupId, user.schoolId);
+  const group = await getGroup(groupId, activeSchoolId);
   if (!group) notFound();
 
   const [members, available, staffList, grades] = await Promise.all([
     listGroupMembers(groupId),
-    listAvailableStudents(groupId, user.schoolId),
-    listActiveStaff(user.schoolId),
+    listAvailableStudents(groupId, activeSchoolId),
+    listActiveStaff(activeSchoolId),
     listGradeLevels(),
   ]);
 

@@ -13,6 +13,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/lib/auth";
+import { getActiveSchoolId } from "@/lib/auth/school-context";
 import { recordLessonOutcomes, type LessonOutcome } from "@/lib/dal/sessions";
 import { getGroup } from "@/lib/dal/groups";
 
@@ -41,6 +42,7 @@ export async function recordSessionAction(
   formData: FormData,
 ): Promise<SessionFormState> {
   const user = await requireAuth();
+  const activeSchoolId = await getActiveSchoolId(user);
 
   const groupId = Number(formData.get("groupId"));
   const lessonId = Number(formData.get("lessonId"));
@@ -82,8 +84,8 @@ export async function recordSessionAction(
     };
   }
 
-  // Verify the group belongs to this school
-  const group = await getGroup(groupId, user.schoolId);
+  // Verify the group belongs to the active school
+  const group = await getGroup(groupId, activeSchoolId);
   if (!group) {
     return { error: "Group not found.", success: false };
   }

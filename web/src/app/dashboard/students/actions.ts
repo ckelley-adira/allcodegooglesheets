@@ -10,7 +10,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireAuth, requireRole } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
+import { getActiveSchoolId } from "@/lib/auth/school-context";
 import {
   createStudent as dalCreateStudent,
   updateStudent as dalUpdateStudent,
@@ -32,6 +33,7 @@ export async function createStudentAction(
   formData: FormData,
 ): Promise<StudentFormState> {
   const user = await requireRole("coach", "school_admin", "tilt_admin");
+  const activeSchoolId = await getActiveSchoolId(user);
 
   const firstName = (formData.get("firstName") as string)?.trim();
   const lastName = (formData.get("lastName") as string)?.trim();
@@ -54,7 +56,7 @@ export async function createStudentAction(
 
   try {
     await dalCreateStudent({
-      schoolId: user.schoolId,
+      schoolId: activeSchoolId,
       firstName,
       lastName,
       studentNumber,
@@ -88,6 +90,7 @@ export async function updateStudentAction(
   formData: FormData,
 ): Promise<StudentFormState> {
   const user = await requireRole("coach", "school_admin", "tilt_admin");
+  const activeSchoolId = await getActiveSchoolId(user);
 
   const studentId = Number(formData.get("studentId"));
   if (!studentId || isNaN(studentId)) {
@@ -122,7 +125,7 @@ export async function updateStudentAction(
           | undefined,
         withdrawalDate,
       },
-      user.schoolId,
+      activeSchoolId,
     );
 
     if (!result) {

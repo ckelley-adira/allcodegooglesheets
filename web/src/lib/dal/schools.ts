@@ -78,6 +78,32 @@ const SCHOOL_COLUMNS =
 // ── Schools ──────────────────────────────────────────────────────────────
 
 /**
+ * Lightweight list of schools for the school switcher in the top bar.
+ * Returns only the fields needed to render the dropdown.
+ *
+ * @rls TILT Admin sees all schools; others see only their own school
+ *   (RLS handles the filtering automatically).
+ */
+export async function listSwitchableSchools(): Promise<
+  { schoolId: number; name: string; shortCode: string }[]
+> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("schools")
+    .select("school_id, name, short_code")
+    .eq("is_active", true)
+    .order("name", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => ({
+    schoolId: r.school_id,
+    name: r.name,
+    shortCode: r.short_code,
+  }));
+}
+
+
+/**
  * Lists all schools (TILT Admin view) with student and staff counts.
  *
  * @rls Requires is_tilt_admin claim. Non-admins get an empty list.

@@ -75,17 +75,19 @@ function mapStudentRow(r: RawStudentRow): StudentRow {
 }
 
 /**
- * Lists all students for the current user's school, ordered by last name.
+ * Lists all students for the given school, ordered by last name.
  *
- * @rls Filters by school_id automatically via RLS policy.
+ * @rls Filters by school_id explicitly (TILT Admin can pass any school_id;
+ *   other roles will be re-filtered by RLS to their own school).
  */
-export async function listStudents(_schoolId: number): Promise<StudentRow[]> {
+export async function listStudents(schoolId: number): Promise<StudentRow[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("students")
     .select(
       "student_id, first_name, last_name, student_number, enrollment_status, enrollment_date, withdrawal_date, grade_id, created_at, grade_levels(name)",
     )
+    .eq("school_id", schoolId)
     .order("last_name", { ascending: true })
     .order("first_name", { ascending: true });
 
@@ -100,7 +102,7 @@ export async function listStudents(_schoolId: number): Promise<StudentRow[]> {
  */
 export async function getStudent(
   studentId: number,
-  _schoolId: number,
+  schoolId: number,
 ): Promise<StudentRow | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -109,6 +111,7 @@ export async function getStudent(
       "student_id, first_name, last_name, student_number, enrollment_status, enrollment_date, withdrawal_date, grade_id, created_at, grade_levels(name)",
     )
     .eq("student_id", studentId)
+    .eq("school_id", schoolId)
     .maybeSingle();
 
   if (error) throw new Error(error.message);
@@ -151,7 +154,7 @@ export async function createStudent(
  */
 export async function updateStudent(
   input: UpdateStudentInput,
-  _schoolId: number,
+  schoolId: number,
 ): Promise<StudentRow | null> {
   const supabase = await createClient();
   const updates: Record<string, unknown> = {};
@@ -180,6 +183,7 @@ export async function updateStudent(
     .from("students")
     .update(updates)
     .eq("student_id", input.studentId)
+    .eq("school_id", schoolId)
     .select(
       "student_id, first_name, last_name, student_number, enrollment_status, enrollment_date, withdrawal_date, grade_id, created_at, grade_levels(name)",
     )

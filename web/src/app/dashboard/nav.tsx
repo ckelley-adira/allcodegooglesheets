@@ -1,8 +1,10 @@
 /**
  * @file dashboard/nav.tsx — Sidebar navigation for the dashboard
  *
- * Shows navigation items filtered by the user's role.
- * Per D-003: tutor, coach, school_admin, tilt_admin each see different items.
+ * Shows navigation items filtered by both the user's role (D-003) and
+ * the active school's enabled feature flags. Items disabled by feature
+ * flag are hidden entirely from the sidebar.
+ *
  * Per D-014: MVP surfaces are group management, session capture, UFLI MAP,
  * and the Big Four dashboard.
  */
@@ -19,15 +21,25 @@ interface NavItem {
   href: string;
   /** Minimum roles that can see this item (empty = all roles) */
   roles?: AppMetadata["role"][];
+  /** Feature flag key required to show this item (empty = always visible) */
+  requiresFlag?: string;
 }
 
-/** MVP navigation items — will expand as features are built */
+/** MVP navigation items — gated by role and (optionally) feature flag */
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/dashboard" },
   { label: "Students", href: "/dashboard/students" },
   { label: "Groups", href: "/dashboard/groups" },
-  { label: "Sessions", href: "/dashboard/sessions" },
-  { label: "UFLI Map", href: "/dashboard/ufli-map" },
+  {
+    label: "Sessions",
+    href: "/dashboard/sessions",
+    requiresFlag: "ufli_progress_tracking",
+  },
+  {
+    label: "UFLI Map",
+    href: "/dashboard/ufli-map",
+    requiresFlag: "ufli_progress_tracking",
+  },
   {
     label: "Staff",
     href: "/dashboard/staff",
@@ -43,15 +55,26 @@ const NAV_ITEMS: NavItem[] = [
 interface DashboardNavProps {
   role: AppMetadata["role"];
   isTiltAdmin: boolean;
+  featureFlags: Record<string, boolean>;
 }
 
-export function DashboardNav({ role, isTiltAdmin }: DashboardNavProps) {
+export function DashboardNav({
+  role,
+  isTiltAdmin,
+  featureFlags,
+}: DashboardNavProps) {
   const pathname = usePathname();
 
   const visibleItems = NAV_ITEMS.filter((item) => {
-    if (!item.roles) return true;
-    if (isTiltAdmin) return true;
-    return item.roles.includes(role);
+    // Role gate
+    if (item.roles && !isTiltAdmin && !item.roles.includes(role)) {
+      return false;
+    }
+    // Feature flag gate
+    if (item.requiresFlag && !featureFlags[item.requiresFlag]) {
+      return false;
+    }
+    return true;
   });
 
   return (

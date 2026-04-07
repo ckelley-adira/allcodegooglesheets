@@ -65,11 +65,12 @@ const STAFF_COLUMNS =
  *
  * @rls Filters by school_id automatically via RLS policy.
  */
-export async function listStaff(_schoolId: number): Promise<StaffRow[]> {
+export async function listStaff(schoolId: number): Promise<StaffRow[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("staff")
     .select(STAFF_COLUMNS)
+    .eq("school_id", schoolId)
     .order("last_name", { ascending: true })
     .order("first_name", { ascending: true });
 
@@ -84,13 +85,14 @@ export async function listStaff(_schoolId: number): Promise<StaffRow[]> {
  */
 export async function getStaff(
   staffId: number,
-  _schoolId: number,
+  schoolId: number,
 ): Promise<StaffRow | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("staff")
     .select(STAFF_COLUMNS)
     .eq("staff_id", staffId)
+    .eq("school_id", schoolId)
     .maybeSingle();
 
   if (error) throw new Error(error.message);
@@ -130,7 +132,7 @@ export async function createStaff(
  */
 export async function updateStaff(
   input: UpdateStaffInput,
-  _schoolId: number,
+  schoolId: number,
 ): Promise<StaffRow | null> {
   const supabase = await createClient();
   const updates: Record<string, unknown> = {};
@@ -146,6 +148,7 @@ export async function updateStaff(
     .from("staff")
     .update(updates)
     .eq("staff_id", input.staffId)
+    .eq("school_id", schoolId)
     .select(STAFF_COLUMNS)
     .maybeSingle();
 

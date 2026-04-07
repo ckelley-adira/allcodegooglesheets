@@ -6,6 +6,7 @@
  */
 
 import { requireRole } from "@/lib/auth";
+import { getActiveSchoolId } from "@/lib/auth/school-context";
 import { listStaff } from "@/lib/dal/staff";
 import { Badge } from "@/components/ui/badge";
 import { CreateStaffForm } from "./create-form";
@@ -27,7 +28,8 @@ const ROLE_LABEL = {
 
 export default async function StaffPage() {
   const user = await requireRole("school_admin", "tilt_admin");
-  const staffList = await listStaff(user.schoolId);
+  const activeSchoolId = await getActiveSchoolId(user);
+  const staffList = await listStaff(activeSchoolId);
 
   return (
     <div className="space-y-6">

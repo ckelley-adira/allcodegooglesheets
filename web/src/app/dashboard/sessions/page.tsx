@@ -7,14 +7,31 @@
 
 import Link from "next/link";
 import { requireAuth } from "@/lib/auth";
+import { getActiveSchoolId } from "@/lib/auth/school-context";
+import { getSchoolFeatureFlagsResolved } from "@/lib/dal/schools";
 import { listRecentEntries } from "@/lib/dal/sessions";
 import { listGroups } from "@/lib/dal/groups";
+import { FeatureDisabled } from "@/components/feature-disabled";
 
 export default async function SessionsPage() {
   const user = await requireAuth();
+  const activeSchoolId = await getActiveSchoolId(user);
+
+  // Feature flag gate
+  const flags = await getSchoolFeatureFlagsResolved(activeSchoolId);
+  if (!flags.ufli_progress_tracking) {
+    return (
+      <FeatureDisabled
+        title="Sessions"
+        flagLabel="UFLI Progress Tracking"
+        description="Lesson session capture requires UFLI Progress Tracking to be enabled for this school."
+      />
+    );
+  }
+
   const [groups, recentEntries] = await Promise.all([
-    listGroups(user.schoolId),
-    listRecentEntries(user.schoolId, 20),
+    listGroups(activeSchoolId),
+    listRecentEntries(activeSchoolId, 20),
   ]);
 
   // Show only active groups

@@ -3,12 +3,16 @@
  *
  * Wraps all /dashboard/* routes with a sidebar nav and top bar.
  * Requires authentication — unauthenticated users are redirected by proxy.ts.
- * The nav items shown depend on the user's role (D-003).
+ * The nav items shown depend on the user's role (D-003) and the active
+ * school's enabled feature flags.
  */
 
 import { requireAuth } from "@/lib/auth";
+import { getActiveSchoolId } from "@/lib/auth/school-context";
+import { listSwitchableSchools, getSchoolFeatureFlagsResolved } from "@/lib/dal/schools";
 import { DashboardNav } from "./nav";
 import { UserMenu } from "./user-menu";
+import { SchoolSwitcher } from "./school-switcher";
 
 export default async function DashboardLayout({
   children,
@@ -16,6 +20,14 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const user = await requireAuth();
+  const activeSchoolId = await getActiveSchoolId(user);
+
+  const [schools, featureFlags] = await Promise.all([
+    listSwitchableSchools(),
+    activeSchoolId
+      ? getSchoolFeatureFlagsResolved(activeSchoolId)
+      : Promise.resolve({} as Record<string, boolean>),
+  ]);
 
   return (
     <div className="flex min-h-screen">
@@ -24,18 +36,26 @@ export default async function DashboardLayout({
         <div className="flex h-14 items-center border-b border-zinc-200 px-4 dark:border-zinc-800">
           <span className="text-sm font-bold tracking-tight">Adira Reads</span>
         </div>
-        <DashboardNav role={user.role} isTiltAdmin={user.isTiltAdmin} />
+        <DashboardNav
+          role={user.role}
+          isTiltAdmin={user.isTiltAdmin}
+          featureFlags={featureFlags}
+        />
       </aside>
 
       {/* Main content area */}
       <div className="flex flex-1 flex-col">
         {/* Top bar */}
-        <header className="flex h-14 items-center justify-between border-b border-zinc-200 px-4 dark:border-zinc-800 md:px-6">
+        <header className="flex h-14 items-center justify-between gap-3 border-b border-zinc-200 px-4 dark:border-zinc-800 md:px-6">
           {/* Mobile nav trigger placeholder */}
           <div className="md:hidden">
             <span className="text-sm font-bold tracking-tight">Adira Reads</span>
           </div>
-          <div className="hidden md:block" />
+          <SchoolSwitcher
+            schools={schools}
+            activeSchoolId={activeSchoolId}
+            canSwitch={user.isTiltAdmin}
+          />
           <UserMenu email={user.email} role={user.role} />
         </header>
 

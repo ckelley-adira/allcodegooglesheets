@@ -11,6 +11,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
+import { getActiveSchoolId } from "@/lib/auth/school-context";
 import {
   createGroup as dalCreateGroup,
   updateGroup as dalUpdateGroup,
@@ -34,6 +35,7 @@ export async function createGroupAction(
   formData: FormData,
 ): Promise<GroupFormState> {
   const user = await requireRole("coach", "school_admin", "tilt_admin");
+  const activeSchoolId = await getActiveSchoolId(user);
 
   const groupName = (formData.get("groupName") as string)?.trim();
   const gradeId = Number(formData.get("gradeId"));
@@ -56,7 +58,7 @@ export async function createGroupAction(
 
   try {
     await dalCreateGroup({
-      schoolId: user.schoolId,
+      schoolId: activeSchoolId,
       gradeId,
       yearId,
       staffId,
@@ -90,6 +92,7 @@ export async function updateGroupAction(
   formData: FormData,
 ): Promise<GroupFormState> {
   const user = await requireRole("coach", "school_admin", "tilt_admin");
+  const activeSchoolId = await getActiveSchoolId(user);
 
   const groupId = Number(formData.get("groupId"));
   if (!groupId || isNaN(groupId)) {
@@ -113,7 +116,7 @@ export async function updateGroupAction(
   try {
     const updated = await dalUpdateGroup(
       { groupId, groupName, gradeId, staffId, isMixedGrade, isActive },
-      user.schoolId,
+      activeSchoolId,
     );
     if (!updated) {
       return { error: "Group not found.", success: false };
