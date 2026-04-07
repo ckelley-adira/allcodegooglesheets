@@ -12,30 +12,9 @@ import { requireAuth } from "@/lib/auth";
 import { getActiveSchoolId } from "@/lib/auth/school-context";
 import { listAcademicYears } from "@/lib/dal/groups";
 import { getBigFourMetrics } from "@/lib/dal/metrics";
-import {
-  getSchoolPacingSummary,
-  type GroupHealth,
-} from "@/lib/dal/school-pacing";
-import { Badge } from "@/components/ui/badge";
+import { getSchoolPacingSummary } from "@/lib/dal/school-pacing";
 import { cn } from "@/lib/utils";
 import { formatPct, pctColor } from "@/lib/format/percent";
-
-const HEALTH_LABEL: Record<GroupHealth, string> = {
-  fresh: "Active",
-  stale_1w: "Stale (1+ wk)",
-  stale_2w: "Stale (2+ wk)",
-  never_logged: "Never Logged",
-};
-
-const HEALTH_VARIANT: Record<
-  GroupHealth,
-  "success" | "warning" | "danger" | "default"
-> = {
-  fresh: "success",
-  stale_1w: "warning",
-  stale_2w: "danger",
-  never_logged: "default",
-};
 
 export default async function DashboardPage() {
   const user = await requireAuth();
@@ -64,22 +43,10 @@ export default async function DashboardPage() {
     getSchoolPacingSummary(activeSchoolId),
   ]);
 
-  // Groups that need attention: stale or never logged. Order by most stale
-  // first (longest days since last activity), then by group name.
-  const attentionGroups = pacing.groups
-    .filter(
-      (g) =>
-        g.isActive &&
-        (g.health === "stale_1w" ||
-          g.health === "stale_2w" ||
-          g.health === "never_logged"),
-    )
-    .sort((a, b) => {
-      const aDays = a.daysSinceLastActivity ?? Number.MAX_SAFE_INTEGER;
-      const bDays = b.daysSinceLastActivity ?? Number.MAX_SAFE_INTEGER;
-      if (aDays !== bDays) return bDays - aDays;
-      return a.groupName.localeCompare(b.groupName);
-    });
+  const attentionCount =
+    pacing.staleOneWeekGroupCount +
+    pacing.staleTwoWeekGroupCount +
+    pacing.neverLoggedGroupCount;
 
   return (
     <div className="space-y-4">
@@ -261,86 +228,37 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* Groups needing attention */}
-        {attentionGroups.length > 0 ? (
-          <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
-            <div className="border-b border-zinc-200 bg-zinc-50 px-4 py-2 dark:border-zinc-800 dark:bg-zinc-900">
-              <h3 className="text-sm font-semibold">
-                Groups Needing Attention ({attentionGroups.length})
-              </h3>
+        {/* Groups needing attention — drill-down tile */}
+        {pacing.groups.length > 0 ? (
+          attentionCount > 0 ? (
+            <Link
+              href="/dashboard/attention"
+              className="group block rounded-lg border border-zinc-200 bg-white p-4 shadow-sm transition hover:border-amber-400 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-amber-500"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    Groups Needing Attention
+                  </p>
+                  <p className="mt-1 text-3xl font-bold text-amber-600 dark:text-amber-400">
+                    {attentionCount}
+                  </p>
+                  <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                    {pacing.staleOneWeekGroupCount} stale 1+ wk ·{" "}
+                    {pacing.staleTwoWeekGroupCount} stale 2+ wk ·{" "}
+                    {pacing.neverLoggedGroupCount} never logged
+                  </p>
+                </div>
+                <span className="text-sm text-zinc-400 group-hover:text-amber-600 dark:group-hover:text-amber-400">
+                  View all →
+                </span>
+              </div>
+            </Link>
+          ) : (
+            <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-4 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900/50 dark:text-zinc-400">
+              All active groups are fresh. Nothing needs attention.
             </div>
-            <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
-              <thead className="bg-zinc-50 dark:bg-zinc-900">
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                    Group
-                  </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                    Teacher
-                  </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                    Students
-                  </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                    Last Activity
-                  </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100 bg-white dark:divide-zinc-800 dark:bg-zinc-950">
-                {attentionGroups.map((g) => (
-                  <tr
-                    key={g.groupId}
-                    className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
-                  >
-                    <td className="px-4 py-2 text-sm">
-                      <Link
-                        href={`/dashboard/groups/${g.groupId}`}
-                        className="font-medium hover:underline"
-                      >
-                        {g.groupName}
-                      </Link>
-                      <span className="ml-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-                        {g.gradeName}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2 text-sm">
-                      <Link
-                        href={`/dashboard/staff/${g.staffId}`}
-                        className="hover:underline"
-                      >
-                        {g.staffName}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-2 text-sm">{g.memberCount}</td>
-                    <td className="px-4 py-2 text-sm text-zinc-500 dark:text-zinc-400">
-                      {g.lastActivityDate ? (
-                        <>
-                          {g.lastActivityDate}
-                          <span className="ml-1 text-xs text-zinc-400">
-                            ({g.daysSinceLastActivity}d ago)
-                          </span>
-                        </>
-                      ) : (
-                        <span className="italic text-zinc-400">never</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2 text-sm">
-                      <Badge variant={HEALTH_VARIANT[g.health]}>
-                        {HEALTH_LABEL[g.health]}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : pacing.groups.length > 0 ? (
-          <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-4 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900/50 dark:text-zinc-400">
-            All active groups are fresh. Nothing needs attention.
-          </div>
+          )
         ) : null}
       </section>
     </div>
