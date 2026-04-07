@@ -17,6 +17,7 @@ import { getActiveSchoolId } from "@/lib/auth/school-context";
 import { recordLessonOutcomes, type LessonOutcome } from "@/lib/dal/sessions";
 import { getGroup } from "@/lib/dal/groups";
 import { markSequenceLessonCompleted } from "@/lib/dal/sequences";
+import { auditLog } from "@/lib/audit/log";
 
 export interface SessionFormState {
   error: string | null;
@@ -109,6 +110,22 @@ export async function recordSessionAction(
     } catch (advanceErr) {
       console.error("Failed to auto-advance sequence:", advanceErr);
     }
+
+    await auditLog({
+      schoolId: activeSchoolId,
+      userId: user.staffId,
+      action: "RECORD_LESSON_OUTCOMES",
+      tableName: "lesson_progress",
+      recordId: lessonId,
+      newValue: {
+        groupId,
+        lessonId,
+        yearId,
+        dateRecorded,
+        savedCount,
+        outcomes,
+      },
+    });
 
     revalidatePath("/dashboard/sessions");
     revalidatePath(`/dashboard/groups/${groupId}`);

@@ -14,8 +14,10 @@ import { requireRole } from "@/lib/auth";
 import { getActiveSchoolId } from "@/lib/auth/school-context";
 import {
   createStaff as dalCreateStaff,
+  getStaff as dalGetStaff,
   updateStaff as dalUpdateStaff,
 } from "@/lib/dal/staff";
+import { auditLog } from "@/lib/audit/log";
 
 export interface StaffFormState {
   error: string | null;
@@ -55,12 +57,21 @@ export async function createStaffAction(
   }
 
   try {
-    await dalCreateStaff({
+    const created = await dalCreateStaff({
       schoolId: activeSchoolId,
       firstName,
       lastName,
       email,
       role: role as (typeof validRoles)[number],
+    });
+
+    await auditLog({
+      schoolId: activeSchoolId,
+      userId: user.staffId,
+      action: "INSERT",
+      tableName: "staff",
+      recordId: created.staffId,
+      newValue: created as unknown as Record<string, unknown>,
     });
   } catch (err: unknown) {
     const message =
@@ -107,6 +118,11 @@ export async function updateStaffAction(
   }
 
   try {
+    const previous = await dalGetStaff(staffId, activeSchoolId);
+    if (!previous) {
+      return { error: "Staff member not found.", success: false };
+    }
+
     const result = await dalUpdateStaff(
       {
         staffId,
@@ -127,6 +143,16 @@ export async function updateStaffAction(
     if (!result) {
       return { error: "Staff member not found.", success: false };
     }
+
+    await auditLog({
+      schoolId: activeSchoolId,
+      userId: user.staffId,
+      action: "UPDATE",
+      tableName: "staff",
+      recordId: staffId,
+      oldValue: previous as unknown as Record<string, unknown>,
+      newValue: result as unknown as Record<string, unknown>,
+    });
   } catch (err: unknown) {
     const message =
       err instanceof Error ? err.message : "Failed to update staff member.";
