@@ -13,6 +13,7 @@ import { getUser } from "@/lib/auth";
 import { getActiveSchoolId } from "@/lib/auth/school-context";
 import { getGroup } from "@/lib/dal/groups";
 import { getGroupStudentsForEntry, getExistingOutcomes } from "@/lib/dal/sessions";
+import { getCurrentLessonIdForGroup } from "@/lib/dal/sequences";
 
 export async function GET(
   request: Request,
@@ -36,7 +37,10 @@ export async function GET(
     return NextResponse.json({ error: "Group not found" }, { status: 404 });
   }
 
-  const students = await getGroupStudentsForEntry(groupId);
+  const [students, currentLessonId] = await Promise.all([
+    getGroupStudentsForEntry(groupId),
+    getCurrentLessonIdForGroup(groupId),
+  ]);
 
   // If lessonId and yearId are provided, also fetch existing outcomes
   const url = new URL(request.url);
@@ -48,5 +52,5 @@ export async function GET(
     existingOutcomes = await getExistingOutcomes(groupId, lessonId, yearId);
   }
 
-  return NextResponse.json({ students, existingOutcomes });
+  return NextResponse.json({ students, existingOutcomes, currentLessonId });
 }

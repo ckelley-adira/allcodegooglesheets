@@ -78,6 +78,20 @@ export const MIN_GRADE_SKILLS_DENOMINATOR: Record<string, number> = {
   G8: 107,
 } as const;
 
+/**
+ * Returns the largest grade-range lesson cap across the given grade names.
+ * Used for the Instructional Sequence lesson picker — a KG/G1 mixed group
+ * should see lessons up to L57 highlighted as "within grade range".
+ */
+export function getMaxGradeDenominator(gradeNames: string[]): number {
+  let max = 0;
+  for (const name of gradeNames) {
+    const cap = MIN_GRADE_SKILLS_DENOMINATOR[name] ?? 0;
+    if (cap > max) max = cap;
+  }
+  return max;
+}
+
 /** Total UFLI lessons in the curriculum */
 export const TOTAL_LESSONS = 128;
 

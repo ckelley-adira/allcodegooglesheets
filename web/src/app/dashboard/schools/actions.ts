@@ -108,6 +108,15 @@ export async function updateSchoolAction(
   const isActiveRaw = formData.get("isActive");
   const isActive = isActiveRaw !== null ? isActiveRaw === "true" : undefined;
 
+  // Cadence days come in as multiple cadenceDays checkbox values.
+  // Read them only if the form actually had the field (checkboxes don't
+  // post when unchecked, so presence of the key in any entry is the
+  // signal to update).
+  let cadenceDays: string[] | undefined;
+  if (formData.has("cadenceDays") || formData.get("cadenceDaysPresent") === "1") {
+    cadenceDays = formData.getAll("cadenceDays").map((v) => String(v));
+  }
+
   if (state && state.length !== 2) {
     return { error: "State must be a 2-letter code.", success: false };
   }
@@ -120,6 +129,7 @@ export async function updateSchoolAction(
       address,
       city,
       state,
+      cadenceDays,
       isActive,
     });
     if (!updated) {

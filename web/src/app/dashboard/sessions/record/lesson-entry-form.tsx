@@ -83,7 +83,6 @@ export function LessonEntryForm({
   const [isLoadingStudents, setIsLoadingStudents] = useState(false);
   const [isEditingExisting, setIsEditingExisting] = useState(false);
 
-  // Load students when group changes
   useEffect(() => {
     if (!selectedGroupId) {
       setStudents([]);
@@ -99,6 +98,12 @@ export function LessonEntryForm({
         setStudents(data.students ?? []);
         setStatuses(new Map());
         setIsEditingExisting(false);
+
+        // Only pre-select if the form doesn't already have a lesson,
+        // otherwise we'd overwrite a tutor's manual choice.
+        if (data.currentLessonId && !selectedLessonId) {
+          setSelectedLessonId(data.currentLessonId);
+        }
       })
       .catch(() => {
         setStudents([]);
@@ -106,6 +111,9 @@ export function LessonEntryForm({
       .finally(() => {
         setIsLoadingStudents(false);
       });
+    // selectedLessonId intentionally excluded — pre-select should only
+    // fire when the group changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedGroupId]);
 
   // Load existing outcomes when lesson changes (for edit pre-population)

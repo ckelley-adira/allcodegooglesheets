@@ -37,6 +37,12 @@ export const schools = pgTable("schools", {
   address: text("address"),
   city: varchar("city", { length: 100 }),
   state: char("state", { length: 2 }),
+  /**
+   * Default instructional cadence days for the school, stored as a
+   * comma-separated list of 3-letter codes (MON,TUE,WED,THU,FRI).
+   * Used as the default when building new instructional sequences.
+   */
+  cadenceDays: varchar("cadence_days", { length: 30 }).notNull().default("TUE,THU"),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
