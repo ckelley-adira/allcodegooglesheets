@@ -249,23 +249,35 @@ export async function getActiveSequenceForGroup(
 /**
  * Returns the lesson_id of the "current" lesson in a group's active sequence,
  * or null if there is none. Used by the Tutor Input Form to pre-select the
- * lesson dropdown. Single round-trip via an inner-join.
+ * lesson dropdown.
+ *
+ * Two round-trips because both `instructional_sequence_lessons` and
+ * `instructional_sequences` have a `status` column, so a PostgREST
+ * embedded `.eq("status", ...)` filter is ambiguous and silently
+ * fails to match. Splitting into two queries removes the ambiguity.
  */
 export async function getCurrentLessonIdForGroup(
   groupId: number,
 ): Promise<number | null> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("instructional_sequence_lessons")
-    .select(
-      "lesson_id, instructional_sequences!inner(group_id, status)",
-    )
-    .eq("status", "current")
-    .eq("instructional_sequences.group_id", groupId)
-    .eq("instructional_sequences.status", "active")
+
+  const { data: seq } = await supabase
+    .from("instructional_sequences")
+    .select("sequence_id")
+    .eq("group_id", groupId)
+    .eq("status", "active")
     .maybeSingle();
 
-  return data ? (data as unknown as { lesson_id: number }).lesson_id : null;
+  if (!seq) return null;
+
+  const { data: lesson } = await supabase
+    .from("instructional_sequence_lessons")
+    .select("lesson_id")
+    .eq("sequence_id", (seq as { sequence_id: number }).sequence_id)
+    .eq("status", "current")
+    .maybeSingle();
+
+  return lesson ? (lesson as { lesson_id: number }).lesson_id : null;
 }
 
 // ── Building / updating ──────────────────────────────────────────────────
