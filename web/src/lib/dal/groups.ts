@@ -1,24 +1,12 @@
 /**
  * @file dal/groups.ts — Data access layer for instructional groups
  *
- * Handles group CRUD and group membership (student assignment/removal).
- * Groups are scoped to a school + academic year. Per D-008, groups use
- * structured fields (grade, identifier) not free-text names.
+ * Uses the Supabase JS client (PostgREST over HTTPS) for serverless reliability.
  *
- * @rls School-scoping enforced by explicit schoolId from JWT claims,
- *   backed by RLS policies at the database layer (D-002).
+ * @rls School-scoping enforced by RLS policies via the user's JWT.
  */
 
-import { eq, and, asc, isNull, sql } from "drizzle-orm";
-import { db } from "@/lib/db";
-import {
-  instructionalGroups,
-  groupMemberships,
-  students,
-  staff,
-  gradeLevels,
-  academicYears,
-} from "@/lib/db/schema";
+import { createClient } from "@/lib/supabase/server";
 
 // ── Group types ──────────────────────────────────────────────────────────
 
@@ -54,8 +42,6 @@ export interface UpdateGroupInput {
   isActive?: boolean;
 }
 
-// ── Membership types ─────────────────────────────────────────────────────
-
 export interface MembershipRow {
   membershipId: number;
   studentId: number;
@@ -67,308 +53,347 @@ export interface MembershipRow {
   isActive: boolean;
 }
 
+interface RawGroupRow {
+  group_id: number;
+  group_name: string;
+  grade_id: number;
+  year_id: number;
+  staff_id: number;
+  is_mixed_grade: boolean;
+  is_active: boolean;
+  grade_levels: { name: string; sort_order: number } | null;
+  academic_years: { label: string } | null;
+  staff: { first_name: string; last_name: string } | null;
+}
+
+function mapGroupRow(r: RawGroupRow, memberCount: number): GroupRow {
+  return {
+    groupId: r.group_id,
+    groupName: r.group_name,
+    gradeName: r.grade_levels?.name ?? "",
+    gradeId: r.grade_id,
+    yearLabel: r.academic_years?.label ?? "",
+    yearId: r.year_id,
+    staffName: `${r.staff?.first_name ?? ""} ${r.staff?.last_name ?? ""}`.trim(),
+    staffId: r.staff_id,
+    isMixedGrade: r.is_mixed_grade,
+    isActive: r.is_active,
+    memberCount,
+  };
+}
+
+const GROUP_COLUMNS =
+  "group_id, group_name, grade_id, year_id, staff_id, is_mixed_grade, is_active, grade_levels(name, sort_order), academic_years(label), staff(first_name, last_name)";
+
 // ── Group queries ────────────────────────────────────────────────────────
 
 /**
- * Lists all groups for a school, with member count, staff name, and grade.
+ * Lists all groups for the current user's school with member counts.
  *
- * @rls Filters by schoolId from the caller's JWT claims.
+ * @rls Filters by school_id automatically via RLS policy.
  */
-export async function listGroups(schoolId: number): Promise<GroupRow[]> {
-  const rows = await db
-    .select({
-      groupId: instructionalGroups.groupId,
-      groupName: instructionalGroups.groupName,
-      gradeName: gradeLevels.name,
-      gradeId: instructionalGroups.gradeId,
-      yearLabel: academicYears.label,
-      yearId: instructionalGroups.yearId,
-      staffFirstName: staff.firstName,
-      staffLastName: staff.lastName,
-      staffId: instructionalGroups.staffId,
-      isMixedGrade: instructionalGroups.isMixedGrade,
-      isActive: instructionalGroups.isActive,
-    })
-    .from(instructionalGroups)
-    .innerJoin(gradeLevels, eq(instructionalGroups.gradeId, gradeLevels.gradeId))
-    .innerJoin(academicYears, eq(instructionalGroups.yearId, academicYears.yearId))
-    .innerJoin(staff, eq(instructionalGroups.staffId, staff.staffId))
-    .where(eq(instructionalGroups.schoolId, schoolId))
-    .orderBy(asc(gradeLevels.sortOrder), asc(instructionalGroups.groupName));
+export async function listGroups(_schoolId: number): Promise<GroupRow[]> {
+  const supabase = await createClient();
 
-  // Get member counts in a separate query to avoid complex aggregation
-  const counts = await db
-    .select({
-      groupId: groupMemberships.groupId,
-      count: sql<number>`count(*)::int`,
-    })
-    .from(groupMemberships)
-    .where(eq(groupMemberships.isActive, true))
-    .groupBy(groupMemberships.groupId);
+  const { data: groups, error: groupsError } = await supabase
+    .from("instructional_groups")
+    .select(GROUP_COLUMNS);
 
-  const countMap = new Map(counts.map((c) => [c.groupId, c.count]));
+  if (groupsError) throw new Error(groupsError.message);
 
-  return rows.map((r) => ({
-    groupId: r.groupId,
-    groupName: r.groupName,
-    gradeName: r.gradeName,
-    gradeId: r.gradeId,
-    yearLabel: r.yearLabel,
-    yearId: r.yearId,
-    staffName: `${r.staffFirstName} ${r.staffLastName}`,
-    staffId: r.staffId,
-    isMixedGrade: r.isMixedGrade,
-    isActive: r.isActive,
-    memberCount: countMap.get(r.groupId) ?? 0,
-  }));
+  // Get member counts for each group
+  const { data: memberships, error: memError } = await supabase
+    .from("group_memberships")
+    .select("group_id")
+    .eq("is_active", true);
+
+  if (memError) throw new Error(memError.message);
+
+  const countMap = new Map<number, number>();
+  (memberships ?? []).forEach((m: { group_id: number }) => {
+    countMap.set(m.group_id, (countMap.get(m.group_id) ?? 0) + 1);
+  });
+
+  const rows = (groups ?? []).map((g) =>
+    mapGroupRow(g as unknown as RawGroupRow, countMap.get((g as { group_id: number }).group_id) ?? 0),
+  );
+
+  // Sort by grade sort_order, then group_name
+  rows.sort((a, b) => {
+    const ag = (groups ?? []).find(
+      (x) => (x as { group_id: number }).group_id === a.groupId,
+    ) as unknown as RawGroupRow | undefined;
+    const bg = (groups ?? []).find(
+      (x) => (x as { group_id: number }).group_id === b.groupId,
+    ) as unknown as RawGroupRow | undefined;
+    const aOrder = ag?.grade_levels?.sort_order ?? 0;
+    const bOrder = bg?.grade_levels?.sort_order ?? 0;
+    if (aOrder !== bOrder) return aOrder - bOrder;
+    return a.groupName.localeCompare(b.groupName);
+  });
+
+  return rows;
 }
 
 /**
- * Gets a single group by ID, scoped to school.
+ * Gets a single group by ID with member count.
  *
- * @rls Verifies schoolId matches the caller's JWT claims.
+ * @rls School-scoped via RLS policy.
  */
 export async function getGroup(
   groupId: number,
-  schoolId: number,
+  _schoolId: number,
 ): Promise<GroupRow | null> {
-  const [row] = await db
-    .select({
-      groupId: instructionalGroups.groupId,
-      groupName: instructionalGroups.groupName,
-      gradeName: gradeLevels.name,
-      gradeId: instructionalGroups.gradeId,
-      yearLabel: academicYears.label,
-      yearId: instructionalGroups.yearId,
-      staffFirstName: staff.firstName,
-      staffLastName: staff.lastName,
-      staffId: instructionalGroups.staffId,
-      isMixedGrade: instructionalGroups.isMixedGrade,
-      isActive: instructionalGroups.isActive,
-    })
-    .from(instructionalGroups)
-    .innerJoin(gradeLevels, eq(instructionalGroups.gradeId, gradeLevels.gradeId))
-    .innerJoin(academicYears, eq(instructionalGroups.yearId, academicYears.yearId))
-    .innerJoin(staff, eq(instructionalGroups.staffId, staff.staffId))
-    .where(
-      and(
-        eq(instructionalGroups.groupId, groupId),
-        eq(instructionalGroups.schoolId, schoolId),
-      ),
-    )
-    .limit(1);
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("instructional_groups")
+    .select(GROUP_COLUMNS)
+    .eq("group_id", groupId)
+    .maybeSingle();
 
-  if (!row) return null;
+  if (error) throw new Error(error.message);
+  if (!data) return null;
 
-  const [countRow] = await db
-    .select({ count: sql<number>`count(*)::int` })
-    .from(groupMemberships)
-    .where(
-      and(
-        eq(groupMemberships.groupId, groupId),
-        eq(groupMemberships.isActive, true),
-      ),
-    );
+  const { count } = await supabase
+    .from("group_memberships")
+    .select("*", { count: "exact", head: true })
+    .eq("group_id", groupId)
+    .eq("is_active", true);
 
-  return {
-    groupId: row.groupId,
-    groupName: row.groupName,
-    gradeName: row.gradeName,
-    gradeId: row.gradeId,
-    yearLabel: row.yearLabel,
-    yearId: row.yearId,
-    staffName: `${row.staffFirstName} ${row.staffLastName}`,
-    staffId: row.staffId,
-    isMixedGrade: row.isMixedGrade,
-    isActive: row.isActive,
-    memberCount: countRow?.count ?? 0,
-  };
+  return mapGroupRow(data as unknown as RawGroupRow, count ?? 0);
 }
 
 /**
  * Creates a new instructional group.
  *
- * @rls schoolId comes from the caller's JWT claims.
+ * @rls School-scoped via RLS policy.
  */
 export async function createGroup(input: CreateGroupInput): Promise<number> {
-  const [row] = await db
-    .insert(instructionalGroups)
-    .values({
-      schoolId: input.schoolId,
-      gradeId: input.gradeId,
-      yearId: input.yearId,
-      staffId: input.staffId,
-      groupName: input.groupName,
-      isMixedGrade: input.isMixedGrade ?? false,
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("instructional_groups")
+    .insert({
+      school_id: input.schoolId,
+      grade_id: input.gradeId,
+      year_id: input.yearId,
+      staff_id: input.staffId,
+      group_name: input.groupName,
+      is_mixed_grade: input.isMixedGrade ?? false,
     })
-    .returning({ groupId: instructionalGroups.groupId });
+    .select("group_id")
+    .single();
 
-  return row.groupId;
+  if (error) throw new Error(error.message);
+  return data.group_id;
 }
 
 /**
- * Updates a group's details. Only provided fields are updated.
+ * Updates a group.
  *
- * @rls schoolId check performed by the caller.
+ * @rls School-scoped via RLS policy.
  */
 export async function updateGroup(
   input: UpdateGroupInput,
-  schoolId: number,
+  _schoolId: number,
 ): Promise<boolean> {
+  const supabase = await createClient();
   const updates: Record<string, unknown> = {};
-  if (input.groupName !== undefined) updates.groupName = input.groupName;
-  if (input.gradeId !== undefined) updates.gradeId = input.gradeId;
-  if (input.staffId !== undefined) updates.staffId = input.staffId;
-  if (input.isMixedGrade !== undefined) updates.isMixedGrade = input.isMixedGrade;
-  if (input.isActive !== undefined) updates.isActive = input.isActive;
+  if (input.groupName !== undefined) updates.group_name = input.groupName;
+  if (input.gradeId !== undefined) updates.grade_id = input.gradeId;
+  if (input.staffId !== undefined) updates.staff_id = input.staffId;
+  if (input.isMixedGrade !== undefined) updates.is_mixed_grade = input.isMixedGrade;
+  if (input.isActive !== undefined) updates.is_active = input.isActive;
 
   if (Object.keys(updates).length === 0) return false;
 
-  const result = await db
-    .update(instructionalGroups)
-    .set(updates)
-    .where(
-      and(
-        eq(instructionalGroups.groupId, input.groupId),
-        eq(instructionalGroups.schoolId, schoolId),
-      ),
-    )
-    .returning({ groupId: instructionalGroups.groupId });
+  const { error, data } = await supabase
+    .from("instructional_groups")
+    .update(updates)
+    .eq("group_id", input.groupId)
+    .select("group_id");
 
-  return result.length > 0;
+  if (error) throw new Error(error.message);
+  return (data?.length ?? 0) > 0;
 }
 
 // ── Membership queries ───────────────────────────────────────────────────
 
+interface RawMembershipRow {
+  membership_id: number;
+  joined_date: string;
+  is_active: boolean;
+  students: {
+    student_id: number;
+    first_name: string;
+    last_name: string;
+    student_number: string;
+    grade_levels: { name: string } | null;
+  } | null;
+}
+
 /**
  * Lists active members of a group with student details.
+ *
+ * @rls School-scoped via RLS policy.
  */
 export async function listGroupMembers(
   groupId: number,
 ): Promise<MembershipRow[]> {
-  return db
-    .select({
-      membershipId: groupMemberships.membershipId,
-      studentId: students.studentId,
-      firstName: students.firstName,
-      lastName: students.lastName,
-      studentNumber: students.studentNumber,
-      gradeName: gradeLevels.name,
-      joinedDate: groupMemberships.joinedDate,
-      isActive: groupMemberships.isActive,
-    })
-    .from(groupMemberships)
-    .innerJoin(students, eq(groupMemberships.studentId, students.studentId))
-    .innerJoin(gradeLevels, eq(students.gradeId, gradeLevels.gradeId))
-    .where(
-      and(
-        eq(groupMemberships.groupId, groupId),
-        eq(groupMemberships.isActive, true),
-      ),
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("group_memberships")
+    .select(
+      "membership_id, joined_date, is_active, students(student_id, first_name, last_name, student_number, grade_levels(name))",
     )
-    .orderBy(asc(students.lastName), asc(students.firstName));
+    .eq("group_id", groupId)
+    .eq("is_active", true);
+
+  if (error) throw new Error(error.message);
+
+  const rows: MembershipRow[] = (data ?? []).map((r) => {
+    const raw = r as unknown as RawMembershipRow;
+    return {
+      membershipId: raw.membership_id,
+      studentId: raw.students?.student_id ?? 0,
+      firstName: raw.students?.first_name ?? "",
+      lastName: raw.students?.last_name ?? "",
+      studentNumber: raw.students?.student_number ?? "",
+      gradeName: raw.students?.grade_levels?.name ?? "",
+      joinedDate: raw.joined_date,
+      isActive: raw.is_active,
+    };
+  });
+
+  rows.sort((a, b) => {
+    const ln = a.lastName.localeCompare(b.lastName);
+    if (ln !== 0) return ln;
+    return a.firstName.localeCompare(b.firstName);
+  });
+
+  return rows;
 }
 
 /**
- * Lists students in a school who are NOT active members of the given group.
- * Used to populate the "Add student" dropdown.
+ * Lists active students in a school who are NOT in the given group.
+ *
+ * @rls School-scoped via RLS policy.
  */
 export async function listAvailableStudents(
   groupId: number,
-  schoolId: number,
+  _schoolId: number,
 ) {
-  // Get IDs of students already in this group
-  const existing = await db
-    .select({ studentId: groupMemberships.studentId })
-    .from(groupMemberships)
-    .where(
-      and(
-        eq(groupMemberships.groupId, groupId),
-        eq(groupMemberships.isActive, true),
-      ),
-    );
+  const supabase = await createClient();
 
-  const existingIds = new Set(existing.map((e) => e.studentId));
+  // Get active memberships for this group
+  const { data: existing, error: exError } = await supabase
+    .from("group_memberships")
+    .select("student_id")
+    .eq("group_id", groupId)
+    .eq("is_active", true);
 
-  // Get all active students for this school
-  const allStudents = await db
-    .select({
-      studentId: students.studentId,
-      firstName: students.firstName,
-      lastName: students.lastName,
-      studentNumber: students.studentNumber,
-      gradeName: gradeLevels.name,
-    })
-    .from(students)
-    .innerJoin(gradeLevels, eq(students.gradeId, gradeLevels.gradeId))
-    .where(
-      and(
-        eq(students.schoolId, schoolId),
-        eq(students.enrollmentStatus, "active"),
-      ),
+  if (exError) throw new Error(exError.message);
+  const existingIds = new Set((existing ?? []).map((e) => e.student_id));
+
+  // Get all active students
+  const { data: students, error: sError } = await supabase
+    .from("students")
+    .select(
+      "student_id, first_name, last_name, student_number, grade_levels(name)",
     )
-    .orderBy(asc(students.lastName), asc(students.firstName));
+    .eq("enrollment_status", "active")
+    .order("last_name", { ascending: true })
+    .order("first_name", { ascending: true });
 
-  return allStudents.filter((s) => !existingIds.has(s.studentId));
+  if (sError) throw new Error(sError.message);
+
+  return (students ?? [])
+    .filter((s) => !existingIds.has((s as { student_id: number }).student_id))
+    .map((s) => {
+      const r = s as unknown as {
+        student_id: number;
+        first_name: string;
+        last_name: string;
+        student_number: string;
+        grade_levels: { name: string } | null;
+      };
+      return {
+        studentId: r.student_id,
+        firstName: r.first_name,
+        lastName: r.last_name,
+        studentNumber: r.student_number,
+        gradeName: r.grade_levels?.name ?? "",
+      };
+    });
 }
 
 /**
- * Adds a student to a group. Creates a new active membership record.
+ * Adds a student to a group.
  */
 export async function addStudentToGroup(
   groupId: number,
   studentId: number,
 ): Promise<void> {
-  await db.insert(groupMemberships).values({
-    groupId,
-    studentId,
-    joinedDate: sql`CURRENT_DATE`,
-    isActive: true,
+  const supabase = await createClient();
+  const { error } = await supabase.from("group_memberships").insert({
+    group_id: groupId,
+    student_id: studentId,
+    joined_date: new Date().toISOString().split("T")[0],
+    is_active: true,
   });
+  if (error) throw new Error(error.message);
 }
 
 /**
- * Removes a student from a group by setting is_active = false
- * and recording the left_date. Preserves history per the data model.
+ * Removes a student from a group (soft-delete).
  */
 export async function removeStudentFromGroup(
   membershipId: number,
 ): Promise<void> {
-  await db
-    .update(groupMemberships)
-    .set({
-      isActive: false,
-      leftDate: sql`CURRENT_DATE`,
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("group_memberships")
+    .update({
+      is_active: false,
+      left_date: new Date().toISOString().split("T")[0],
     })
-    .where(eq(groupMemberships.membershipId, membershipId));
+    .eq("membership_id", membershipId);
+  if (error) throw new Error(error.message);
 }
 
 /**
- * Lists academic years for a school (for the group create form).
+ * Lists academic years for a school.
  */
-export async function listAcademicYears(schoolId: number) {
-  return db
-    .select({
-      yearId: academicYears.yearId,
-      label: academicYears.label,
-      isCurrent: academicYears.isCurrent,
-    })
-    .from(academicYears)
-    .where(eq(academicYears.schoolId, schoolId))
-    .orderBy(asc(academicYears.label));
+export async function listAcademicYears(_schoolId: number) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("academic_years")
+    .select("year_id, label, is_current")
+    .order("label", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => ({
+    yearId: r.year_id,
+    label: r.label,
+    isCurrent: r.is_current,
+  }));
 }
 
 /**
- * Lists active staff for a school (for the group create/edit form).
+ * Lists active staff for a school.
  */
-export async function listActiveStaff(schoolId: number) {
-  return db
-    .select({
-      staffId: staff.staffId,
-      firstName: staff.firstName,
-      lastName: staff.lastName,
-    })
-    .from(staff)
-    .where(and(eq(staff.schoolId, schoolId), eq(staff.isActive, true)))
-    .orderBy(asc(staff.lastName), asc(staff.firstName));
+export async function listActiveStaff(_schoolId: number) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("staff")
+    .select("staff_id, first_name, last_name")
+    .eq("is_active", true)
+    .order("last_name", { ascending: true })
+    .order("first_name", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => ({
+    staffId: r.staff_id,
+    firstName: r.first_name,
+    lastName: r.last_name,
+  }));
 }
