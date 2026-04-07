@@ -22,6 +22,11 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatPct, pctColor } from "@/lib/format/percent";
+import { sectionForLesson, type SkillSectionName } from "@/lib/curriculum/sections";
+import {
+  DEFICIT_META,
+  getDiagnosticRulesForSections,
+} from "@/lib/diagnostic/framework";
 
 interface StudentDetailPageProps {
   params: Promise<{ studentId: string }>;
@@ -87,6 +92,23 @@ export default async function StudentDetailPage({
 
   const { header, bigFour, skillSections, recentActivity, attendance, highWaterMarks, currentGroup } = detail;
   const highWaterSet = new Set(highWaterMarks);
+
+  // Diagnostic hints: any section <80% mastery OR with a recent N.
+  // Surfaces the matching rows from the UFLI Diagnostic Error Analysis
+  // Framework so tutors see "likely deficit + suggested response" without
+  // having to flip between a spreadsheet and the dashboard.
+  const strugglingSectionNames = new Set<SkillSectionName>();
+  for (const s of skillSections) {
+    if (s.pct < 80) strugglingSectionNames.add(s.name as SkillSectionName);
+  }
+  for (const a of recentActivity) {
+    if (a.status !== "N") continue;
+    const section = sectionForLesson(a.lessonNumber);
+    if (section) strugglingSectionNames.add(section);
+  }
+  const diagnosticRules = getDiagnosticRulesForSections(
+    Array.from(strugglingSectionNames),
+  );
 
   return (
     <div className="space-y-6">
@@ -272,6 +294,87 @@ export default async function StudentDetailPage({
           </div>
         </div>
       </section>
+
+      {/* Diagnostic hints */}
+      {diagnosticRules.length > 0 && (
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              Diagnostic Hints
+            </h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              From the UFLI Diagnostic Error Analysis Framework — likely
+              deficits and suggested instructional responses for the sections
+              where this student is struggling.
+            </p>
+          </div>
+          <div className="space-y-3">
+            {diagnosticRules.map((rule) => (
+              <div
+                key={rule.id}
+                className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-sm font-semibold">{rule.concept}</h3>
+                  {rule.sections.map((s) => (
+                    <span
+                      key={s}
+                      className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300"
+                    >
+                      {s}
+                    </span>
+                  ))}
+                  {rule.deficits.map((d) => (
+                    <span
+                      key={d}
+                      className={cn(
+                        "rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider",
+                        DEFICIT_META[d].colorClass,
+                      )}
+                    >
+                      {DEFICIT_META[d].label}
+                    </span>
+                  ))}
+                </div>
+                <dl className="mt-3 grid gap-3 text-xs sm:grid-cols-2">
+                  <div>
+                    <dt className="font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                      Reading error
+                    </dt>
+                    <dd className="mt-0.5 text-zinc-700 dark:text-zinc-300">
+                      {rule.readingError}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                      Spelling error
+                    </dt>
+                    <dd className="mt-0.5 text-zinc-700 dark:text-zinc-300">
+                      {rule.spellingError}
+                    </dd>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <dt className="font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                      Likely underlying deficit
+                    </dt>
+                    <dd className="mt-0.5 text-zinc-700 dark:text-zinc-300">
+                      {rule.deficitDescription}
+                    </dd>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <dt className="font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                      Suggested instructional response
+                    </dt>
+                    <dd className="mt-0.5 text-zinc-700 dark:text-zinc-300">
+                      {rule.instructionalResponse}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Attendance */}
       <section className="space-y-3">
