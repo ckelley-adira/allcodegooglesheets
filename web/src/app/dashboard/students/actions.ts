@@ -14,8 +14,10 @@ import { requireRole } from "@/lib/auth";
 import { getActiveSchoolId } from "@/lib/auth/school-context";
 import {
   createStudent as dalCreateStudent,
+  getStudent as dalGetStudent,
   updateStudent as dalUpdateStudent,
 } from "@/lib/dal/students";
+import { auditLog } from "@/lib/audit/log";
 
 export interface StudentFormState {
   error: string | null;
@@ -55,13 +57,22 @@ export async function createStudentAction(
   }
 
   try {
-    await dalCreateStudent({
+    const created = await dalCreateStudent({
       schoolId: activeSchoolId,
       firstName,
       lastName,
       studentNumber,
       gradeId,
       enrollmentDate,
+    });
+
+    await auditLog({
+      schoolId: activeSchoolId,
+      userId: user.staffId,
+      action: "INSERT",
+      tableName: "students",
+      recordId: created.studentId,
+      newValue: created as unknown as Record<string, unknown>,
     });
   } catch (err: unknown) {
     const message =
@@ -110,6 +121,11 @@ export async function updateStudentAction(
     (formData.get("withdrawalDate") as string) || undefined;
 
   try {
+    const previous = await dalGetStudent(studentId, activeSchoolId);
+    if (!previous) {
+      return { error: "Student not found.", success: false };
+    }
+
     const result = await dalUpdateStudent(
       {
         studentId,
@@ -131,6 +147,16 @@ export async function updateStudentAction(
     if (!result) {
       return { error: "Student not found.", success: false };
     }
+
+    await auditLog({
+      schoolId: activeSchoolId,
+      userId: user.staffId,
+      action: "UPDATE",
+      tableName: "students",
+      recordId: studentId,
+      oldValue: previous as unknown as Record<string, unknown>,
+      newValue: result as unknown as Record<string, unknown>,
+    });
   } catch (err: unknown) {
     const message =
       err instanceof Error ? err.message : "Failed to update student.";

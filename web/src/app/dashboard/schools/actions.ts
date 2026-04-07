@@ -15,11 +15,14 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import {
   createSchool as dalCreateSchool,
+  getSchool as dalGetSchool,
   updateSchool as dalUpdateSchool,
   createAcademicYear as dalCreateAcademicYear,
   setCurrentAcademicYear as dalSetCurrentYear,
   setSchoolFeatureFlags as dalSetFeatureFlags,
+  getSchoolFeatureFlags as dalGetSchoolFeatureFlags,
 } from "@/lib/dal/schools";
+import { auditLog } from "@/lib/audit/log";
 
 export interface SchoolFormState {
   error: string | null;
@@ -38,7 +41,7 @@ export async function createSchoolAction(
   _prevState: SchoolFormState,
   formData: FormData,
 ): Promise<SchoolFormState> {
-  await requireRole("tilt_admin");
+  const user = await requireRole("tilt_admin");
 
   const name = (formData.get("name") as string)?.trim();
   const shortCode = (formData.get("shortCode") as string)?.trim();
@@ -60,7 +63,22 @@ export async function createSchoolAction(
   }
 
   try {
-    await dalCreateSchool({ name, shortCode, address, city, state });
+    const newSchoolId = await dalCreateSchool({
+      name,
+      shortCode,
+      address,
+      city,
+      state,
+    });
+
+    await auditLog({
+      schoolId: newSchoolId,
+      userId: user.staffId,
+      action: "INSERT",
+      tableName: "schools",
+      recordId: newSchoolId,
+      newValue: { name, shortCode, address, city, state },
+    });
   } catch (err: unknown) {
     const message =
       err instanceof Error ? err.message : "Failed to create school.";
@@ -87,7 +105,7 @@ export async function updateSchoolAction(
   _prevState: SchoolFormState,
   formData: FormData,
 ): Promise<SchoolFormState> {
-  await requireRole("tilt_admin");
+  const user = await requireRole("tilt_admin");
 
   const schoolId = Number(formData.get("schoolId"));
   if (!schoolId || isNaN(schoolId)) {
@@ -122,6 +140,11 @@ export async function updateSchoolAction(
   }
 
   try {
+    const previous = await dalGetSchool(schoolId);
+    if (!previous) {
+      return { error: "School not found.", success: false };
+    }
+
     const updated = await dalUpdateSchool({
       schoolId,
       name,
@@ -135,6 +158,17 @@ export async function updateSchoolAction(
     if (!updated) {
       return { error: "School not found.", success: false };
     }
+
+    const after = await dalGetSchool(schoolId);
+    await auditLog({
+      schoolId,
+      userId: user.staffId,
+      action: "UPDATE",
+      tableName: "schools",
+      recordId: schoolId,
+      oldValue: previous as unknown as Record<string, unknown>,
+      newValue: (after ?? {}) as unknown as Record<string, unknown>,
+    });
   } catch (err: unknown) {
     const message =
       err instanceof Error ? err.message : "Failed to update school.";
@@ -164,7 +198,7 @@ export async function createAcademicYearAction(
   _prevState: SchoolFormState,
   formData: FormData,
 ): Promise<SchoolFormState> {
-  await requireRole("tilt_admin");
+  const user = await requireRole("tilt_admin");
 
   const schoolId = Number(formData.get("schoolId"));
   const label = (formData.get("label") as string)?.trim();
@@ -183,12 +217,21 @@ export async function createAcademicYearAction(
   }
 
   try {
-    await dalCreateAcademicYear({
+    const yearId = await dalCreateAcademicYear({
       schoolId,
       label,
       startDate,
       endDate,
       isCurrent,
+    });
+
+    await auditLog({
+      schoolId,
+      userId: user.staffId,
+      action: "INSERT",
+      tableName: "academic_years",
+      recordId: yearId,
+      newValue: { label, startDate, endDate, isCurrent },
     });
   } catch (err: unknown) {
     const message =
@@ -213,13 +256,23 @@ export async function createAcademicYearAction(
  * @rls TILT Admin only.
  */
 export async function setCurrentYearAction(formData: FormData): Promise<void> {
-  await requireRole("tilt_admin");
+  const user = await requireRole("tilt_admin");
 
   const yearId = Number(formData.get("yearId"));
   const schoolId = Number(formData.get("schoolId"));
   if (!yearId || !schoolId) return;
 
   await dalSetCurrentYear(yearId, schoolId);
+
+  await auditLog({
+    schoolId,
+    userId: user.staffId,
+    action: "UPDATE",
+    tableName: "academic_years",
+    recordId: yearId,
+    newValue: { isCurrent: true },
+  });
+
   revalidatePath(`/dashboard/schools/${schoolId}`);
 }
 
@@ -237,7 +290,7 @@ export async function saveFeatureFlagsAction(
   _prevState: SchoolFormState,
   formData: FormData,
 ): Promise<SchoolFormState> {
-  await requireRole("tilt_admin");
+  const user = await requireRole("tilt_admin");
 
   const schoolId = Number(formData.get("schoolId"));
   if (!schoolId || isNaN(schoolId)) {
@@ -252,7 +305,18 @@ export async function saveFeatureFlagsAction(
   }
 
   try {
+    const previous = await dalGetSchoolFeatureFlags(schoolId);
     await dalSetFeatureFlags(schoolId, values);
+
+    await auditLog({
+      schoolId,
+      userId: user.staffId,
+      action: "UPDATE",
+      tableName: "feature_settings",
+      recordId: null,
+      oldValue: previous as Record<string, unknown>,
+      newValue: values as Record<string, unknown>,
+    });
   } catch (err: unknown) {
     const message =
       err instanceof Error ? err.message : "Failed to save feature flags.";

@@ -20,6 +20,7 @@ import {
   advanceSequence as dalAdvanceSequence,
   deleteSequence as dalDeleteSequence,
 } from "@/lib/dal/sequences";
+import { auditLog } from "@/lib/audit/log";
 
 export interface SequenceFormState {
   error: string | null;
@@ -94,13 +95,22 @@ export async function buildSequenceAction(
   }
 
   try {
-    await dalBuildSequence({
+    const sequenceId = await dalBuildSequence({
       groupId,
       yearId,
       name,
       startDate,
       cadenceDays,
       lessonIds,
+    });
+
+    await auditLog({
+      schoolId: context.activeSchoolId,
+      userId: context.user.staffId,
+      action: "INSERT",
+      tableName: "instructional_sequences",
+      recordId: sequenceId,
+      newValue: { groupId, yearId, name, startDate, cadenceDays, lessonIds },
     });
   } catch (err: unknown) {
     const message =
@@ -128,7 +138,20 @@ export async function advanceSequenceAction(formData: FormData): Promise<void> {
   const context = await assertGroupInActiveSchool(groupId);
   if (!context) return;
 
-  await dalAdvanceSequence(sequenceId);
+  const result = await dalAdvanceSequence(sequenceId);
+
+  await auditLog({
+    schoolId: context.activeSchoolId,
+    userId: context.user.staffId,
+    action: "ADVANCE_SEQUENCE",
+    tableName: "instructional_sequences",
+    recordId: sequenceId,
+    newValue: {
+      nextLessonId: result.nextLessonId,
+      sequenceCompleted: result.sequenceCompleted,
+    },
+  });
+
   revalidatePath(`/dashboard/groups/${groupId}`);
 }
 
@@ -147,5 +170,14 @@ export async function deleteSequenceAction(formData: FormData): Promise<void> {
   if (!context) return;
 
   await dalDeleteSequence(sequenceId);
+
+  await auditLog({
+    schoolId: context.activeSchoolId,
+    userId: context.user.staffId,
+    action: "DELETE",
+    tableName: "instructional_sequences",
+    recordId: sequenceId,
+  });
+
   revalidatePath(`/dashboard/groups/${groupId}`);
 }

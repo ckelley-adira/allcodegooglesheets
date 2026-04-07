@@ -14,10 +14,12 @@ import { requireRole } from "@/lib/auth";
 import { getActiveSchoolId } from "@/lib/auth/school-context";
 import {
   createGroup as dalCreateGroup,
+  getGroup as dalGetGroup,
   updateGroup as dalUpdateGroup,
   addStudentToGroup as dalAddStudent,
   removeStudentFromGroup as dalRemoveStudent,
 } from "@/lib/dal/groups";
+import { auditLog } from "@/lib/audit/log";
 
 export interface GroupFormState {
   error: string | null;
@@ -85,7 +87,7 @@ export async function createGroupAction(
   const primaryGradeId = gradeIds[0];
 
   try {
-    await dalCreateGroup({
+    const newGroupId = await dalCreateGroup({
       schoolId: activeSchoolId,
       gradeId: primaryGradeId,
       gradeIds,
@@ -93,6 +95,21 @@ export async function createGroupAction(
       staffId,
       groupName,
       isMixedGrade,
+    });
+
+    await auditLog({
+      schoolId: activeSchoolId,
+      userId: user.staffId,
+      action: "INSERT",
+      tableName: "instructional_groups",
+      recordId: newGroupId,
+      newValue: {
+        groupName,
+        gradeIds,
+        yearId,
+        staffId,
+        isMixedGrade,
+      },
     });
   } catch (err: unknown) {
     const message =
@@ -168,6 +185,11 @@ export async function updateGroupAction(
   }
 
   try {
+    const previous = await dalGetGroup(groupId, activeSchoolId);
+    if (!previous) {
+      return { error: "Group not found.", success: false };
+    }
+
     const updated = await dalUpdateGroup(
       { groupId, groupName, gradeId, gradeIds, staffId, isMixedGrade, isActive },
       activeSchoolId,
@@ -175,6 +197,17 @@ export async function updateGroupAction(
     if (!updated) {
       return { error: "Group not found.", success: false };
     }
+
+    const after = await dalGetGroup(groupId, activeSchoolId);
+    await auditLog({
+      schoolId: activeSchoolId,
+      userId: user.staffId,
+      action: "UPDATE",
+      tableName: "instructional_groups",
+      recordId: groupId,
+      oldValue: previous as unknown as Record<string, unknown>,
+      newValue: (after ?? {}) as unknown as Record<string, unknown>,
+    });
   } catch (err: unknown) {
     const message =
       err instanceof Error ? err.message : "Failed to update group.";
@@ -201,7 +234,8 @@ export async function addStudentAction(
   _prevState: GroupFormState,
   formData: FormData,
 ): Promise<GroupFormState> {
-  await requireRole("coach", "school_admin", "tilt_admin");
+  const user = await requireRole("coach", "school_admin", "tilt_admin");
+  const activeSchoolId = await getActiveSchoolId(user);
 
   const groupId = Number(formData.get("groupId"));
   const studentId = Number(formData.get("studentId"));
@@ -212,6 +246,15 @@ export async function addStudentAction(
 
   try {
     await dalAddStudent(groupId, studentId);
+
+    await auditLog({
+      schoolId: activeSchoolId,
+      userId: user.staffId,
+      action: "INSERT",
+      tableName: "group_memberships",
+      recordId: null,
+      newValue: { groupId, studentId },
+    });
   } catch (err: unknown) {
     const message =
       err instanceof Error ? err.message : "Failed to add student.";
@@ -234,7 +277,8 @@ export async function addStudentAction(
 export async function removeStudentAction(
   formData: FormData,
 ): Promise<void> {
-  await requireRole("coach", "school_admin", "tilt_admin");
+  const user = await requireRole("coach", "school_admin", "tilt_admin");
+  const activeSchoolId = await getActiveSchoolId(user);
 
   const membershipId = Number(formData.get("membershipId"));
   const groupId = formData.get("groupId") as string;
@@ -242,5 +286,15 @@ export async function removeStudentAction(
   if (!membershipId) return;
 
   await dalRemoveStudent(membershipId);
+
+  await auditLog({
+    schoolId: activeSchoolId,
+    userId: user.staffId,
+    action: "UPDATE",
+    tableName: "group_memberships",
+    recordId: membershipId,
+    newValue: { isActive: false, leftDate: "now" },
+  });
+
   revalidatePath(`/dashboard/groups/${groupId}`);
 }

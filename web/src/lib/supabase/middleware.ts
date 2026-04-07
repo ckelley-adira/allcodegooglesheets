@@ -13,7 +13,15 @@ import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
 /** Routes that don't require authentication */
-const PUBLIC_ROUTES = ["/", "/login", "/signup", "/auth/callback", "/auth/confirm"];
+const PUBLIC_ROUTES = [
+  "/",
+  "/login",
+  "/signup",
+  "/forgot-password",
+  "/auth/callback",
+  "/auth/confirm",
+  "/auth/reset-password",
+];
 
 /** Routes that authenticated users should be redirected away from */
 const AUTH_ROUTES = ["/login", "/signup"];
