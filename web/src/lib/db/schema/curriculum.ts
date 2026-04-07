@@ -20,14 +20,17 @@ import {
   smallint,
   numeric,
   unique,
+  bigint,
+  check,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import {
   lessonStatusEnum,
   dataSourceEnum,
   sessionTypeEnum,
   sequenceStatusEnum,
   sequenceLessonStatusEnum,
+  assessmentSnapshotTypeEnum,
 } from "./enums";
 import { students, instructionalGroups, academicYears, staff } from "./core";
 
@@ -274,6 +277,138 @@ export const instructionalSequenceLessonsRelations = relations(
     lesson: one(ufliLessons, {
       fields: [instructionalSequenceLessons.lessonId],
       references: [ufliLessons.lessonId],
+    }),
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// initial_assessments — frozen baseline + end-of-semester snapshots
+// ---------------------------------------------------------------------------
+// One row per (student, year, snapshot_type). The 'baseline' snapshot is
+// the BOY frozen reference; semester_1_end and semester_2_end are independent
+// measurements over the year. All snapshots seed lesson_progress with
+// source='assessment' so the Big Four high-water-mark logic picks them up.
+
+export const initialAssessments = pgTable(
+  "initial_assessments",
+  {
+    assessmentId: bigserial("assessment_id", { mode: "number" }).primaryKey(),
+    studentId: integer("student_id")
+      .notNull()
+      .references(() => students.studentId, { onDelete: "cascade" }),
+    yearId: integer("year_id")
+      .notNull()
+      .references(() => academicYears.yearId),
+    snapshotType: assessmentSnapshotTypeEnum("snapshot_type").notNull(),
+    assessmentDate: date("assessment_date").notNull(),
+    scorerId: integer("scorer_id").references(() => staff.staffId),
+    isKindergartenEoy: boolean("is_kindergarten_eoy").notNull().default(false),
+    foundationalPct: numeric("foundational_pct", { precision: 5, scale: 2 }),
+    kgPct: numeric("kg_pct", { precision: 5, scale: 2 }),
+    firstGradePct: numeric("first_grade_pct", { precision: 5, scale: 2 }),
+    secondGradePct: numeric("second_grade_pct", { precision: 5, scale: 2 }),
+    overallPct: numeric("overall_pct", { precision: 5, scale: 2 }),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [unique("uq_assessment_per_snapshot").on(t.studentId, t.yearId, t.snapshotType)],
+);
+
+export const initialAssessmentsRelations = relations(
+  initialAssessments,
+  ({ one, many }) => ({
+    student: one(students, {
+      fields: [initialAssessments.studentId],
+      references: [students.studentId],
+    }),
+    academicYear: one(academicYears, {
+      fields: [initialAssessments.yearId],
+      references: [academicYears.yearId],
+    }),
+    scorer: one(staff, {
+      fields: [initialAssessments.scorerId],
+      references: [staff.staffId],
+    }),
+    lessons: many(initialAssessmentLessons),
+    componentErrors: many(assessmentComponentErrors),
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// initial_assessment_lessons — per-lesson Y/N for each assessment row
+// ---------------------------------------------------------------------------
+
+export const initialAssessmentLessons = pgTable(
+  "initial_assessment_lessons",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    assessmentId: bigint("assessment_id", { mode: "number" })
+      .notNull()
+      .references(() => initialAssessments.assessmentId, {
+        onDelete: "cascade",
+      }),
+    lessonId: integer("lesson_id")
+      .notNull()
+      .references(() => ufliLessons.lessonId),
+    status: lessonStatusEnum("status").notNull(),
+  },
+  (t) => [
+    unique("uq_assessment_lesson").on(t.assessmentId, t.lessonId),
+    check("chk_assessment_status_y_or_n", sql`status IN ('Y', 'N')`),
+  ],
+);
+
+export const initialAssessmentLessonsRelations = relations(
+  initialAssessmentLessons,
+  ({ one }) => ({
+    assessment: one(initialAssessments, {
+      fields: [initialAssessmentLessons.assessmentId],
+      references: [initialAssessments.assessmentId],
+    }),
+    lesson: one(ufliLessons, {
+      fields: [initialAssessmentLessons.lessonId],
+      references: [ufliLessons.lessonId],
+    }),
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// assessment_component_errors — diagnostic detail (Phase C)
+// ---------------------------------------------------------------------------
+// One row per word where the student missed at least one component. Powers
+// the diagnostic framework's network-wide error pattern rollups.
+
+export const assessmentComponentErrors = pgTable(
+  "assessment_component_errors",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    assessmentId: bigint("assessment_id", { mode: "number" })
+      .notNull()
+      .references(() => initialAssessments.assessmentId, {
+        onDelete: "cascade",
+      }),
+    sectionKey: varchar("section_key", { length: 50 }).notNull(),
+    sectionName: varchar("section_name", { length: 100 }).notNull(),
+    word: varchar("word", { length: 50 }).notNull(),
+    componentsCorrect: text("components_correct").notNull().default(""),
+    componentsMissed: text("components_missed").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+);
+
+export const assessmentComponentErrorsRelations = relations(
+  assessmentComponentErrors,
+  ({ one }) => ({
+    assessment: one(initialAssessments, {
+      fields: [assessmentComponentErrors.assessmentId],
+      references: [initialAssessments.assessmentId],
     }),
   }),
 );

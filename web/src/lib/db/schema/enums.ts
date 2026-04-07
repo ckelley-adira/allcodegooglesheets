@@ -39,6 +39,7 @@ export const dataSourceEnum = pgEnum("data_source", [
   "import",
   "manual",
   "api",
+  "assessment",
 ]);
 
 /** Benchmark comparison type */
@@ -91,4 +92,15 @@ export const sequenceLessonStatusEnum = pgEnum("sequence_lesson_status", [
   "current",
   "completed",
   "skipped",
+]);
+
+/**
+ * Initial-assessment snapshot type. A student gets at most one row per
+ * (year, snapshot_type). 'baseline' is the frozen BOY reference; the two
+ * end-of-semester snapshots are independent measurements over the year.
+ */
+export const assessmentSnapshotTypeEnum = pgEnum("assessment_snapshot_type", [
+  "baseline",
+  "semester_1_end",
+  "semester_2_end",
 ]);
