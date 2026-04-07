@@ -45,6 +45,13 @@ export function getDb(): PostgresJsDatabase<typeof schema> {
     ssl: "require",
     prepare: false,
     max: 1,
+    idle_timeout: 20,
+    connect_timeout: 30,
+    connection: {
+      // Disable statement timeout at the session level — Supabase pooler
+      // defaults to a low timeout that can kill cold-start queries
+      statement_timeout: 0,
+    },
   });
   _db = drizzle(client, { schema });
   return _db;
