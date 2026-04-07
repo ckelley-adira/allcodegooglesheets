@@ -136,3 +136,39 @@ export const GROWTH_SLOPE_THRESHOLDS = {
   BEHIND: 0.5,
   /** < BEHIND = significantly behind, intervention */
 } as const;
+
+/**
+ * Coaching Priority Matrix thresholds (Phase C.3).
+ *
+ * Ported verbatim from FCD_CONFIG in FridayCoachingDashboard.gs. Per
+ * Christina: preserved exactly — these values encode years of
+ * pedagogical insight.
+ */
+export const COACHING_THRESHOLDS = {
+  /** Group avg absence rate above this = warning flag (30%) */
+  ABSENCE_WARNING: 30,
+  /** Group avg absence rate above this = critical flag (40%) */
+  ABSENCE_CRITICAL: 40,
+  /** Max reteaches on any single lesson at or above this = elevated */
+  RETEACH_WARNING: 1,
+  /** Max reteaches on any single lesson at or above this = critical */
+  RETEACH_CRITICAL: 2,
+  /** Student section mastery at or above this % = "at mastery" */
+  MASTERY_THRESHOLD: 80,
+  /** Consecutive weeks below aimline ratio to trigger Tier 3 flag */
+  GROWTH_CONCERN_WEEKS: 2,
+  /** Below this fraction of aimline = week counts toward concern streak */
+  GROWTH_CONCERN_RATIO: 0.5,
+  /** "Fast-track" rule: group mastery % at or above this ... */
+  FAST_TRACK_PASS_RATE: 80,
+  /** ... combined with max lesson number at or below this = under-challenged */
+  FAST_TRACK_MAX_LESSON: 40,
+  /** Group mastery % below this with low reteach = fidelity concern */
+  FIDELITY_LOW_PASS_RATE: 50,
+  /** Group avg growth ratio (%) below this combined with high absence = systemic */
+  SYSTEMIC_LOW_GROWTH_PCT: 75,
+  /** Rolling window for growth slope calculation (weeks) */
+  GROWTH_ROLLING_WEEKS: 4,
+  /** Absence & reteach lookback window in days (2 weeks) */
+  ACTIVITY_WINDOW_DAYS: 14,
+} as const;
