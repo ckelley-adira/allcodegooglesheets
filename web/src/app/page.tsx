@@ -1,11 +1,20 @@
 /**
  * @file page.tsx — Landing page for Adira Reads
  *
- * Public-facing root page. Authenticated users will be redirected to the
- * dashboard; unauthenticated users see the login prompt.
+ * Public-facing root page. Authenticated users are redirected to the
+ * dashboard; unauthenticated users see the sign-in prompt.
  */
 
-export default function HomePage() {
+import { redirect } from "next/navigation";
+import { getUser } from "@/lib/auth";
+
+export default async function HomePage() {
+  const user = await getUser();
+
+  if (user) {
+    redirect("/dashboard");
+  }
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-8">
       <h1 className="text-4xl font-bold tracking-tight">Adira Reads</h1>
