@@ -1,0 +1,79 @@
+/**
+ * @file enums.ts — PostgreSQL enum type definitions for Adira Reads
+ *
+ * Maps directly to the ENUM types in the Relational_Database_Model.html DDL.
+ * Supabase/Postgres enums are defined here as pgEnum and re-exported for use
+ * in table definitions.
+ *
+ * @see /Relational_Database_Model.html Section 3 — "ENUM TYPES"
+ */
+
+import { pgEnum } from "drizzle-orm/pg-core";
+
+/** Staff roles — maps to the five-role model from D-003 */
+export const staffRoleEnum = pgEnum("staff_role", [
+  "tutor",
+  "coach",
+  "school_admin",
+  "tilt_admin",
+]);
+
+/** Student enrollment lifecycle */
+export const enrollmentStatusEnum = pgEnum("enrollment_status", [
+  "active",
+  "withdrawn",
+  "transferred",
+  "graduated",
+]);
+
+/**
+ * Lesson outcome — Y (passed), N (attempted/failed), A (absent).
+ * Per D-012 (Equity of Visibility), 'A' values are excluded from slope
+ * calculations, never counted as zeros.
+ */
+export const lessonStatusEnum = pgEnum("lesson_status", ["Y", "N", "A"]);
+
+/** How a lesson_progress record was created */
+export const dataSourceEnum = pgEnum("data_source", [
+  "form",
+  "import",
+  "manual",
+  "api",
+]);
+
+/** Benchmark comparison type */
+export const benchmarkTypeEnum = pgEnum("benchmark_type", [
+  "initial",
+  "current",
+]);
+
+/** Student performance band labels */
+export const bandLabelEnum = pgEnum("band_label", [
+  "on_track",
+  "progressing",
+  "needs_support",
+]);
+
+/** Tutoring session types */
+export const sessionTypeEnum = pgEnum("session_type", [
+  "reteach",
+  "comprehension",
+  "intervention",
+  "enrichment",
+]);
+
+/** Coaching priority levels for the Friday Dashboard */
+export const coachingPriorityEnum = pgEnum("coaching_priority", [
+  "critical",
+  "high",
+  "medium",
+  "low",
+]);
+
+/** Data import pipeline status */
+export const importStatusEnum = pgEnum("import_status", [
+  "pending",
+  "processing",
+  "completed",
+  "failed",
+]);
