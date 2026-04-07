@@ -30,14 +30,6 @@ interface GroupOption {
   gradeName: string;
 }
 
-interface LessonOption {
-  lessonId: number;
-  lessonNumber: number;
-  lessonName: string | null;
-  skillSection: string;
-  isReview: boolean;
-}
-
 interface StudentEntry {
   studentId: number;
   firstName: string;
@@ -46,11 +38,19 @@ interface StudentEntry {
   gradeName: string;
 }
 
+interface PendingLesson {
+  lessonId: number;
+  lessonNumber: number;
+  lessonName: string | null;
+  isReview: boolean;
+  sortOrder: number;
+  plannedDate: string | null;
+}
+
 type Status = "Y" | "N" | "A" | null;
 
 interface LessonEntryFormProps {
   groups: GroupOption[];
-  lessons: LessonOption[];
   yearId: number;
   preselectedGroupId?: number;
 }
@@ -59,7 +59,6 @@ interface LessonEntryFormProps {
 
 export function LessonEntryForm({
   groups,
-  lessons,
   yearId,
   preselectedGroupId,
 }: LessonEntryFormProps) {
@@ -73,10 +72,7 @@ export function LessonEntryForm({
     preselectedGroupId ?? null,
   );
   const [selectedLessonId, setSelectedLessonId] = useState<number | null>(null);
-  // Tracks whether the group has an active sequence with a current lesson.
-  // Drives the empty state when a group is selected but the API returned
-  // currentLessonId: null.
-  const [hasActiveSequence, setHasActiveSequence] = useState(false);
+  const [pendingLessons, setPendingLessons] = useState<PendingLesson[]>([]);
   const [dateRecorded, setDateRecorded] = useState(
     new Date().toISOString().split("T")[0],
   );
@@ -86,13 +82,16 @@ export function LessonEntryForm({
   const [statuses, setStatuses] = useState<Map<number, Status>>(new Map());
   const [isLoadingStudents, setIsLoadingStudents] = useState(false);
   const [isEditingExisting, setIsEditingExisting] = useState(false);
+  // Bumped after a successful save to force a re-fetch of pending lessons
+  // (so the just-recorded lesson disappears from the cards).
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     if (!selectedGroupId) {
       setStudents([]);
       setStatuses(new Map());
       setSelectedLessonId(null);
-      setHasActiveSequence(false);
+      setPendingLessons([]);
       setIsEditingExisting(false);
       return;
     }
@@ -104,23 +103,23 @@ export function LessonEntryForm({
         setStudents(data.students ?? []);
         setStatuses(new Map());
         setIsEditingExisting(false);
-        if (data.currentLessonId) {
-          setSelectedLessonId(data.currentLessonId);
-          setHasActiveSequence(true);
-        } else {
-          setSelectedLessonId(null);
-          setHasActiveSequence(false);
-        }
+        const next: PendingLesson[] = data.pendingLessons ?? [];
+        setPendingLessons(next);
+        // Auto-select the first pending lesson when there's exactly one
+        // option, so the tutor can mark students immediately. With 2+
+        // options, require an explicit click so they pick which one to
+        // record (e.g. when catching up after falling behind).
+        setSelectedLessonId(next.length === 1 ? next[0].lessonId : null);
       })
       .catch(() => {
         setStudents([]);
         setSelectedLessonId(null);
-        setHasActiveSequence(false);
+        setPendingLessons([]);
       })
       .finally(() => {
         setIsLoadingStudents(false);
       });
-  }, [selectedGroupId]);
+  }, [selectedGroupId, refreshKey]);
 
   // Load existing outcomes when lesson changes (for edit pre-population)
   useEffect(() => {
@@ -154,11 +153,14 @@ export function LessonEntryForm({
       });
   }, [selectedGroupId, selectedLessonId, yearId]);
 
-  // Reset on success
   useEffect(() => {
     if (state.success) {
       setStatuses(new Map());
       setIsEditingExisting(false);
+      setSelectedLessonId(null);
+      // Force the data fetch to re-run so the just-completed lesson
+      // disappears from the pending cards.
+      setRefreshKey((k) => k + 1);
     }
   }, [state.success]);
 
@@ -245,7 +247,7 @@ export function LessonEntryForm({
         </div>
       </section>
 
-      {/* Step 2: Current Lesson (locked to active sequence) + Date */}
+      {/* Step 2: Teaching This Week — pending lessons from active sequence */}
       {selectedGroupId && (
         <section className="rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
           <div className="border-b border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
@@ -253,63 +255,74 @@ export function LessonEntryForm({
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-900 text-xs text-white dark:bg-zinc-100 dark:text-zinc-900">
                 2
               </span>
-              Current Lesson
+              Teaching This Week
             </h2>
           </div>
           <div className="space-y-3 p-4">
-            {(() => {
-              const currentLesson = selectedLessonId
-                ? lessons.find((l) => l.lessonId === selectedLessonId)
-                : null;
-
-              if (currentLesson) {
-                return (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-amber-900 dark:text-amber-300">
-                      Teaching Today
-                    </p>
-                    <p className="mt-1 text-base font-bold text-zinc-900 dark:text-zinc-100">
-                      <span className="font-mono text-amber-700 dark:text-amber-400">
-                        L{currentLesson.lessonNumber}
-                      </span>{" "}
-                      {currentLesson.lessonName}
-                      {currentLesson.isReview && (
-                        <span className="ml-2 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">
-                          Review
-                        </span>
-                      )}
-                    </p>
-                    <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-                      Lessons are taught in order from the group&apos;s
-                      Instructional Sequence. To advance to the next lesson,
-                      use the group page.
-                    </p>
-                  </div>
-                );
-              }
-
-              if (isLoadingStudents) {
-                return (
-                  <p className="py-2 text-sm text-zinc-400">Loading…</p>
-                );
-              }
-
-              if (!hasActiveSequence) {
-                return (
-                  <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-4 text-center dark:border-zinc-700 dark:bg-zinc-900/50">
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                      This group has no active Instructional Sequence yet.
-                    </p>
-                    <p className="mt-1 text-xs text-zinc-500">
-                      A coach or admin needs to build one on the group page
-                      before you can record lesson outcomes.
-                    </p>
-                  </div>
-                );
-              }
-
-              return null;
-            })()}
+            {isLoadingStudents ? (
+              <p className="py-2 text-sm text-zinc-400">Loading…</p>
+            ) : pendingLessons.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-4 text-center dark:border-zinc-700 dark:bg-zinc-900/50">
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  No pending lessons for this group.
+                </p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Either the group has no active Instructional Sequence yet,
+                  or every lesson in the current sequence has been recorded.
+                  A coach or admin can build a sequence on the group page.
+                </p>
+              </div>
+            ) : (
+              <>
+                <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                  {pendingLessons.length === 1
+                    ? "Tap the lesson to record student outcomes."
+                    : "Tap a lesson to record. The other will stay here for next time."}
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {pendingLessons.map((lesson) => {
+                    const isSelected = selectedLessonId === lesson.lessonId;
+                    return (
+                      <button
+                        key={lesson.lessonId}
+                        type="button"
+                        onClick={() => setSelectedLessonId(lesson.lessonId)}
+                        className={cn(
+                          "rounded-lg border p-4 text-left transition-all",
+                          isSelected
+                            ? "border-amber-400 bg-amber-50 ring-2 ring-amber-300 dark:border-amber-700 dark:bg-amber-950/40 dark:ring-amber-800"
+                            : "border-zinc-200 bg-white hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-600 dark:hover:bg-zinc-900",
+                        )}
+                      >
+                        <p className="text-base font-bold text-zinc-900 dark:text-zinc-100">
+                          <span
+                            className={cn(
+                              "font-mono",
+                              isSelected
+                                ? "text-amber-700 dark:text-amber-400"
+                                : "text-zinc-400",
+                            )}
+                          >
+                            L{lesson.lessonNumber}
+                          </span>{" "}
+                          {lesson.lessonName}
+                          {lesson.isReview && (
+                            <span className="ml-2 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                              Review
+                            </span>
+                          )}
+                        </p>
+                        {lesson.plannedDate && (
+                          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                            planned {lesson.plannedDate}
+                          </p>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
 
             {selectedLessonId && (
               <input

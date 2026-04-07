@@ -2,17 +2,16 @@
  * @file sessions/record/page.tsx — Tutor Input Form (Server Component shell)
  *
  * The daily-use surface for tutors (D-014). Mobile-first lesson data entry.
- * Flow: select group → select lesson → mark Y/N/A per student → submit.
+ * Flow: select group → tap pending lesson → mark Y/N/A per student → submit.
  *
- * This Server Component loads all data (groups, lessons, students, existing
- * outcomes), then hands it to the LessonEntryForm client component.
+ * The form auto-fetches the group's pending sequence lessons via the API
+ * when a group is selected — no need to pass the full lesson catalog here.
  */
 
 import Link from "next/link";
 import { requireAuth } from "@/lib/auth";
 import { getActiveSchoolId } from "@/lib/auth/school-context";
 import { listGroups, listAcademicYears } from "@/lib/dal/groups";
-import { listLessons } from "@/lib/dal/sessions";
 import { LessonEntryForm } from "./lesson-entry-form";
 
 interface RecordPageProps {
@@ -24,9 +23,8 @@ export default async function RecordPage({ searchParams }: RecordPageProps) {
   const user = await requireAuth();
   const activeSchoolId = await getActiveSchoolId(user);
 
-  const [groups, lessons, years] = await Promise.all([
+  const [groups, years] = await Promise.all([
     listGroups(activeSchoolId),
-    listLessons(),
     listAcademicYears(activeSchoolId),
   ]);
 
@@ -36,7 +34,6 @@ export default async function RecordPage({ searchParams }: RecordPageProps) {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4">
-      {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
         <Link
           href="/dashboard/sessions"
@@ -56,7 +53,6 @@ export default async function RecordPage({ searchParams }: RecordPageProps) {
           groupName: g.groupName,
           gradeName: g.gradeName,
         }))}
-        lessons={lessons}
         yearId={currentYear?.yearId ?? 0}
         preselectedGroupId={preselectedGroupId}
       />

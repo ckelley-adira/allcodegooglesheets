@@ -13,7 +13,7 @@ import { getUser } from "@/lib/auth";
 import { getActiveSchoolId } from "@/lib/auth/school-context";
 import { getGroup } from "@/lib/dal/groups";
 import { getGroupStudentsForEntry, getExistingOutcomes } from "@/lib/dal/sessions";
-import { getCurrentLessonIdForGroup } from "@/lib/dal/sequences";
+import { getPendingSequenceLessons } from "@/lib/dal/sequences";
 
 export async function GET(
   request: Request,
@@ -27,22 +27,22 @@ export async function GET(
 
   const { groupId: groupIdParam } = await params;
   const groupId = Number(groupIdParam);
-  if (!groupId || isNaN(groupId)) {
+  if (!groupId || Number.isNaN(groupId)) {
     return NextResponse.json({ error: "Invalid group ID" }, { status: 400 });
   }
 
-  // Verify the group belongs to the active school
   const group = await getGroup(groupId, activeSchoolId);
   if (!group) {
     return NextResponse.json({ error: "Group not found" }, { status: 404 });
   }
 
-  const [students, currentLessonId] = await Promise.all([
+  const [students, pendingLessons] = await Promise.all([
     getGroupStudentsForEntry(groupId),
-    getCurrentLessonIdForGroup(groupId),
+    getPendingSequenceLessons(groupId, 2),
   ]);
 
-  // If lessonId and yearId are provided, also fetch existing outcomes
+  // If lessonId and yearId are provided, also fetch existing outcomes for
+  // pre-populating the Y/N/A grid when re-recording the same lesson.
   const url = new URL(request.url);
   const lessonId = Number(url.searchParams.get("lessonId"));
   const yearId = Number(url.searchParams.get("yearId"));
@@ -52,5 +52,5 @@ export async function GET(
     existingOutcomes = await getExistingOutcomes(groupId, lessonId, yearId);
   }
 
-  return NextResponse.json({ students, existingOutcomes, currentLessonId });
+  return NextResponse.json({ students, existingOutcomes, pendingLessons });
 }

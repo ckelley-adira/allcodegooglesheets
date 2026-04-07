@@ -16,6 +16,7 @@ import { requireAuth } from "@/lib/auth";
 import { getActiveSchoolId } from "@/lib/auth/school-context";
 import { recordLessonOutcomes, type LessonOutcome } from "@/lib/dal/sessions";
 import { getGroup } from "@/lib/dal/groups";
+import { markSequenceLessonCompleted } from "@/lib/dal/sequences";
 
 export interface SessionFormState {
   error: string | null;
@@ -100,7 +101,17 @@ export async function recordSessionAction(
       outcomes,
     });
 
+    // Auto-advance the group's instructional sequence: mark this lesson
+    // as completed and (if it was the current one) promote the next.
+    // Best-effort — failure to advance shouldn't fail the save.
+    try {
+      await markSequenceLessonCompleted(groupId, lessonId);
+    } catch (advanceErr) {
+      console.error("Failed to auto-advance sequence:", advanceErr);
+    }
+
     revalidatePath("/dashboard/sessions");
+    revalidatePath(`/dashboard/groups/${groupId}`);
     return { error: null, success: true, savedCount };
   } catch (err: unknown) {
     const message =

@@ -246,19 +246,29 @@ export async function getActiveSequenceForGroup(
   );
 }
 
+export interface PendingSequenceLesson {
+  lessonId: number;
+  lessonNumber: number;
+  lessonName: string | null;
+  isReview: boolean;
+  sortOrder: number;
+  plannedDate: string | null;
+}
+
 /**
- * Returns the lesson_id of the "current" lesson in a group's active sequence,
- * or null if there is none. Used by the Tutor Input Form to pre-select the
- * lesson dropdown.
+ * Returns the next N pending lessons in a group's active sequence —
+ * lessons that have not yet been marked completed or skipped, ordered
+ * by sort_order. Used by the Tutor Input Form to show "Teaching This
+ * Week" cards (default 2, matching the 2-per-week cadence).
  *
- * Two round-trips because both `instructional_sequence_lessons` and
- * `instructional_sequences` have a `status` column, so a PostgREST
- * embedded `.eq("status", ...)` filter is ambiguous and silently
- * fails to match. Splitting into two queries removes the ambiguity.
+ * Two round-trips because the active-sequence + lesson-status filter
+ * spans two tables that both have a `status` column (an embedded
+ * PostgREST filter would be ambiguous).
  */
-export async function getCurrentLessonIdForGroup(
+export async function getPendingSequenceLessons(
   groupId: number,
-): Promise<number | null> {
+  limit = 2,
+): Promise<PendingSequenceLesson[]> {
   const supabase = await createClient();
 
   const { data: seq } = await supabase
@@ -268,16 +278,119 @@ export async function getCurrentLessonIdForGroup(
     .eq("status", "active")
     .maybeSingle();
 
-  if (!seq) return null;
+  if (!seq) return [];
 
-  const { data: lesson } = await supabase
+  const { data: lessons } = await supabase
     .from("instructional_sequence_lessons")
-    .select("lesson_id")
+    .select(
+      "lesson_id, sort_order, planned_date, status, ufli_lessons(lesson_number, lesson_name, is_review)",
+    )
     .eq("sequence_id", (seq as { sequence_id: number }).sequence_id)
-    .eq("status", "current")
+    .in("status", ["upcoming", "current"])
+    .order("sort_order", { ascending: true })
+    .limit(limit);
+
+  return (lessons ?? []).map((l) => {
+    const r = l as unknown as {
+      lesson_id: number;
+      sort_order: number;
+      planned_date: string | null;
+      ufli_lessons: {
+        lesson_number: number;
+        lesson_name: string | null;
+        is_review: boolean;
+      } | null;
+    };
+    return {
+      lessonId: r.lesson_id,
+      lessonNumber: r.ufli_lessons?.lesson_number ?? 0,
+      lessonName: r.ufli_lessons?.lesson_name ?? null,
+      isReview: r.ufli_lessons?.is_review ?? false,
+      sortOrder: r.sort_order,
+      plannedDate: r.planned_date,
+    };
+  });
+}
+
+/**
+ * Auto-advance helper: marks a specific lesson in a group's active
+ * sequence as completed. If the marked lesson was the 'current' one,
+ * promotes the next upcoming lesson by sort_order to 'current' so the
+ * group page's highlight stays accurate.
+ *
+ * Called by the record-session Server Action after a successful lesson
+ * data submission, so the sequence advances in the background — no
+ * manual button click required from the tutor.
+ */
+export async function markSequenceLessonCompleted(
+  groupId: number,
+  lessonId: number,
+): Promise<void> {
+  const supabase = await createClient();
+
+  const { data: seq } = await supabase
+    .from("instructional_sequences")
+    .select("sequence_id")
+    .eq("group_id", groupId)
+    .eq("status", "active")
     .maybeSingle();
 
-  return lesson ? (lesson as { lesson_id: number }).lesson_id : null;
+  if (!seq) return;
+  const sequenceId = (seq as { sequence_id: number }).sequence_id;
+
+  const { data: existing } = await supabase
+    .from("instructional_sequence_lessons")
+    .select("status, sort_order")
+    .eq("sequence_id", sequenceId)
+    .eq("lesson_id", lessonId)
+    .maybeSingle();
+
+  if (!existing) return;
+  const row = existing as { status: SequenceLessonStatus; sort_order: number };
+
+  // Idempotent: already completed → nothing to do.
+  if (row.status === "completed") return;
+
+  await supabase
+    .from("instructional_sequence_lessons")
+    .update({
+      status: "completed" as SequenceLessonStatus,
+      completed_at: new Date().toISOString(),
+    })
+    .eq("sequence_id", sequenceId)
+    .eq("lesson_id", lessonId);
+
+  // If we just completed the 'current' lesson, promote the next upcoming
+  // to 'current' so the group page highlight follows along. If we
+  // completed an out-of-order 'upcoming' lesson, leave 'current' alone.
+  if (row.status === "current") {
+    const { data: nextRow } = await supabase
+      .from("instructional_sequence_lessons")
+      .select("lesson_id")
+      .eq("sequence_id", sequenceId)
+      .eq("status", "upcoming")
+      .gt("sort_order", row.sort_order)
+      .order("sort_order", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (nextRow) {
+      await supabase
+        .from("instructional_sequence_lessons")
+        .update({ status: "current" as SequenceLessonStatus })
+        .eq("sequence_id", sequenceId)
+        .eq("lesson_id", (nextRow as { lesson_id: number }).lesson_id);
+    } else {
+      // No more upcoming lessons → sequence is complete.
+      await supabase
+        .from("instructional_sequences")
+        .update({
+          status: "completed" as SequenceStatus,
+          end_date: todayISO(),
+        })
+        .eq("sequence_id", sequenceId);
+    }
+  }
 }
 
 // ── Building / updating ──────────────────────────────────────────────────
