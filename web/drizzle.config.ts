@@ -5,6 +5,9 @@
  * Supabase CLI's local Postgres instance (port 54322 by default).
  */
 
+import { config } from "dotenv";
+config({ path: ".env.local" });
+
 import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
