@@ -8,6 +8,7 @@
 "use client";
 
 import { useActionState, useState, useEffect, type ReactNode } from "react";
+import Link from "next/link";
 import { updateStaffAction, type StaffFormState } from "./actions";
 import type { StaffRow } from "@/lib/dal/staff";
 
@@ -42,7 +43,12 @@ export function EditStaffRow({
     return (
       <tr className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
         <td className="whitespace-nowrap px-4 py-3 text-sm font-medium">
-          {member.firstName} {member.lastName}
+          <Link
+            href={`/dashboard/staff/${member.staffId}`}
+            className="hover:underline"
+          >
+            {member.firstName} {member.lastName}
+          </Link>
         </td>
         <td className="whitespace-nowrap px-4 py-3 text-sm text-zinc-500 dark:text-zinc-400">
           {member.email}
