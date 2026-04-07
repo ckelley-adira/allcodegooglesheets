@@ -33,6 +33,11 @@ const NAV_ITEMS: NavItem[] = [
     href: "/dashboard/staff",
     roles: ["school_admin", "tilt_admin"],
   },
+  {
+    label: "Schools",
+    href: "/dashboard/schools",
+    roles: ["tilt_admin"],
+  },
 ];
 
 interface DashboardNavProps {
