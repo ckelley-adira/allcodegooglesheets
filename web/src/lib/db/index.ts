@@ -8,6 +8,12 @@
  * at build time for page data collection, but DATABASE_URL is only
  * available at runtime.
  *
+ * Connection config:
+ * - ssl: 'require' — Supabase requires TLS
+ * - prepare: false — required for Supabase's transaction pooler (pgBouncer)
+ *   to work with prepared statements
+ * - max: 1 — serverless functions should not hold open multiple connections
+ *
  * @rls All queries through this client are subject to Supabase RLS policies
  *   when using the anon/service role keys. Direct `postgres` connections
  *   bypass RLS — use only for migrations and admin operations.
@@ -35,7 +41,11 @@ export function getDb(): PostgresJsDatabase<typeof schema> {
     );
   }
 
-  const client = postgres(connectionString);
+  const client = postgres(connectionString, {
+    ssl: "require",
+    prepare: false,
+    max: 1,
+  });
   _db = drizzle(client, { schema });
   return _db;
 }
