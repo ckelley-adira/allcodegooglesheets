@@ -263,7 +263,12 @@ export default async function GroupDetailPage({ params }: GroupDetailPageProps) 
                         className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
                       >
                         <td className="whitespace-nowrap px-4 py-3 text-sm font-medium">
-                          {m.firstName} {m.lastName}
+                          <Link
+                            href={`/dashboard/students/${m.studentId}`}
+                            className="hover:underline"
+                          >
+                            {m.firstName} {m.lastName}
+                          </Link>
                         </td>
                         <td className="whitespace-nowrap px-4 py-3 text-sm font-mono text-zinc-500 dark:text-zinc-400">
                           {m.studentNumber}

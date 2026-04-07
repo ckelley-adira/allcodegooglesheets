@@ -8,6 +8,7 @@
 "use client";
 
 import { useActionState, useState, useEffect, type ReactNode } from "react";
+import Link from "next/link";
 import { updateStudentAction, type StudentFormState } from "./actions";
 import type { StudentRow } from "@/lib/dal/students";
 
@@ -47,7 +48,12 @@ export function EditStudentRow({
     return (
       <tr className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
         <td className="whitespace-nowrap px-4 py-3 text-sm font-medium">
-          {student.firstName} {student.lastName}
+          <Link
+            href={`/dashboard/students/${student.studentId}`}
+            className="hover:underline"
+          >
+            {student.firstName} {student.lastName}
+          </Link>
         </td>
         <td className="whitespace-nowrap px-4 py-3 text-sm font-mono text-zinc-500 dark:text-zinc-400">
           {student.studentNumber}
