@@ -73,6 +73,10 @@ export function LessonEntryForm({
     preselectedGroupId ?? null,
   );
   const [selectedLessonId, setSelectedLessonId] = useState<number | null>(null);
+  // Tracks whether the group has an active sequence with a current lesson.
+  // Drives the empty state when a group is selected but the API returned
+  // currentLessonId: null.
+  const [hasActiveSequence, setHasActiveSequence] = useState(false);
   const [dateRecorded, setDateRecorded] = useState(
     new Date().toISOString().split("T")[0],
   );
@@ -87,6 +91,8 @@ export function LessonEntryForm({
     if (!selectedGroupId) {
       setStudents([]);
       setStatuses(new Map());
+      setSelectedLessonId(null);
+      setHasActiveSequence(false);
       setIsEditingExisting(false);
       return;
     }
@@ -98,22 +104,22 @@ export function LessonEntryForm({
         setStudents(data.students ?? []);
         setStatuses(new Map());
         setIsEditingExisting(false);
-
-        // Only pre-select if the form doesn't already have a lesson,
-        // otherwise we'd overwrite a tutor's manual choice.
-        if (data.currentLessonId && !selectedLessonId) {
+        if (data.currentLessonId) {
           setSelectedLessonId(data.currentLessonId);
+          setHasActiveSequence(true);
+        } else {
+          setSelectedLessonId(null);
+          setHasActiveSequence(false);
         }
       })
       .catch(() => {
         setStudents([]);
+        setSelectedLessonId(null);
+        setHasActiveSequence(false);
       })
       .finally(() => {
         setIsLoadingStudents(false);
       });
-    // selectedLessonId intentionally excluded — pre-select should only
-    // fire when the group changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedGroupId]);
 
   // Load existing outcomes when lesson changes (for edit pre-population)
@@ -239,7 +245,7 @@ export function LessonEntryForm({
         </div>
       </section>
 
-      {/* Step 2: Select Lesson + Date */}
+      {/* Step 2: Current Lesson (locked to active sequence) + Date */}
       {selectedGroupId && (
         <section className="rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
           <div className="border-b border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
@@ -247,29 +253,72 @@ export function LessonEntryForm({
               <span className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-900 text-xs text-white dark:bg-zinc-100 dark:text-zinc-900">
                 2
               </span>
-              Select Lesson
+              Current Lesson
             </h2>
           </div>
           <div className="space-y-3 p-4">
-            <select
-              value={selectedLessonId ?? ""}
-              onChange={(e) => setSelectedLessonId(Number(e.target.value) || null)}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-3 text-sm shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-900"
-            >
-              <option value="">-- Select a Lesson --</option>
-              {lessons.map((l) => (
-                <option key={l.lessonId} value={l.lessonId}>
-                  L{l.lessonNumber} — {l.lessonName}
-                  {l.isReview ? " (Review)" : ""}
-                </option>
-              ))}
-            </select>
-            <input
-              type="date"
-              value={dateRecorded}
-              onChange={(e) => setDateRecorded(e.target.value)}
-              className="w-full rounded-lg border border-zinc-300 px-3 py-3 text-sm shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-900"
-            />
+            {(() => {
+              const currentLesson = selectedLessonId
+                ? lessons.find((l) => l.lessonId === selectedLessonId)
+                : null;
+
+              if (currentLesson) {
+                return (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900 dark:bg-amber-950/30">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-amber-900 dark:text-amber-300">
+                      Teaching Today
+                    </p>
+                    <p className="mt-1 text-base font-bold text-zinc-900 dark:text-zinc-100">
+                      <span className="font-mono text-amber-700 dark:text-amber-400">
+                        L{currentLesson.lessonNumber}
+                      </span>{" "}
+                      {currentLesson.lessonName}
+                      {currentLesson.isReview && (
+                        <span className="ml-2 text-[10px] font-semibold uppercase tracking-wider text-amber-700 dark:text-amber-400">
+                          Review
+                        </span>
+                      )}
+                    </p>
+                    <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                      Lessons are taught in order from the group&apos;s
+                      Instructional Sequence. To advance to the next lesson,
+                      use the group page.
+                    </p>
+                  </div>
+                );
+              }
+
+              if (isLoadingStudents) {
+                return (
+                  <p className="py-2 text-sm text-zinc-400">Loading…</p>
+                );
+              }
+
+              if (!hasActiveSequence) {
+                return (
+                  <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-4 text-center dark:border-zinc-700 dark:bg-zinc-900/50">
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                      This group has no active Instructional Sequence yet.
+                    </p>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      A coach or admin needs to build one on the group page
+                      before you can record lesson outcomes.
+                    </p>
+                  </div>
+                );
+              }
+
+              return null;
+            })()}
+
+            {selectedLessonId && (
+              <input
+                type="date"
+                value={dateRecorded}
+                onChange={(e) => setDateRecorded(e.target.value)}
+                className="w-full rounded-lg border border-zinc-300 px-3 py-3 text-sm shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-700 dark:bg-zinc-900"
+              />
+            )}
           </div>
         </section>
       )}
