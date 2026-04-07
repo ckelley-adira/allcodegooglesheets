@@ -7,11 +7,34 @@
  * implementation.
  */
 
+import Link from "next/link";
 import { requireAuth } from "@/lib/auth";
 import { getActiveSchoolId } from "@/lib/auth/school-context";
 import { listAcademicYears } from "@/lib/dal/groups";
 import { getBigFourMetrics } from "@/lib/dal/metrics";
+import {
+  getSchoolPacingSummary,
+  type GroupHealth,
+} from "@/lib/dal/school-pacing";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+
+const HEALTH_LABEL: Record<GroupHealth, string> = {
+  fresh: "Active",
+  stale_1w: "Stale (1+ wk)",
+  stale_2w: "Stale (2+ wk)",
+  never_logged: "Never Logged",
+};
+
+const HEALTH_VARIANT: Record<
+  GroupHealth,
+  "success" | "warning" | "danger" | "default"
+> = {
+  fresh: "success",
+  stale_1w: "warning",
+  stale_2w: "danger",
+  never_logged: "default",
+};
 
 function formatPct(value: number | null): string {
   if (value === null) return "—";
@@ -47,7 +70,27 @@ export default async function DashboardPage() {
     );
   }
 
-  const metrics = await getBigFourMetrics(activeSchoolId, currentYear.yearId);
+  const [metrics, pacing] = await Promise.all([
+    getBigFourMetrics(activeSchoolId, currentYear.yearId),
+    getSchoolPacingSummary(activeSchoolId),
+  ]);
+
+  // Groups that need attention: stale or never logged. Order by most stale
+  // first (longest days since last activity), then by group name.
+  const attentionGroups = pacing.groups
+    .filter(
+      (g) =>
+        g.isActive &&
+        (g.health === "stale_1w" ||
+          g.health === "stale_2w" ||
+          g.health === "never_logged"),
+    )
+    .sort((a, b) => {
+      const aDays = a.daysSinceLastActivity ?? Number.MAX_SAFE_INTEGER;
+      const bDays = b.daysSinceLastActivity ?? Number.MAX_SAFE_INTEGER;
+      if (aDays !== bDays) return bDays - aDays;
+      return a.groupName.localeCompare(b.groupName);
+    });
 
   return (
     <div className="space-y-4">
@@ -149,6 +192,168 @@ export default async function DashboardPage() {
         ≥50% needs support, &lt;50% intervention. Absences are excluded
         from the slope (D-012, Equity of Visibility).
       </p>
+
+      {/* Pacing & Coverage section */}
+      <section className="space-y-3 pt-4">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">
+            Pacing &amp; Coverage
+          </h2>
+          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+            Group activity health and student lesson coverage across the school.
+          </p>
+        </div>
+
+        {/* Coverage + group health rollup cards */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+            <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              Coverage (7 days)
+            </p>
+            <p
+              className={cn(
+                "mt-1 text-3xl font-bold",
+                pctColor(pacing.coveragePct),
+              )}
+            >
+              {formatPct(pacing.coveragePct)}
+            </p>
+            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+              {pacing.studentsWithRecentActivity} of {pacing.totalActiveStudents}{" "}
+              students with a lesson recorded in the last week
+            </p>
+          </div>
+          <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+            <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              Active Groups
+            </p>
+            <p className="mt-1 text-3xl font-bold text-green-600 dark:text-green-400">
+              {pacing.freshGroupCount}
+            </p>
+            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+              Logged within the last 7 days
+            </p>
+          </div>
+          <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+            <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              Stale Groups
+            </p>
+            <p
+              className={cn(
+                "mt-1 text-3xl font-bold",
+                pacing.staleOneWeekGroupCount + pacing.staleTwoWeekGroupCount > 0
+                  ? "text-amber-600 dark:text-amber-400"
+                  : "text-zinc-400",
+              )}
+            >
+              {pacing.staleOneWeekGroupCount + pacing.staleTwoWeekGroupCount}
+            </p>
+            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+              {pacing.staleOneWeekGroupCount} 1+ wk · {pacing.staleTwoWeekGroupCount} 2+ wk
+            </p>
+          </div>
+          <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+            <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+              Never Logged
+            </p>
+            <p
+              className={cn(
+                "mt-1 text-3xl font-bold",
+                pacing.neverLoggedGroupCount > 0
+                  ? "text-red-600 dark:text-red-400"
+                  : "text-zinc-400",
+              )}
+            >
+              {pacing.neverLoggedGroupCount}
+            </p>
+            <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+              Active groups with no recordings yet
+            </p>
+          </div>
+        </div>
+
+        {/* Groups needing attention */}
+        {attentionGroups.length > 0 ? (
+          <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800">
+            <div className="border-b border-zinc-200 bg-zinc-50 px-4 py-2 dark:border-zinc-800 dark:bg-zinc-900">
+              <h3 className="text-sm font-semibold">
+                Groups Needing Attention ({attentionGroups.length})
+              </h3>
+            </div>
+            <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
+              <thead className="bg-zinc-50 dark:bg-zinc-900">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    Group
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    Teacher
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    Students
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    Last Activity
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-100 bg-white dark:divide-zinc-800 dark:bg-zinc-950">
+                {attentionGroups.map((g) => (
+                  <tr
+                    key={g.groupId}
+                    className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
+                  >
+                    <td className="px-4 py-2 text-sm">
+                      <Link
+                        href={`/dashboard/groups/${g.groupId}`}
+                        className="font-medium hover:underline"
+                      >
+                        {g.groupName}
+                      </Link>
+                      <span className="ml-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+                        {g.gradeName}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 text-sm">
+                      <Link
+                        href={`/dashboard/staff/${g.staffId}`}
+                        className="hover:underline"
+                      >
+                        {g.staffName}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-2 text-sm">{g.memberCount}</td>
+                    <td className="px-4 py-2 text-sm text-zinc-500 dark:text-zinc-400">
+                      {g.lastActivityDate ? (
+                        <>
+                          {g.lastActivityDate}
+                          <span className="ml-1 text-xs text-zinc-400">
+                            ({g.daysSinceLastActivity}d ago)
+                          </span>
+                        </>
+                      ) : (
+                        <span className="italic text-zinc-400">never</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2 text-sm">
+                      <Badge variant={HEALTH_VARIANT[g.health]}>
+                        {HEALTH_LABEL[g.health]}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : pacing.groups.length > 0 ? (
+          <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-4 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900/50 dark:text-zinc-400">
+            All active groups are fresh. Nothing needs attention.
+          </div>
+        ) : null}
+      </section>
     </div>
   );
 }
