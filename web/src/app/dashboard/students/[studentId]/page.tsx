@@ -19,6 +19,7 @@ import {
   SNAPSHOT_LABELS,
   type SnapshotType,
 } from "@/lib/dal/assessments";
+import { getStudentWeeklySnapshots } from "@/lib/dal/weekly-snapshots";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatPct, pctColor } from "@/lib/format/percent";
@@ -75,11 +76,15 @@ export default async function StudentDetailPage({
     notFound();
   }
 
-  const [detail, assessments] = await Promise.all([
+  const [detail, assessments, weeklySnapshots] = await Promise.all([
     getStudentDetail(studentId, activeSchoolId, currentYear.yearId),
     getStudentAssessments(studentId, activeSchoolId, currentYear.yearId),
+    getStudentWeeklySnapshots(studentId, currentYear.yearId, 8),
   ]);
   if (!detail) notFound();
+
+  // Sparkline data: chronological (oldest first), capped at 8 weeks.
+  const sparklineWeeks = [...weeklySnapshots].reverse();
 
   const baseline = assessments.find((a) => a.snapshotType === "baseline");
   const latestNonBaseline = [...assessments]
@@ -229,6 +234,61 @@ export default async function StudentDetailPage({
           </div>
         )}
       </section>
+
+      {/* Weekly growth sparkline */}
+      {sparklineWeeks.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+            Weekly Growth (last {sparklineWeeks.length} weeks)
+          </h2>
+          <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+            <p className="mb-3 text-xs text-zinc-500 dark:text-zinc-400">
+              Lessons passed per week vs. the 2-lessons/week aimline (dashed
+              line at 100%). A bar above 100% = over-pace; below = behind.
+            </p>
+            <div className="flex items-end gap-2">
+              {sparklineWeeks.map((week) => {
+                const pct = week.growthPct;
+                // Cap the visual bar at 200% so one outlier week doesn't
+                // flatten everything else. Text still shows the real value.
+                const capped = Math.min(pct, 200);
+                const barColor =
+                  pct >= 100
+                    ? "bg-green-500"
+                    : pct >= 50
+                      ? "bg-amber-500"
+                      : pct > 0
+                        ? "bg-red-500"
+                        : "bg-zinc-200 dark:bg-zinc-800";
+                return (
+                  <div
+                    key={week.weekStartDate}
+                    className="flex min-w-0 flex-1 flex-col items-center gap-1"
+                  >
+                    <div className="relative flex h-28 w-full items-end justify-center">
+                      <div
+                        className="absolute inset-x-0 border-t border-dashed border-zinc-300 dark:border-zinc-700"
+                        style={{ bottom: `${(100 / 200) * 100}%` }}
+                      />
+                      <div
+                        className={cn("w-full max-w-[32px] rounded-t", barColor)}
+                        style={{ height: `${(capped / 200) * 100}%` }}
+                        title={`${week.weekStartDate} · ${week.lessonsPassed} of ${week.lessonsTaken} passed · ${Math.round(pct)}%`}
+                      />
+                    </div>
+                    <div className="text-[10px] font-medium tabular-nums text-zinc-500 dark:text-zinc-400">
+                      {Math.round(pct)}%
+                    </div>
+                    <div className="text-[9px] text-zinc-400 dark:text-zinc-500">
+                      {week.weekStartDate.slice(5)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Skill section breakdown */}
       <section className="space-y-3">
