@@ -1,14 +1,15 @@
 /**
- * @file middleware.ts — Next.js middleware entry point
+ * @file proxy.ts — Next.js 16 proxy (formerly middleware) entry point
  *
  * Runs on every matched request to refresh the Supabase auth session
- * and enforce authentication on protected routes.
+ * and enforce authentication on protected routes. Renamed from middleware.ts
+ * per Next.js 16 convention.
  */
 
 import { type NextRequest } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   return await updateSession(request);
 }
 
