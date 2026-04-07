@@ -1,32 +1,51 @@
 /**
  * @file db/index.ts — Drizzle database client
  *
- * Creates a singleton Drizzle client connected to the Supabase Postgres
- * instance. Uses the `postgres` driver for connection pooling.
+ * Creates a lazily-initialized singleton Drizzle client connected to the
+ * Supabase Postgres instance. Uses the `postgres` driver for connection pooling.
+ *
+ * Lazy initialization is required because Next.js evaluates module scope
+ * at build time for page data collection, but DATABASE_URL is only
+ * available at runtime.
  *
  * @rls All queries through this client are subject to Supabase RLS policies
  *   when using the anon/service role keys. Direct `postgres` connections
  *   bypass RLS — use only for migrations and admin operations.
  */
 
-import { drizzle } from "drizzle-orm/postgres-js";
+import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 import * as schema from "./schema";
 
-/**
- * Direct Postgres connection for Drizzle.
- * Uses DATABASE_URL which should point to the Supabase Postgres instance.
- * In production, this is the pooler connection string (port 6543).
- */
-const connectionString = process.env.DATABASE_URL;
+let _db: PostgresJsDatabase<typeof schema> | null = null;
 
-if (!connectionString) {
-  throw new Error(
-    "DATABASE_URL is not set. Check your .env.local file.\n" +
-      "For local dev: postgresql://postgres:postgres@127.0.0.1:54322/postgres",
-  );
+/**
+ * Returns the singleton Drizzle client. Initializes on first call.
+ * Safe to call at any point — will throw at runtime if DATABASE_URL
+ * is not set, but won't break the build.
+ */
+export function getDb(): PostgresJsDatabase<typeof schema> {
+  if (_db) return _db;
+
+  const connectionString = process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error(
+      "DATABASE_URL is not set. Check your .env.local file.\n" +
+        "For local dev: postgresql://postgres:postgres@127.0.0.1:54322/postgres",
+    );
+  }
+
+  const client = postgres(connectionString);
+  _db = drizzle(client, { schema });
+  return _db;
 }
 
-const client = postgres(connectionString);
-
-export const db = drizzle(client, { schema });
+/**
+ * Convenience alias — same as getDb() but reads as a value.
+ * Use in DAL functions: `const rows = await db.select(...)`.
+ */
+export const db = new Proxy({} as PostgresJsDatabase<typeof schema>, {
+  get(_target, prop) {
+    return Reflect.get(getDb(), prop);
+  },
+});
