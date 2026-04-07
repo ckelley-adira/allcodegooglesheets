@@ -10,6 +10,9 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { classifyHealth, daysBetween, type GroupHealth } from "./group-health";
+
+export type { GroupHealth };
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -21,8 +24,6 @@ export interface TeacherHeader {
   role: "tutor" | "coach" | "school_admin" | "tilt_admin";
   isActive: boolean;
 }
-
-export type GroupHealth = "fresh" | "stale_1w" | "stale_2w" | "never_logged";
 
 export interface TeacherGroupRow {
   groupId: number;
@@ -67,24 +68,6 @@ export interface TeacherDetail {
     neverLoggedGroupCount: number;
   };
 }
-
-// ── Internal helpers ─────────────────────────────────────────────────────
-
-function classifyHealth(daysSince: number | null): GroupHealth {
-  if (daysSince === null) return "never_logged";
-  if (daysSince <= 7) return "fresh";
-  if (daysSince <= 14) return "stale_1w";
-  return "stale_2w";
-}
-
-function daysBetween(fromIso: string): number {
-  const today = new Date();
-  const from = new Date(fromIso);
-  const diffMs = today.getTime() - from.getTime();
-  return Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
-}
-
-// ── Main composer ────────────────────────────────────────────────────────
 
 export async function getTeacherDetail(
   staffId: number,

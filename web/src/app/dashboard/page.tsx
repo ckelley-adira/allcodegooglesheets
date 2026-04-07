@@ -18,6 +18,7 @@ import {
 } from "@/lib/dal/school-pacing";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { formatPct, pctColor } from "@/lib/format/percent";
 
 const HEALTH_LABEL: Record<GroupHealth, string> = {
   fresh: "Active",
@@ -35,18 +36,6 @@ const HEALTH_VARIANT: Record<
   stale_2w: "danger",
   never_logged: "default",
 };
-
-function formatPct(value: number | null): string {
-  if (value === null) return "—";
-  return `${Math.round(value)}%`;
-}
-
-function pctColor(value: number | null): string {
-  if (value === null) return "text-zinc-400";
-  if (value >= 80) return "text-green-600 dark:text-green-400";
-  if (value >= 50) return "text-amber-600 dark:text-amber-400";
-  return "text-red-600 dark:text-red-400";
-}
 
 export default async function DashboardPage() {
   const user = await requireAuth();

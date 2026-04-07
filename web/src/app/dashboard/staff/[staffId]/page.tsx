@@ -14,6 +14,7 @@ import { getActiveSchoolId } from "@/lib/auth/school-context";
 import { getTeacherDetail, type GroupHealth } from "@/lib/dal/teacher-detail";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { formatPct, pctColor } from "@/lib/format/percent";
 
 interface TeacherDetailPageProps {
   params: Promise<{ staffId: string }>;
@@ -42,18 +43,6 @@ const HEALTH_VARIANT: Record<
   stale_2w: "danger",
   never_logged: "default",
 };
-
-function pctColor(value: number | null): string {
-  if (value === null) return "text-zinc-400";
-  if (value >= 80) return "text-green-600 dark:text-green-400";
-  if (value >= 50) return "text-amber-600 dark:text-amber-400";
-  return "text-red-600 dark:text-red-400";
-}
-
-function formatPct(value: number | null): string {
-  if (value === null) return "—";
-  return `${Math.round(value)}%`;
-}
 
 export default async function TeacherDetailPage({
   params,
