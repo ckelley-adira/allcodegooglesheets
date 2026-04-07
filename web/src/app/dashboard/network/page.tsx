@@ -7,12 +7,12 @@
  * focus my coaching attention this week?'
  */
 
-import Link from "next/link";
 import { requireRole } from "@/lib/auth";
 import { getNetworkRollup, type NetworkSchoolRow } from "@/lib/dal/network-rollup";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatPct, pctColor } from "@/lib/format/percent";
+import { switchSchoolAndOpenDashboardAction } from "../school-context-actions";
 
 export default async function NetworkPage() {
   await requireRole("tilt_admin");
@@ -115,12 +115,15 @@ function SchoolRow({ school }: { school: NetworkSchoolRow }) {
   return (
     <tr className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
       <td className="px-4 py-3 text-sm">
-        <Link
-          href={`/dashboard/schools/${school.schoolId}`}
-          className="font-medium hover:underline"
-        >
-          {school.name}
-        </Link>
+        <form action={switchSchoolAndOpenDashboardAction}>
+          <input type="hidden" name="schoolId" value={school.schoolId} />
+          <button
+            type="submit"
+            className="text-left font-medium hover:underline"
+          >
+            {school.name}
+          </button>
+        </form>
         <div className="mt-0.5 flex items-center gap-1.5">
           <span className="font-mono text-xs text-zinc-500 dark:text-zinc-400">
             {school.shortCode}

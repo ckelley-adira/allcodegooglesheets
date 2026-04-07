@@ -10,6 +10,7 @@
 "use server";
 
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import { ACTIVE_SCHOOL_COOKIE } from "@/lib/auth/school-context";
@@ -36,4 +37,32 @@ export async function setActiveSchoolAction(formData: FormData): Promise<void> {
   });
 
   revalidatePath("/", "layout");
+}
+
+/**
+ * Switches active school then redirects to the dashboard home.
+ * Used by the Network page to drill into a specific school.
+ *
+ * @actionType mutation
+ * @rls TILT Admin only.
+ */
+export async function switchSchoolAndOpenDashboardAction(
+  formData: FormData,
+): Promise<void> {
+  await requireRole("tilt_admin");
+
+  const schoolId = Number(formData.get("schoolId"));
+  if (!schoolId || isNaN(schoolId)) return;
+
+  const cookieStore = await cookies();
+  cookieStore.set(ACTIVE_SCHOOL_COOKIE, String(schoolId), {
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 30,
+    path: "/",
+  });
+
+  revalidatePath("/", "layout");
+  redirect("/dashboard");
 }
