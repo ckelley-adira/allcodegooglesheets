@@ -9,9 +9,12 @@
  */
 
 import { requireAuth } from "@/lib/auth";
+import { getActiveSchoolId } from "@/lib/auth/school-context";
+import { getSchoolFeatureFlagsResolved } from "@/lib/dal/schools";
 import { getUfliMapData } from "@/lib/dal/ufli-map";
 import { listGroups, listAcademicYears } from "@/lib/dal/groups";
 import { UfliMapGrid } from "./ufli-map-grid";
+import { FeatureDisabled } from "@/components/feature-disabled";
 
 interface UfliMapPageProps {
   searchParams: Promise<{ groupId?: string }>;
@@ -20,17 +23,30 @@ interface UfliMapPageProps {
 export default async function UfliMapPage({ searchParams }: UfliMapPageProps) {
   const { groupId: groupIdParam } = await searchParams;
   const user = await requireAuth();
+  const activeSchoolId = await getActiveSchoolId(user);
+
+  // Feature flag gate: UFLI Map requires the ufli_progress_tracking flag
+  const flags = await getSchoolFeatureFlagsResolved(activeSchoolId);
+  if (!flags.ufli_progress_tracking) {
+    return (
+      <FeatureDisabled
+        title="UFLI Map"
+        flagLabel="UFLI Progress Tracking"
+        description="The UFLI Map requires UFLI Progress Tracking to be enabled for this school."
+      />
+    );
+  }
 
   const [groups, years] = await Promise.all([
-    listGroups(user.schoolId),
-    listAcademicYears(user.schoolId),
+    listGroups(activeSchoolId),
+    listAcademicYears(activeSchoolId),
   ]);
 
   const currentYear = years.find((y) => y.isCurrent);
   const yearId = currentYear?.yearId ?? 0;
   const groupId = groupIdParam ? Number(groupIdParam) : undefined;
 
-  const mapData = await getUfliMapData(user.schoolId, yearId, groupId);
+  const mapData = await getUfliMapData(activeSchoolId, yearId, groupId);
 
   const activeGroups = groups.filter((g) => g.isActive);
 

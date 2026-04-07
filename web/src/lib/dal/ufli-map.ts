@@ -40,10 +40,10 @@ export interface UfliMapData {
 /**
  * Builds the complete UFLI MAP dataset for a school.
  *
- * @rls School-scoped via RLS policy.
+ * @rls Filters by school_id explicitly when fetching unfiltered students.
  */
 export async function getUfliMapData(
-  _schoolId: number,
+  schoolId: number,
   yearId: number,
   groupId?: number,
 ): Promise<UfliMapData> {
@@ -130,6 +130,7 @@ export async function getUfliMapData(
       .select(
         "student_id, first_name, last_name, student_number, grade_levels(name, sort_order)",
       )
+      .eq("school_id", schoolId)
       .eq("enrollment_status", "active");
 
     if (error) throw new Error(error.message);

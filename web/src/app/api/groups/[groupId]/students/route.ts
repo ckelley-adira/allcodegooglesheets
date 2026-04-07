@@ -10,6 +10,7 @@
 
 import { NextResponse } from "next/server";
 import { getUser } from "@/lib/auth";
+import { getActiveSchoolId } from "@/lib/auth/school-context";
 import { getGroup } from "@/lib/dal/groups";
 import { getGroupStudentsForEntry, getExistingOutcomes } from "@/lib/dal/sessions";
 
@@ -21,6 +22,7 @@ export async function GET(
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+  const activeSchoolId = await getActiveSchoolId(user);
 
   const { groupId: groupIdParam } = await params;
   const groupId = Number(groupIdParam);
@@ -28,8 +30,8 @@ export async function GET(
     return NextResponse.json({ error: "Invalid group ID" }, { status: 400 });
   }
 
-  // Verify the group belongs to the user's school
-  const group = await getGroup(groupId, user.schoolId);
+  // Verify the group belongs to the active school
+  const group = await getGroup(groupId, activeSchoolId);
   if (!group) {
     return NextResponse.json({ error: "Group not found" }, { status: 404 });
   }

@@ -11,6 +11,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
+import { getActiveSchoolId } from "@/lib/auth/school-context";
 import {
   createStaff as dalCreateStaff,
   updateStaff as dalUpdateStaff,
@@ -32,6 +33,7 @@ export async function createStaffAction(
   formData: FormData,
 ): Promise<StaffFormState> {
   const user = await requireRole("school_admin", "tilt_admin");
+  const activeSchoolId = await getActiveSchoolId(user);
 
   const firstName = (formData.get("firstName") as string)?.trim();
   const lastName = (formData.get("lastName") as string)?.trim();
@@ -54,7 +56,7 @@ export async function createStaffAction(
 
   try {
     await dalCreateStaff({
-      schoolId: user.schoolId,
+      schoolId: activeSchoolId,
       firstName,
       lastName,
       email,
@@ -84,6 +86,7 @@ export async function updateStaffAction(
   formData: FormData,
 ): Promise<StaffFormState> {
   const user = await requireRole("school_admin", "tilt_admin");
+  const activeSchoolId = await getActiveSchoolId(user);
 
   const staffId = Number(formData.get("staffId"));
   if (!staffId || isNaN(staffId)) {
@@ -118,7 +121,7 @@ export async function updateStaffAction(
           | undefined,
         isActive,
       },
-      user.schoolId,
+      activeSchoolId,
     );
 
     if (!result) {

@@ -8,6 +8,7 @@
 
 import Link from "next/link";
 import { requireAuth } from "@/lib/auth";
+import { getActiveSchoolId } from "@/lib/auth/school-context";
 import { listGroups, listAcademicYears, listActiveStaff } from "@/lib/dal/groups";
 import { listGradeLevels } from "@/lib/dal/students";
 import { Badge } from "@/components/ui/badge";
@@ -15,11 +16,12 @@ import { CreateGroupForm } from "./create-form";
 
 export default async function GroupsPage() {
   const user = await requireAuth();
+  const activeSchoolId = await getActiveSchoolId(user);
   const [groups, grades, years, staffList] = await Promise.all([
-    listGroups(user.schoolId),
+    listGroups(activeSchoolId),
     listGradeLevels(),
-    listAcademicYears(user.schoolId),
-    listActiveStaff(user.schoolId),
+    listAcademicYears(activeSchoolId),
+    listActiveStaff(activeSchoolId),
   ]);
 
   const canEdit =

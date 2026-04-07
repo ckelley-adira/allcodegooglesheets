@@ -170,18 +170,22 @@ export async function recordLessonOutcomes(
 
 /**
  * Lists recent lesson entries for the school overview.
+ *
+ * @rls Filters by school_id via the joined instructional_groups table.
  */
 export async function listRecentEntries(
-  _schoolId: number,
+  schoolId: number,
   limit: number = 20,
 ): Promise<RecentEntry[]> {
   const supabase = await createClient();
-  // Get raw progress rows with joins, ordered by date desc
+  // Get raw progress rows with joins, ordered by date desc, scoped to the
+  // active school via the inner join on instructional_groups
   const { data, error } = await supabase
     .from("lesson_progress")
     .select(
-      "date_recorded, group_id, ufli_lessons(lesson_number, lesson_name), instructional_groups(group_name)",
+      "date_recorded, group_id, ufli_lessons(lesson_number, lesson_name), instructional_groups!inner(group_name, school_id)",
     )
+    .eq("instructional_groups.school_id", schoolId)
     .order("date_recorded", { ascending: false })
     .limit(500); // Fetch enough rows to aggregate
 

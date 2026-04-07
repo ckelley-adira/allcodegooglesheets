@@ -6,6 +6,7 @@
  */
 
 import { requireAuth } from "@/lib/auth";
+import { getActiveSchoolId } from "@/lib/auth/school-context";
 import { listStudents, listGradeLevels } from "@/lib/dal/students";
 import { Badge } from "@/components/ui/badge";
 import { CreateStudentForm } from "./create-form";
@@ -20,8 +21,9 @@ const STATUS_BADGE_VARIANT = {
 
 export default async function StudentsPage() {
   const user = await requireAuth();
+  const activeSchoolId = await getActiveSchoolId(user);
   const [studentList, grades] = await Promise.all([
-    listStudents(user.schoolId),
+    listStudents(activeSchoolId),
     listGradeLevels(),
   ]);
 

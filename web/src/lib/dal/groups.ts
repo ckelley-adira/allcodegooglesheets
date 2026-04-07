@@ -88,16 +88,17 @@ const GROUP_COLUMNS =
 // ── Group queries ────────────────────────────────────────────────────────
 
 /**
- * Lists all groups for the current user's school with member counts.
+ * Lists all groups for the given school with member counts.
  *
- * @rls Filters by school_id automatically via RLS policy.
+ * @rls Filters by school_id explicitly.
  */
-export async function listGroups(_schoolId: number): Promise<GroupRow[]> {
+export async function listGroups(schoolId: number): Promise<GroupRow[]> {
   const supabase = await createClient();
 
   const { data: groups, error: groupsError } = await supabase
     .from("instructional_groups")
-    .select(GROUP_COLUMNS);
+    .select(GROUP_COLUMNS)
+    .eq("school_id", schoolId);
 
   if (groupsError) throw new Error(groupsError.message);
 
@@ -142,13 +143,14 @@ export async function listGroups(_schoolId: number): Promise<GroupRow[]> {
  */
 export async function getGroup(
   groupId: number,
-  _schoolId: number,
+  schoolId: number,
 ): Promise<GroupRow | null> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("instructional_groups")
     .select(GROUP_COLUMNS)
     .eq("group_id", groupId)
+    .eq("school_id", schoolId)
     .maybeSingle();
 
   if (error) throw new Error(error.message);
@@ -194,7 +196,7 @@ export async function createGroup(input: CreateGroupInput): Promise<number> {
  */
 export async function updateGroup(
   input: UpdateGroupInput,
-  _schoolId: number,
+  schoolId: number,
 ): Promise<boolean> {
   const supabase = await createClient();
   const updates: Record<string, unknown> = {};
@@ -210,6 +212,7 @@ export async function updateGroup(
     .from("instructional_groups")
     .update(updates)
     .eq("group_id", input.groupId)
+    .eq("school_id", schoolId)
     .select("group_id");
 
   if (error) throw new Error(error.message);
@@ -280,7 +283,7 @@ export async function listGroupMembers(
  */
 export async function listAvailableStudents(
   groupId: number,
-  _schoolId: number,
+  schoolId: number,
 ) {
   const supabase = await createClient();
 
@@ -294,12 +297,13 @@ export async function listAvailableStudents(
   if (exError) throw new Error(exError.message);
   const existingIds = new Set((existing ?? []).map((e) => e.student_id));
 
-  // Get all active students
+  // Get all active students for this school
   const { data: students, error: sError } = await supabase
     .from("students")
     .select(
       "student_id, first_name, last_name, student_number, grade_levels(name)",
     )
+    .eq("school_id", schoolId)
     .eq("enrollment_status", "active")
     .order("last_name", { ascending: true })
     .order("first_name", { ascending: true });
@@ -363,11 +367,12 @@ export async function removeStudentFromGroup(
 /**
  * Lists academic years for a school.
  */
-export async function listAcademicYears(_schoolId: number) {
+export async function listAcademicYears(schoolId: number) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("academic_years")
     .select("year_id, label, is_current")
+    .eq("school_id", schoolId)
     .order("label", { ascending: true });
 
   if (error) throw new Error(error.message);
@@ -381,11 +386,12 @@ export async function listAcademicYears(_schoolId: number) {
 /**
  * Lists active staff for a school.
  */
-export async function listActiveStaff(_schoolId: number) {
+export async function listActiveStaff(schoolId: number) {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("staff")
     .select("staff_id, first_name, last_name")
+    .eq("school_id", schoolId)
     .eq("is_active", true)
     .order("last_name", { ascending: true })
     .order("first_name", { ascending: true });
