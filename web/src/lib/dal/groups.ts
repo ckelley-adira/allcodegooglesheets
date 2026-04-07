@@ -151,8 +151,12 @@ async function fetchGroupGrades(
   return result;
 }
 
+// Disambiguate the grade_levels embed — there are now two FKs between
+// instructional_groups and grade_levels (direct via grade_id, and
+// indirect via instructional_group_grades). !grade_id tells PostgREST
+// to follow the direct grade_id column on instructional_groups.
 const GROUP_COLUMNS =
-  "group_id, group_name, grade_id, year_id, staff_id, is_mixed_grade, is_active, grade_levels(name, sort_order), academic_years(label), staff(first_name, last_name)";
+  "group_id, group_name, grade_id, year_id, staff_id, is_mixed_grade, is_active, grade_levels!grade_id(name, sort_order), academic_years(label), staff(first_name, last_name)";
 
 // ── Group queries ────────────────────────────────────────────────────────
 
