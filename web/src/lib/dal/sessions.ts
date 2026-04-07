@@ -1,37 +1,21 @@
 /**
  * @file dal/sessions.ts — Data access layer for lesson progress recording
  *
- * Handles reading and writing lesson_progress rows — the core daily data
- * entry surface for tutors. Each row records a student×lesson outcome
- * (Y = passed, N = not passed, A = absent).
+ * Uses the Supabase JS client (PostgREST over HTTPS) for serverless reliability.
+ * Per D-012: 'A' (absent) is excluded from slope calculations, never zeroed.
  *
- * Per D-012 (Equity of Visibility): 'A' values are excluded from slope
- * calculations, never counted as zeros.
- * Per D-006: the analytical framework carries forward unchanged.
- *
- * @rls School-scoping enforced by the caller's schoolId from JWT claims.
+ * @rls School-scoping enforced by RLS policies via the user's JWT.
  */
 
-import { eq, and, asc, inArray, sql } from "drizzle-orm";
-import { db } from "@/lib/db";
-import {
-  lessonProgress,
-  ufliLessons,
-  students,
-  groupMemberships,
-  gradeLevels,
-  instructionalGroups,
-} from "@/lib/db/schema";
+import { createClient } from "@/lib/supabase/server";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
-/** A single student's outcome for a lesson */
 export interface LessonOutcome {
   studentId: number;
   status: "Y" | "N" | "A";
 }
 
-/** Input for recording a batch of lesson outcomes */
 export interface RecordSessionInput {
   groupId: number;
   lessonId: number;
@@ -41,13 +25,11 @@ export interface RecordSessionInput {
   outcomes: LessonOutcome[];
 }
 
-/** A lesson with its existing status for a student (for pre-populating the form) */
 export interface ExistingOutcome {
   studentId: number;
   status: "Y" | "N" | "A";
 }
 
-/** Recent session entry for the sessions list */
 export interface RecentEntry {
   dateRecorded: string;
   lessonNumber: number;
@@ -60,50 +42,76 @@ export interface RecentEntry {
 // ── Queries ──────────────────────────────────────────────────────────────
 
 /**
- * Lists all UFLI lessons (reference data for the lesson selector).
- * Ordered by lesson number.
+ * Lists all 128 UFLI lessons (reference data).
  */
 export async function listLessons() {
-  return db
-    .select({
-      lessonId: ufliLessons.lessonId,
-      lessonNumber: ufliLessons.lessonNumber,
-      lessonName: ufliLessons.lessonName,
-      skillSection: ufliLessons.skillSection,
-      isReview: ufliLessons.isReview,
-    })
-    .from(ufliLessons)
-    .orderBy(asc(ufliLessons.lessonNumber));
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("ufli_lessons")
+    .select("lesson_id, lesson_number, lesson_name, skill_section, is_review")
+    .order("lesson_number", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => ({
+    lessonId: r.lesson_id,
+    lessonNumber: r.lesson_number,
+    lessonName: r.lesson_name,
+    skillSection: r.skill_section,
+    isReview: r.is_review,
+  }));
 }
 
 /**
  * Gets active students in a group for the lesson entry form.
- * Returns student details needed for the Y/N/A grid.
+ *
+ * @rls School-scoped via RLS policy.
  */
 export async function getGroupStudentsForEntry(groupId: number) {
-  return db
-    .select({
-      studentId: students.studentId,
-      firstName: students.firstName,
-      lastName: students.lastName,
-      studentNumber: students.studentNumber,
-      gradeName: gradeLevels.name,
-    })
-    .from(groupMemberships)
-    .innerJoin(students, eq(groupMemberships.studentId, students.studentId))
-    .innerJoin(gradeLevels, eq(students.gradeId, gradeLevels.gradeId))
-    .where(
-      and(
-        eq(groupMemberships.groupId, groupId),
-        eq(groupMemberships.isActive, true),
-        eq(students.enrollmentStatus, "active"),
-      ),
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("group_memberships")
+    .select(
+      "students(student_id, first_name, last_name, student_number, enrollment_status, grade_levels(name))",
     )
-    .orderBy(asc(students.lastName), asc(students.firstName));
+    .eq("group_id", groupId)
+    .eq("is_active", true);
+
+  if (error) throw new Error(error.message);
+
+  const rows = (data ?? [])
+    .map((r) => {
+      const s = (r as unknown as {
+        students: {
+          student_id: number;
+          first_name: string;
+          last_name: string;
+          student_number: string;
+          enrollment_status: string;
+          grade_levels: { name: string } | null;
+        } | null;
+      }).students;
+      if (!s || s.enrollment_status !== "active") return null;
+      return {
+        studentId: s.student_id,
+        firstName: s.first_name,
+        lastName: s.last_name,
+        studentNumber: s.student_number,
+        gradeName: s.grade_levels?.name ?? "",
+      };
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null);
+
+  rows.sort((a, b) => {
+    const ln = a.lastName.localeCompare(b.lastName);
+    if (ln !== 0) return ln;
+    return a.firstName.localeCompare(b.firstName);
+  });
+
+  return rows;
 }
 
 /**
- * Gets existing lesson outcomes for a group+lesson combination.
+ * Gets existing lesson outcomes for a group+lesson.
  * Used to pre-populate the form when editing an existing entry.
  */
 export async function getExistingOutcomes(
@@ -111,125 +119,96 @@ export async function getExistingOutcomes(
   lessonId: number,
   yearId: number,
 ): Promise<ExistingOutcome[]> {
-  return db
-    .select({
-      studentId: lessonProgress.studentId,
-      status: lessonProgress.status,
-    })
-    .from(lessonProgress)
-    .where(
-      and(
-        eq(lessonProgress.groupId, groupId),
-        eq(lessonProgress.lessonId, lessonId),
-        eq(lessonProgress.yearId, yearId),
-      ),
-    );
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("lesson_progress")
+    .select("student_id, status")
+    .eq("group_id", groupId)
+    .eq("lesson_id", lessonId)
+    .eq("year_id", yearId);
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => ({
+    studentId: r.student_id,
+    status: r.status as "Y" | "N" | "A",
+  }));
 }
 
 /**
- * Records a batch of lesson outcomes (the core write operation).
- * Uses upsert: if a record already exists for student+lesson+year+date,
- * it updates the status rather than creating a duplicate.
+ * Records a batch of lesson outcomes via upsert.
+ * Re-recording the same student+lesson+date updates instead of inserting.
  *
- * @rls The caller must verify groupId belongs to the user's school.
+ * @rls School-scoped via RLS policy.
  */
 export async function recordLessonOutcomes(
   input: RecordSessionInput,
 ): Promise<number> {
   if (input.outcomes.length === 0) return 0;
 
-  const values = input.outcomes.map((o) => ({
-    studentId: o.studentId,
-    groupId: input.groupId,
-    lessonId: input.lessonId,
-    yearId: input.yearId,
-    status: o.status as "Y" | "N" | "A",
-    dateRecorded: input.dateRecorded,
-    recordedBy: input.recordedBy,
+  const supabase = await createClient();
+  const rows = input.outcomes.map((o) => ({
+    student_id: o.studentId,
+    group_id: input.groupId,
+    lesson_id: input.lessonId,
+    year_id: input.yearId,
+    status: o.status,
+    date_recorded: input.dateRecorded,
+    recorded_by: input.recordedBy || null,
     source: "form" as const,
   }));
 
-  const result = await db
-    .insert(lessonProgress)
-    .values(values)
-    .onConflictDoUpdate({
-      target: [
-        lessonProgress.studentId,
-        lessonProgress.lessonId,
-        lessonProgress.yearId,
-        lessonProgress.dateRecorded,
-      ],
-      set: {
-        status: sql`excluded.status`,
-        groupId: sql`excluded.group_id`,
-        recordedBy: sql`excluded.recorded_by`,
-      },
+  const { data, error } = await supabase
+    .from("lesson_progress")
+    .upsert(rows, {
+      onConflict: "student_id,lesson_id,year_id,date_recorded",
     })
-    .returning({ progressId: lessonProgress.progressId });
+    .select("progress_id");
 
-  return result.length;
+  if (error) throw new Error(error.message);
+  return data?.length ?? 0;
 }
 
 /**
- * Lists recent lesson entries for a school, for the sessions overview page.
+ * Lists recent lesson entries for the school overview.
  */
 export async function listRecentEntries(
-  schoolId: number,
+  _schoolId: number,
   limit: number = 20,
 ): Promise<RecentEntry[]> {
-  const rows = await db
-    .select({
-      dateRecorded: lessonProgress.dateRecorded,
-      lessonNumber: ufliLessons.lessonNumber,
-      lessonName: ufliLessons.lessonName,
-      groupName: instructionalGroups.groupName,
-      groupId: lessonProgress.groupId,
-      outcomeCount: sql<number>`count(*)::int`,
-    })
-    .from(lessonProgress)
-    .innerJoin(
-      ufliLessons,
-      eq(lessonProgress.lessonId, ufliLessons.lessonId),
+  const supabase = await createClient();
+  // Get raw progress rows with joins, ordered by date desc
+  const { data, error } = await supabase
+    .from("lesson_progress")
+    .select(
+      "date_recorded, group_id, ufli_lessons(lesson_number, lesson_name), instructional_groups(group_name)",
     )
-    .innerJoin(
-      instructionalGroups,
-      eq(lessonProgress.groupId, instructionalGroups.groupId),
-    )
-    .where(eq(instructionalGroups.schoolId, schoolId))
-    .groupBy(
-      lessonProgress.dateRecorded,
-      ufliLessons.lessonNumber,
-      ufliLessons.lessonName,
-      instructionalGroups.groupName,
-      lessonProgress.groupId,
-    )
-    .orderBy(sql`${lessonProgress.dateRecorded} DESC`)
-    .limit(limit);
+    .order("date_recorded", { ascending: false })
+    .limit(500); // Fetch enough rows to aggregate
 
-  return rows;
-}
+  if (error) throw new Error(error.message);
 
-/**
- * Gets groups assigned to a specific staff member (for the tutor's view).
- */
-export async function getStaffGroups(staffId: number) {
-  return db
-    .select({
-      groupId: instructionalGroups.groupId,
-      groupName: instructionalGroups.groupName,
-      gradeName: gradeLevels.name,
-      isMixedGrade: instructionalGroups.isMixedGrade,
-    })
-    .from(instructionalGroups)
-    .innerJoin(
-      gradeLevels,
-      eq(instructionalGroups.gradeId, gradeLevels.gradeId),
-    )
-    .where(
-      and(
-        eq(instructionalGroups.staffId, staffId),
-        eq(instructionalGroups.isActive, true),
-      ),
-    )
-    .orderBy(asc(gradeLevels.sortOrder), asc(instructionalGroups.groupName));
+  // Aggregate in JS: count per (date, lesson, group)
+  const groups = new Map<string, RecentEntry>();
+  for (const r of data ?? []) {
+    const raw = r as unknown as {
+      date_recorded: string;
+      group_id: number;
+      ufli_lessons: { lesson_number: number; lesson_name: string | null } | null;
+      instructional_groups: { group_name: string } | null;
+    };
+    const key = `${raw.date_recorded}|${raw.ufli_lessons?.lesson_number}|${raw.group_id}`;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        dateRecorded: raw.date_recorded,
+        lessonNumber: raw.ufli_lessons?.lesson_number ?? 0,
+        lessonName: raw.ufli_lessons?.lesson_name ?? null,
+        groupName: raw.instructional_groups?.group_name ?? "",
+        groupId: raw.group_id,
+        outcomeCount: 0,
+      });
+    }
+    groups.get(key)!.outcomeCount++;
+  }
+
+  return Array.from(groups.values()).slice(0, limit);
 }

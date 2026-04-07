@@ -1,21 +1,19 @@
 /**
  * @file dal/students.ts — Data access layer for student operations
  *
- * All database queries and mutations for student records. Every function
- * is called from Server Actions or Server Components only.
+ * Uses the Supabase JS client (PostgREST over HTTPS) instead of direct
+ * Postgres connections. This is required for reliable serverless operation —
+ * persistent DB connections cause hangs in Vercel functions.
  *
  * Per D-009: student_number (external ID) is the canonical join key.
- * Per D-012: enrollment_status tracks lifecycle (active/withdrawn/transferred/graduated).
+ * Per D-012: enrollment_status tracks lifecycle.
  *
- * @rls School-scoping enforced by explicit schoolId parameter from JWT claims,
- *   backed by RLS policies at the database layer (D-002).
+ * @rls School-scoping is enforced automatically by RLS policies (D-002)
+ *   based on the user's JWT claims, since we use the authenticated client.
  */
 
-import { eq, and, asc, sql } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { students, gradeLevels } from "@/lib/db/schema";
+import { createClient } from "@/lib/supabase/server";
 
-/** Shape returned to the UI — includes grade name from the join */
 export interface StudentRow {
   studentId: number;
   firstName: string;
@@ -29,7 +27,6 @@ export interface StudentRow {
   createdAt: Date;
 }
 
-/** Input for creating a new student */
 export interface CreateStudentInput {
   schoolId: number;
   firstName: string;
@@ -39,7 +36,6 @@ export interface CreateStudentInput {
   enrollmentDate: string;
 }
 
-/** Input for updating a student */
 export interface UpdateStudentInput {
   studentId: number;
   firstName?: string;
@@ -50,147 +46,165 @@ export interface UpdateStudentInput {
   withdrawalDate?: string | null;
 }
 
-/**
- * Lists all students for a school, ordered by last name.
- * Joins grade_levels for the display name.
- *
- * @rls Filters by schoolId from the caller's JWT claims.
- */
-export async function listStudents(schoolId: number): Promise<StudentRow[]> {
-  const rows = await db
-    .select({
-      studentId: students.studentId,
-      firstName: students.firstName,
-      lastName: students.lastName,
-      studentNumber: students.studentNumber,
-      enrollmentStatus: students.enrollmentStatus,
-      enrollmentDate: students.enrollmentDate,
-      withdrawalDate: students.withdrawalDate,
-      gradeId: students.gradeId,
-      gradeName: gradeLevels.name,
-      createdAt: students.createdAt,
-    })
-    .from(students)
-    .innerJoin(gradeLevels, eq(students.gradeId, gradeLevels.gradeId))
-    .where(eq(students.schoolId, schoolId))
-    .orderBy(asc(students.lastName), asc(students.firstName));
+interface RawStudentRow {
+  student_id: number;
+  first_name: string;
+  last_name: string;
+  student_number: string;
+  enrollment_status: "active" | "withdrawn" | "transferred" | "graduated";
+  enrollment_date: string;
+  withdrawal_date: string | null;
+  grade_id: number;
+  created_at: string;
+  grade_levels: { name: string } | null;
+}
 
-  return rows;
+function mapStudentRow(r: RawStudentRow): StudentRow {
+  return {
+    studentId: r.student_id,
+    firstName: r.first_name,
+    lastName: r.last_name,
+    studentNumber: r.student_number,
+    enrollmentStatus: r.enrollment_status,
+    enrollmentDate: r.enrollment_date,
+    withdrawalDate: r.withdrawal_date,
+    gradeId: r.grade_id,
+    gradeName: r.grade_levels?.name ?? "",
+    createdAt: new Date(r.created_at),
+  };
 }
 
 /**
- * Gets a single student by ID, scoped to school.
+ * Lists all students for the current user's school, ordered by last name.
  *
- * @rls Verifies schoolId matches the caller's JWT claims.
+ * @rls Filters by school_id automatically via RLS policy.
+ */
+export async function listStudents(_schoolId: number): Promise<StudentRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("students")
+    .select(
+      "student_id, first_name, last_name, student_number, enrollment_status, enrollment_date, withdrawal_date, grade_id, created_at, grade_levels(name)",
+    )
+    .order("last_name", { ascending: true })
+    .order("first_name", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => mapStudentRow(r as unknown as RawStudentRow));
+}
+
+/**
+ * Gets a single student by ID.
+ *
+ * @rls School-scoped via RLS policy.
  */
 export async function getStudent(
   studentId: number,
-  schoolId: number,
+  _schoolId: number,
 ): Promise<StudentRow | null> {
-  const [row] = await db
-    .select({
-      studentId: students.studentId,
-      firstName: students.firstName,
-      lastName: students.lastName,
-      studentNumber: students.studentNumber,
-      enrollmentStatus: students.enrollmentStatus,
-      enrollmentDate: students.enrollmentDate,
-      withdrawalDate: students.withdrawalDate,
-      gradeId: students.gradeId,
-      gradeName: gradeLevels.name,
-      createdAt: students.createdAt,
-    })
-    .from(students)
-    .innerJoin(gradeLevels, eq(students.gradeId, gradeLevels.gradeId))
-    .where(
-      and(eq(students.studentId, studentId), eq(students.schoolId, schoolId)),
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("students")
+    .select(
+      "student_id, first_name, last_name, student_number, enrollment_status, enrollment_date, withdrawal_date, grade_id, created_at, grade_levels(name)",
     )
-    .limit(1);
+    .eq("student_id", studentId)
+    .maybeSingle();
 
-  return row ?? null;
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  return mapStudentRow(data as unknown as RawStudentRow);
 }
 
 /**
- * Creates a new student for a school.
+ * Creates a new student.
  *
- * @rls schoolId comes from the caller's JWT claims.
+ * @rls School-scoped via RLS policy. school_id must match JWT claim.
  */
 export async function createStudent(
   input: CreateStudentInput,
 ): Promise<StudentRow> {
-  const [inserted] = await db
-    .insert(students)
-    .values({
-      schoolId: input.schoolId,
-      firstName: input.firstName,
-      lastName: input.lastName,
-      studentNumber: input.studentNumber,
-      gradeId: input.gradeId,
-      enrollmentDate: input.enrollmentDate,
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("students")
+    .insert({
+      school_id: input.schoolId,
+      grade_id: input.gradeId,
+      first_name: input.firstName,
+      last_name: input.lastName,
+      student_number: input.studentNumber,
+      enrollment_date: input.enrollmentDate,
     })
-    .returning();
+    .select(
+      "student_id, first_name, last_name, student_number, enrollment_status, enrollment_date, withdrawal_date, grade_id, created_at, grade_levels(name)",
+    )
+    .single();
 
-  // Re-query to get the grade name join
-  const row = await getStudent(inserted.studentId, input.schoolId);
-  return row!;
+  if (error) throw new Error(error.message);
+  return mapStudentRow(data as unknown as RawStudentRow);
 }
 
 /**
- * Updates a student's details. Only the provided fields are updated.
+ * Updates a student. Only provided fields are changed.
  *
- * @rls schoolId check is performed by the caller (Server Action).
+ * @rls School-scoped via RLS policy.
  */
 export async function updateStudent(
   input: UpdateStudentInput,
-  schoolId: number,
+  _schoolId: number,
 ): Promise<StudentRow | null> {
+  const supabase = await createClient();
   const updates: Record<string, unknown> = {};
-  if (input.firstName !== undefined) updates.firstName = input.firstName;
-  if (input.lastName !== undefined) updates.lastName = input.lastName;
+  if (input.firstName !== undefined) updates.first_name = input.firstName;
+  if (input.lastName !== undefined) updates.last_name = input.lastName;
   if (input.studentNumber !== undefined)
-    updates.studentNumber = input.studentNumber;
-  if (input.gradeId !== undefined) updates.gradeId = input.gradeId;
+    updates.student_number = input.studentNumber;
+  if (input.gradeId !== undefined) updates.grade_id = input.gradeId;
   if (input.enrollmentStatus !== undefined)
-    updates.enrollmentStatus = input.enrollmentStatus;
+    updates.enrollment_status = input.enrollmentStatus;
   if (input.withdrawalDate !== undefined)
-    updates.withdrawalDate = input.withdrawalDate;
+    updates.withdrawal_date = input.withdrawalDate;
+
+  // Auto-set withdrawal date when status changes to inactive
+  if (
+    input.enrollmentStatus &&
+    input.enrollmentStatus !== "active" &&
+    !input.withdrawalDate
+  ) {
+    updates.withdrawal_date = new Date().toISOString().split("T")[0];
+  }
 
   if (Object.keys(updates).length === 0) return null;
 
-  // If withdrawing, set withdrawal date to today if not provided
-  if (
-    updates.enrollmentStatus &&
-    updates.enrollmentStatus !== "active" &&
-    !updates.withdrawalDate
-  ) {
-    updates.withdrawalDate = sql`CURRENT_DATE`;
-  }
+  const { data, error } = await supabase
+    .from("students")
+    .update(updates)
+    .eq("student_id", input.studentId)
+    .select(
+      "student_id, first_name, last_name, student_number, enrollment_status, enrollment_date, withdrawal_date, grade_id, created_at, grade_levels(name)",
+    )
+    .maybeSingle();
 
-  await db
-    .update(students)
-    .set(updates)
-    .where(
-      and(
-        eq(students.studentId, input.studentId),
-        eq(students.schoolId, schoolId),
-      ),
-    );
-
-  return getStudent(input.studentId, schoolId);
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  return mapStudentRow(data as unknown as RawStudentRow);
 }
 
 /**
- * Lists all grade levels (reference data).
- * Not school-scoped — grade levels are global.
+ * Lists all grade levels (reference data, RLS allows all authenticated reads).
  */
 export async function listGradeLevels() {
-  return db
-    .select({
-      gradeId: gradeLevels.gradeId,
-      name: gradeLevels.name,
-      sortOrder: gradeLevels.sortOrder,
-      gradeBand: gradeLevels.gradeBand,
-    })
-    .from(gradeLevels)
-    .orderBy(asc(gradeLevels.sortOrder));
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("grade_levels")
+    .select("grade_id, name, sort_order, grade_band")
+    .order("sort_order", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => ({
+    gradeId: r.grade_id,
+    name: r.name,
+    sortOrder: r.sort_order,
+    gradeBand: r.grade_band,
+  }));
 }

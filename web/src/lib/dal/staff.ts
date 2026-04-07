@@ -1,20 +1,13 @@
 /**
  * @file dal/staff.ts — Data access layer for staff operations
  *
- * All database queries and mutations for staff records. Every function
- * is called from Server Actions or Server Components only.
+ * Uses the Supabase JS client (PostgREST over HTTPS) for serverless reliability.
  *
- * @rls All queries go through Drizzle with the service role connection.
- *   School-scoping is enforced by passing schoolId explicitly from the
- *   authenticated user's JWT claims. This is the application-layer check
- *   (D-002 layer 3); RLS provides the defense-in-depth layer beneath it.
+ * @rls School-scoping enforced by RLS policies via the user's JWT.
  */
 
-import { eq, and, asc } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { staff } from "@/lib/db/schema";
+import { createClient } from "@/lib/supabase/server";
 
-/** Shape returned to the UI — only the fields the UI needs */
 export interface StaffRow {
   staffId: number;
   firstName: string;
@@ -25,7 +18,6 @@ export interface StaffRow {
   createdAt: Date;
 }
 
-/** Input for creating a new staff member */
 export interface CreateStaffInput {
   schoolId: number;
   firstName: string;
@@ -34,7 +26,6 @@ export interface CreateStaffInput {
   role: "tutor" | "coach" | "school_admin" | "tilt_admin";
 }
 
-/** Input for updating a staff member */
 export interface UpdateStaffInput {
   staffId: number;
   firstName?: string;
@@ -44,118 +35,121 @@ export interface UpdateStaffInput {
   isActive?: boolean;
 }
 
-/**
- * Lists all staff for a school, ordered by last name.
- *
- * @rls Filters by schoolId from the caller's JWT claims.
- */
-export async function listStaff(schoolId: number): Promise<StaffRow[]> {
-  const rows = await db
-    .select({
-      staffId: staff.staffId,
-      firstName: staff.firstName,
-      lastName: staff.lastName,
-      email: staff.email,
-      role: staff.role,
-      isActive: staff.isActive,
-      createdAt: staff.createdAt,
-    })
-    .from(staff)
-    .where(eq(staff.schoolId, schoolId))
-    .orderBy(asc(staff.lastName), asc(staff.firstName));
+interface RawStaffRow {
+  staff_id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  role: "tutor" | "coach" | "school_admin" | "tilt_admin";
+  is_active: boolean;
+  created_at: string;
+}
 
-  return rows;
+function mapStaffRow(r: RawStaffRow): StaffRow {
+  return {
+    staffId: r.staff_id,
+    firstName: r.first_name,
+    lastName: r.last_name,
+    email: r.email,
+    role: r.role,
+    isActive: r.is_active,
+    createdAt: new Date(r.created_at),
+  };
+}
+
+const STAFF_COLUMNS =
+  "staff_id, first_name, last_name, email, role, is_active, created_at";
+
+/**
+ * Lists all staff for the current user's school.
+ *
+ * @rls Filters by school_id automatically via RLS policy.
+ */
+export async function listStaff(_schoolId: number): Promise<StaffRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("staff")
+    .select(STAFF_COLUMNS)
+    .order("last_name", { ascending: true })
+    .order("first_name", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => mapStaffRow(r as unknown as RawStaffRow));
 }
 
 /**
- * Gets a single staff member by ID, scoped to school.
+ * Gets a single staff member.
  *
- * @rls Verifies schoolId matches the caller's JWT claims.
+ * @rls School-scoped via RLS policy.
  */
 export async function getStaff(
   staffId: number,
-  schoolId: number,
+  _schoolId: number,
 ): Promise<StaffRow | null> {
-  const [row] = await db
-    .select({
-      staffId: staff.staffId,
-      firstName: staff.firstName,
-      lastName: staff.lastName,
-      email: staff.email,
-      role: staff.role,
-      isActive: staff.isActive,
-      createdAt: staff.createdAt,
-    })
-    .from(staff)
-    .where(and(eq(staff.staffId, staffId), eq(staff.schoolId, schoolId)))
-    .limit(1);
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("staff")
+    .select(STAFF_COLUMNS)
+    .eq("staff_id", staffId)
+    .maybeSingle();
 
-  return row ?? null;
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  return mapStaffRow(data as unknown as RawStaffRow);
 }
 
 /**
- * Creates a new staff member for a school.
- * Does NOT create a Supabase Auth account — that's a separate step
- * (the staff member signs up themselves, then admin links them).
+ * Creates a new staff member.
  *
- * @rls schoolId comes from the caller's JWT claims.
+ * @rls School-scoped via RLS policy.
  */
 export async function createStaff(
   input: CreateStaffInput,
 ): Promise<StaffRow> {
-  const [row] = await db
-    .insert(staff)
-    .values({
-      schoolId: input.schoolId,
-      firstName: input.firstName,
-      lastName: input.lastName,
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("staff")
+    .insert({
+      school_id: input.schoolId,
+      first_name: input.firstName,
+      last_name: input.lastName,
       email: input.email,
       role: input.role,
     })
-    .returning({
-      staffId: staff.staffId,
-      firstName: staff.firstName,
-      lastName: staff.lastName,
-      email: staff.email,
-      role: staff.role,
-      isActive: staff.isActive,
-      createdAt: staff.createdAt,
-    });
+    .select(STAFF_COLUMNS)
+    .single();
 
-  return row;
+  if (error) throw new Error(error.message);
+  return mapStaffRow(data as unknown as RawStaffRow);
 }
 
 /**
- * Updates a staff member's details. Only the provided fields are updated.
+ * Updates a staff member.
  *
- * @rls schoolId check is performed by the caller (Server Action).
+ * @rls School-scoped via RLS policy.
  */
 export async function updateStaff(
   input: UpdateStaffInput,
-  schoolId: number,
+  _schoolId: number,
 ): Promise<StaffRow | null> {
+  const supabase = await createClient();
   const updates: Record<string, unknown> = {};
-  if (input.firstName !== undefined) updates.firstName = input.firstName;
-  if (input.lastName !== undefined) updates.lastName = input.lastName;
+  if (input.firstName !== undefined) updates.first_name = input.firstName;
+  if (input.lastName !== undefined) updates.last_name = input.lastName;
   if (input.email !== undefined) updates.email = input.email;
   if (input.role !== undefined) updates.role = input.role;
-  if (input.isActive !== undefined) updates.isActive = input.isActive;
+  if (input.isActive !== undefined) updates.is_active = input.isActive;
 
   if (Object.keys(updates).length === 0) return null;
 
-  const [row] = await db
-    .update(staff)
-    .set(updates)
-    .where(and(eq(staff.staffId, input.staffId), eq(staff.schoolId, schoolId)))
-    .returning({
-      staffId: staff.staffId,
-      firstName: staff.firstName,
-      lastName: staff.lastName,
-      email: staff.email,
-      role: staff.role,
-      isActive: staff.isActive,
-      createdAt: staff.createdAt,
-    });
+  const { data, error } = await supabase
+    .from("staff")
+    .update(updates)
+    .eq("staff_id", input.staffId)
+    .select(STAFF_COLUMNS)
+    .maybeSingle();
 
-  return row ?? null;
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  return mapStaffRow(data as unknown as RawStaffRow);
 }
