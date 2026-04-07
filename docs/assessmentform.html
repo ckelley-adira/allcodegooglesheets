@@ -1,0 +1,1582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>UFLI Assessment</title>
+  <style>
+    /* ═══════════════════════════════════════════════════════════════
+       UFLI ASSESSMENT FORM — MASTER SYSTEM v2.0
+       Mobile-first, tablet-optimized for paper transcription
+       ═══════════════════════════════════════════════════════════════ */
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      /* Core palette — TILT blue family */
+      --blue-900: #0d1b2a;
+      --blue-800: #1b2838;
+      --blue-700: #1d3557;
+      --blue-600: #264653;
+      --blue-500: #457b9d;
+      --blue-400: #6a9fbe;
+      --blue-300: #a8dadc;
+      --blue-200: #cce7e8;
+      --blue-100: #e8f4f5;
+      --blue-50:  #f0f9fa;
+
+      /* Functional colors */
+      --correct:     #22c55e;
+      --correct-bg:  #dcfce7;
+      --correct-dark:#16a34a;
+      --incorrect:     #ef4444;
+      --incorrect-bg:  #fee2e2;
+      --incorrect-dark: #dc2626;
+      --unset:       #94a3b8;
+      --unset-bg:    #f1f5f9;
+      --warning:     #f59e0b;
+      --warning-bg:  #fef3c7;
+
+      /* Neutrals */
+      --white:   #ffffff;
+      --gray-50: #f8fafc;
+      --gray-100:#f1f5f9;
+      --gray-200:#e2e8f0;
+      --gray-300:#cbd5e1;
+      --gray-400:#94a3b8;
+      --gray-500:#64748b;
+      --gray-600:#475569;
+      --gray-700:#334155;
+      --gray-800:#1e293b;
+      --gray-900:#0f172a;
+
+      /* Layout */
+      --radius-sm: 6px;
+      --radius:    10px;
+      --radius-lg: 14px;
+      --radius-xl: 20px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+      --shadow:    0 4px 12px rgba(0,0,0,0.08);
+      --shadow-md: 0 8px 24px rgba(0,0,0,0.10);
+      --shadow-lg: 0 12px 40px rgba(0,0,0,0.12);
+      --transition: 0.2s ease;
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--blue-100);
+      min-height: 100vh;
+      padding: 0;
+      line-height: 1.5;
+      color: var(--gray-800);
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ─── App Shell ─────────────────────────────────────────────── */
+    .app-header {
+      background: linear-gradient(135deg, var(--blue-700), var(--blue-900));
+      color: var(--white);
+      padding: 16px 20px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow-md);
+    }
+
+    .app-header h1 {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+    }
+
+    .app-header .subtitle {
+      font-size: 12px;
+      opacity: 0.7;
+      margin-top: 2px;
+    }
+
+    .app-body {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 16px;
+      padding-bottom: 100px; /* Space for fixed nav */
+    }
+
+    /* ─── Progress Bar (top-level) ──────────────────────────────── */
+    .progress-strip {
+      background: rgba(255,255,255,0.15);
+      height: 4px;
+      width: 100%;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+    }
+
+    .progress-strip-fill {
+      height: 100%;
+      background: var(--blue-300);
+      transition: width 0.4s ease;
+      border-radius: 0 2px 2px 0;
+    }
+
+    .progress-label {
+      position: absolute;
+      bottom: 8px;
+      right: 20px;
+      font-size: 11px;
+      opacity: 0.7;
+    }
+
+    /* ─── Page System ───────────────────────────────────────────── */
+    .page { display: none; }
+    .page.active { display: block; animation: pageIn 0.25s ease; }
+
+    @keyframes pageIn {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ─── Cards ─────────────────────────────────────────────────── */
+    .card {
+      background: var(--white);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+
+    .card-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--gray-200);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .card-header h2 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--gray-800);
+    }
+
+    .card-header .badge {
+      background: var(--blue-100);
+      color: var(--blue-600);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    .card-body { padding: 20px; }
+
+    /* ─── Form Fields ───────────────────────────────────────────── */
+    .field-group {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    @media (min-width: 600px) {
+      .field-group { grid-template-columns: 1fr 1fr; }
+      .field-group.three-col { grid-template-columns: 1fr 1fr 1fr; }
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .field label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gray-500);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .field select,
+    .field input,
+    .field textarea {
+      width: 100%;
+      padding: 12px 14px;
+      border: 2px solid var(--gray-200);
+      border-radius: var(--radius);
+      font-size: 15px;
+      font-family: inherit;
+      background: var(--white);
+      color: var(--gray-800);
+      transition: border-color var(--transition);
+      -webkit-appearance: none;
+      appearance: none;
+    }
+
+    .field select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M6 8L1 3h10z' fill='%2394a3b8'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      padding-right: 36px;
+    }
+
+    .field select:focus,
+    .field input:focus,
+    .field textarea:focus {
+      outline: none;
+      border-color: var(--blue-500);
+      box-shadow: 0 0 0 3px rgba(69,123,157,0.12);
+    }
+
+    .field textarea { min-height: 100px; resize: vertical; }
+
+    /* Checkbox toggle */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      background: var(--gray-50);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition: background var(--transition);
+    }
+    .toggle-row:hover { background: var(--gray-100); }
+
+    .toggle-row input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      accent-color: var(--blue-500);
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .toggle-row span {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--gray-700);
+    }
+
+    /* ─── Buttons ───────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border: none;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all var(--transition);
+      min-height: 48px; /* Touch target */
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--blue-600), var(--blue-800));
+      color: var(--white);
+      box-shadow: 0 2px 8px rgba(29,53,87,0.3);
+    }
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgba(29,53,87,0.4);
+    }
+    .btn-primary:active:not(:disabled) { transform: translateY(0); }
+
+    .btn-secondary {
+      background: var(--white);
+      color: var(--gray-700);
+      border: 2px solid var(--gray-200);
+    }
+    .btn-secondary:hover { background: var(--gray-50); border-color: var(--gray-300); }
+
+    .btn-success {
+      background: var(--correct);
+      color: var(--white);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--blue-500);
+      padding: 8px 12px;
+    }
+    .btn-ghost:hover { background: var(--blue-50); }
+
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-block { width: 100%; }
+
+    .btn-sm { padding: 8px 14px; font-size: 13px; min-height: 40px; }
+
+    /* ─── Fixed Bottom Navigation ──────────────────────────────── */
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--white);
+      border-top: 1px solid var(--gray-200);
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      z-index: 90;
+      box-shadow: 0 -4px 12px rgba(0,0,0,0.06);
+    }
+
+    .bottom-nav .btn { flex: 1; max-width: 200px; }
+
+    .nav-center {
+      font-size: 12px;
+      color: var(--gray-400);
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    /* ─── Assessment Section Header (sticky) ───────────────────── */
+    .section-bar {
+      background: linear-gradient(135deg, var(--blue-700), var(--blue-800));
+      color: var(--white);
+      padding: 14px 20px;
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      position: sticky;
+      top: 70px; /* Below app header */
+      z-index: 50;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .section-bar h2 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.2px;
+    }
+
+    .section-bar .section-counter {
+      font-size: 12px;
+      opacity: 0.7;
+    }
+
+    .bulk-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .bulk-btn {
+      padding: 8px 14px;
+      border-radius: var(--radius-sm);
+      border: 2px solid rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.1);
+      color: var(--white);
+      font-size: 13px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all var(--transition);
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .bulk-btn:hover {
+      background: rgba(255,255,255,0.2);
+      border-color: rgba(255,255,255,0.5);
+    }
+    .bulk-btn:active { transform: scale(0.97); }
+
+    .section-instruction {
+      width: 100%;
+      font-size: 12px;
+      opacity: 0.65;
+      font-style: italic;
+      margin-top: 4px;
+    }
+
+    /* ─── Word Cards ────────────────────────────────────────────── */
+    .words-area {
+      background: var(--white);
+      border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .word-list {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0;
+    }
+
+    @media (min-width: 700px) {
+      .word-list { grid-template-columns: 1fr 1fr; }
+    }
+
+    .word-card {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--gray-100);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      transition: background var(--transition);
+    }
+
+    .word-card:hover { background: var(--gray-50); }
+
+    /* Word card states */
+    .word-card.all-correct { background: var(--correct-bg); }
+    .word-card.all-incorrect { background: var(--incorrect-bg); }
+    .word-card.partial { background: var(--warning-bg); }
+
+    .word-number {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--gray-100);
+      color: var(--gray-500);
+      font-size: 13px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .word-label {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--gray-800);
+      min-width: 80px;
+      letter-spacing: 0.5px;
+      font-variant: small-caps;
+    }
+
+    .components-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      flex: 1;
+      justify-content: flex-end;
+    }
+
+    /* ─── Component Buttons (the core interaction) ─────────────── */
+    .comp-btn {
+      min-width: 52px;
+      min-height: 48px;
+      padding: 8px 16px;
+      border-radius: var(--radius);
+      border: 2.5px solid;
+      font-size: 15px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      text-transform: lowercase;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .comp-btn:active { transform: scale(0.93); }
+
+    /* States */
+    .comp-btn[data-state="unset"] {
+      background: var(--white);
+      border-color: var(--gray-300);
+      color: var(--gray-600);
+    }
+    .comp-btn[data-state="unset"]:hover {
+      border-color: var(--gray-400);
+      background: var(--gray-50);
+    }
+
+    .comp-btn[data-state="correct"] {
+      background: var(--correct);
+      border-color: var(--correct-dark);
+      color: var(--white);
+      box-shadow: 0 2px 6px rgba(34,197,94,0.3);
+    }
+
+    .comp-btn[data-state="incorrect"] {
+      background: var(--incorrect);
+      border-color: var(--incorrect-dark);
+      color: var(--white);
+      box-shadow: 0 2px 6px rgba(239,68,68,0.3);
+    }
+
+    /* ─── Section Completion Chips ──────────────────────────────── */
+    .section-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 12px 20px;
+      background: var(--gray-50);
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    .section-chip {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      background: var(--gray-200);
+      color: var(--gray-500);
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+
+    .section-chip.complete {
+      background: var(--correct-bg);
+      color: var(--correct-dark);
+    }
+
+    .section-chip.active {
+      background: var(--blue-500);
+      color: var(--white);
+    }
+
+    .section-chip.incomplete {
+      background: var(--warning-bg);
+      color: var(--warning);
+    }
+
+    /* ─── Review Summary ───────────────────────────────────────── */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 12px;
+    }
+
+    .summary-stat {
+      text-align: center;
+      padding: 16px 12px;
+      background: var(--gray-50);
+      border-radius: var(--radius);
+      border: 1px solid var(--gray-200);
+    }
+
+    .summary-stat .value {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--blue-700);
+      line-height: 1;
+    }
+
+    .summary-stat .value.green { color: var(--correct-dark); }
+    .summary-stat .value.red { color: var(--incorrect-dark); }
+
+    .summary-stat .label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--gray-400);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 6px;
+    }
+
+    .warning-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: var(--warning-bg);
+      border-radius: var(--radius);
+      margin-top: 16px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #92400e;
+    }
+
+    /* ─── Add Student Expandable ───────────────────────────────── */
+    .expand-section {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.3s ease;
+    }
+    .expand-section.open {
+      max-height: 400px;
+      padding-top: 16px;
+    }
+
+    /* ─── Status Toast ─────────────────────────────────────────── */
+    .toast {
+      position: fixed;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: var(--gray-800);
+      color: var(--white);
+      padding: 12px 24px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 200;
+      opacity: 0;
+      transition: all 0.3s ease;
+      pointer-events: none;
+      box-shadow: var(--shadow-lg);
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    .toast.error { background: var(--incorrect); }
+    .toast.success { background: var(--correct-dark); }
+
+    /* ─── Success Modal ────────────────────────────────────────── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 300;
+      padding: 20px;
+    }
+    .modal-overlay.show { display: flex; }
+
+    .modal {
+      background: var(--white);
+      border-radius: var(--radius-xl);
+      padding: 32px;
+      max-width: 440px;
+      width: 100%;
+      text-align: center;
+      animation: modalIn 0.3s ease;
+      box-shadow: var(--shadow-lg);
+    }
+
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .modal .check-circle {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: var(--correct);
+      margin: 0 auto 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal .check-circle svg {
+      width: 32px;
+      height: 32px;
+      stroke: white;
+      stroke-width: 3;
+      fill: none;
+    }
+
+    .modal h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--gray-800);
+      margin-bottom: 8px;
+    }
+
+    .modal p {
+      font-size: 14px;
+      color: var(--gray-500);
+      margin-bottom: 20px;
+    }
+
+    .modal .btn { margin-top: 8px; }
+
+    /* ─── Loader ────────────────────────────────────────────────── */
+    .loader-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(255,255,255,0.85);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 250;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .loader-overlay.show { display: flex; }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--gray-200);
+      border-top-color: var(--blue-500);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loader-text {
+      font-size: 14px;
+      color: var(--gray-500);
+      font-weight: 500;
+    }
+
+    /* ─── Responsive ───────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      .section-bar { top: 62px; }
+
+      .word-card {
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .components-row {
+        width: 100%;
+        justify-content: flex-start;
+      }
+
+      .word-label { min-width: auto; }
+
+      .bottom-nav { padding: 10px 12px; }
+
+      .summary-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ App Header ═══ -->
+  <header class="app-header" id="app-header">
+    <h1>UFLI Assessment</h1>
+    <div class="subtitle">Initial Assessment Entry</div>
+    <div class="progress-strip">
+      <div class="progress-strip-fill" id="progress-fill" style="width: 0%"></div>
+    </div>
+    <div class="progress-label" id="progress-label"></div>
+  </header>
+
+  <!-- ═══ Main Content ═══ -->
+  <main class="app-body">
+
+    <!-- ═══ PAGE: Student Setup ═══ -->
+    <div id="page-setup" class="page active">
+
+      <div class="card">
+        <div class="card-header">
+          <h2>Student Information</h2>
+        </div>
+        <div class="card-body">
+          <div class="field-group three-col">
+            <div class="field">
+              <label for="sel-student">Student</label>
+              <select id="sel-student">
+                <option value="" disabled selected>Select student…</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="sel-scorer">Scorer</label>
+              <select id="sel-scorer">
+                <option value="" disabled selected>Select scorer…</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="inp-date">Date</label>
+              <input type="date" id="inp-date">
+            </div>
+          </div>
+
+          <div class="field-group" style="margin-top: 16px;">
+            <div class="field">
+              <label for="sel-teacher">Teacher</label>
+              <select id="sel-teacher">
+                <option value="">Auto-detect from roster</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="kg-toggle" style="margin-top: 16px; display: none;">
+            <label class="toggle-row">
+              <input type="checkbox" id="chk-kg-eoy">
+              <span>Kindergarten End of Year Assessment</span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>Add New Student</h2>
+          <span class="badge" style="cursor: pointer;" id="toggle-add-student">+ ADD</span>
+        </div>
+        <div class="card-body" style="padding-top: 0;">
+          <div id="add-student-area" class="expand-section">
+            <div class="field-group">
+              <div class="field">
+                <label for="inp-new-name">Student Name</label>
+                <input type="text" id="inp-new-name" placeholder="Full name">
+              </div>
+              <div class="field">
+                <label for="sel-new-grade">Grade</label>
+                <select id="sel-new-grade">
+                  <option value="">Select grade…</option>
+                  <option value="0">Kindergarten</option>
+                  <option value="1">1st Grade</option>
+                  <option value="2">2nd Grade</option>
+                  <option value="3">3rd Grade</option>
+                  <option value="4">4th Grade</option>
+                  <option value="5">5th Grade</option>
+                  <option value="6">6th Grade</option>
+                  <option value="7">7th Grade</option>
+                  <option value="8">8th Grade</option>
+                </select>
+              </div>
+            </div>
+            <button class="btn btn-success btn-sm" style="margin-top: 12px;" id="btn-save-student">
+              Save Student
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ PAGE: Assessment Sections (dynamically generated) ═══ -->
+    <div id="assessment-container"></div>
+
+    <!-- ═══ PAGE: Review & Submit ═══ -->
+    <div id="page-review" class="page">
+      <div class="card">
+        <div class="card-header">
+          <h2>Review & Submit</h2>
+        </div>
+        <div class="card-body">
+
+          <!-- Section completion chips -->
+          <div id="review-chips" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px;"></div>
+
+          <!-- Summary stats -->
+          <div id="review-summary" class="summary-grid"></div>
+
+          <!-- Warning for unassessed -->
+          <div id="review-warning" class="warning-bar" style="display: none;"></div>
+
+          <!-- Notes -->
+          <div class="field" style="margin-top: 20px;">
+            <label for="inp-notes">Assessment Notes (Optional)</label>
+            <textarea id="inp-notes" placeholder="Additional observations about this student…"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ═══ Fixed Bottom Nav ═══ -->
+  <nav class="bottom-nav" id="bottom-nav">
+    <button class="btn btn-secondary" id="nav-back" style="display: none;">← Back</button>
+    <div class="nav-center" id="nav-label"></div>
+    <button class="btn btn-primary" id="nav-forward" disabled>Start Assessment →</button>
+  </nav>
+
+  <!-- ═══ Success Modal ═══ -->
+  <div class="modal-overlay" id="success-modal">
+    <div class="modal">
+      <div class="check-circle">
+        <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"></polyline></svg>
+      </div>
+      <h2>Assessment Submitted!</h2>
+      <p id="success-msg"></p>
+      <div id="success-stats" class="summary-grid" style="margin-bottom: 16px;"></div>
+      <button class="btn btn-primary btn-block" onclick="resetForm()">Assess Another Student</button>
+      <button class="btn btn-ghost btn-block" onclick="closeModal()">Done</button>
+    </div>
+  </div>
+
+  <!-- ═══ Loader ═══ -->
+  <div class="loader-overlay" id="loader">
+    <div class="spinner"></div>
+    <div class="loader-text" id="loader-text">Loading…</div>
+  </div>
+
+  <!-- ═══ Toast ═══ -->
+  <div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+// UFLI ASSESSMENT FORM — CLIENT-SIDE LOGIC
+// ═══════════════════════════════════════════════════════════════════
+
+// ─── State ──────────────────────────────────────────────────────
+let sections = [];           // Assessment sections from server
+let currentPageIndex = -1;   // -1 = setup, 0..N = sections, N+1 = review
+let totalSectionPages = 0;
+
+// ─── DOM References ─────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const selStudent  = $('sel-student');
+const selScorer   = $('sel-scorer');
+const selTeacher  = $('sel-teacher');
+const inpDate     = $('inp-date');
+const chkKgEoy    = $('chk-kg-eoy');
+const kgToggle    = $('kg-toggle');
+const navBack     = $('nav-back');
+const navForward  = $('nav-forward');
+const navLabel    = $('nav-label');
+const progressFill  = $('progress-fill');
+const progressLabel = $('progress-label');
+const assessmentContainer = $('assessment-container');
+
+// ─── Initialize ─────────────────────────────────────────────────
+window.addEventListener('load', init);
+
+function init() {
+  inpDate.valueAsDate = new Date();
+  showLoader('Loading students and scorers…');
+
+  if (typeof google !== 'undefined' && google.script) {
+    google.script.run
+      .withSuccessHandler(populateStudents)
+      .withFailureHandler(handleError)
+      .getAssessmentStudentList();
+    google.script.run
+      .withSuccessHandler(populateScorers)
+      .withFailureHandler(handleError)
+      .getAssessmentScorerList();
+  } else {
+    // Demo mode
+    setTimeout(() => {
+      populateStudents([
+        { name: 'Amara Johnson', grade: '1', teacher: 'Ms. Helman' },
+        { name: 'DeShawn Williams', grade: '0', teacher: 'Mrs. Perry' },
+        { name: 'Sofia Martinez', grade: '3', teacher: 'Mr. Chen' }
+      ]);
+      populateScorers(['Ms. Helman', 'Reading Specialist', 'Interventionist']);
+    }, 400);
+  }
+
+  // Event listeners
+  selStudent.addEventListener('change', onStudentChange);
+  selScorer.addEventListener('change', checkReady);
+  inpDate.addEventListener('change', checkReady);
+  chkKgEoy.addEventListener('change', checkReady);
+  navBack.addEventListener('click', goBack);
+  navForward.addEventListener('click', goForward);
+
+  $('toggle-add-student').addEventListener('click', () => {
+    $('add-student-area').classList.toggle('open');
+  });
+
+  $('btn-save-student').addEventListener('click', saveNewStudent);
+}
+
+// ─── Data Population ────────────────────────────────────────────
+function populateStudents(students) {
+  selStudent.innerHTML = '<option value="" disabled selected>Select student…</option>';
+  students.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.name;
+    opt.textContent = `${s.name} (Grade ${s.grade === '0' || s.grade === 0 ? 'K' : s.grade})`;
+    opt.dataset.grade = s.grade;
+    opt.dataset.teacher = s.teacher || '';
+    selStudent.appendChild(opt);
+  });
+  hideLoader();
+}
+
+function populateScorers(scorers) {
+  selScorer.innerHTML = '<option value="" disabled selected>Select scorer…</option>';
+  scorers.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s;
+    opt.textContent = s;
+    selScorer.appendChild(opt);
+  });
+}
+
+// ─── Student Selection ──────────────────────────────────────────
+function onStudentChange() {
+  const opt = selStudent.options[selStudent.selectedIndex];
+  if (!opt) return;
+
+  const grade = opt.dataset.grade;
+  kgToggle.style.display = (grade === '0') ? 'block' : 'none';
+  if (grade !== '0') chkKgEoy.checked = false;
+
+  // Auto-fill teacher
+  const teacher = opt.dataset.teacher;
+  if (teacher) {
+    // Check if teacher option exists, if not add it
+    let found = false;
+    for (const o of selTeacher.options) {
+      if (o.value === teacher) { found = true; break; }
+    }
+    if (!found) {
+      const tOpt = document.createElement('option');
+      tOpt.value = teacher;
+      tOpt.textContent = teacher;
+      selTeacher.appendChild(tOpt);
+    }
+    selTeacher.value = teacher;
+  }
+
+  checkReady();
+}
+
+function checkReady() {
+  const ready = selStudent.value && selScorer.value && inpDate.value;
+  navForward.disabled = !ready;
+}
+
+// ─── Navigation ─────────────────────────────────────────────────
+function goForward() {
+  if (currentPageIndex === -1) {
+    // Setup → Start assessment
+    startAssessment();
+  } else if (currentPageIndex < totalSectionPages - 1) {
+    // Next section
+    showSectionPage(currentPageIndex + 1);
+  } else {
+    // Last section → Review
+    showReviewPage();
+  }
+}
+
+function goBack() {
+  if (currentPageIndex === -1) return;
+
+  if (currentPageIndex === 0) {
+    // First section → Setup
+    showSetupPage();
+  } else if (currentPageIndex === totalSectionPages) {
+    // Review → Last section
+    showSectionPage(totalSectionPages - 1);
+  } else {
+    // Previous section
+    showSectionPage(currentPageIndex - 1);
+  }
+}
+
+function showSetupPage() {
+  hideAllPages();
+  $('page-setup').classList.add('active');
+  currentPageIndex = -1;
+  updateNav();
+}
+
+function showSectionPage(index) {
+  hideAllPages();
+  const page = $(`page-section-${index}`);
+  if (page) page.classList.add('active');
+  currentPageIndex = index;
+  updateNav();
+  updateProgress();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showReviewPage() {
+  hideAllPages();
+  $('page-review').classList.add('active');
+  currentPageIndex = totalSectionPages; // Beyond last section
+  buildReviewSummary();
+  updateNav();
+  progressFill.style.width = '100%';
+  progressLabel.textContent = 'Review';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function hideAllPages() {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+}
+
+function updateNav() {
+  if (currentPageIndex === -1) {
+    // Setup page
+    navBack.style.display = 'none';
+    navForward.textContent = 'Start Assessment →';
+    navForward.className = 'btn btn-primary';
+    navForward.onclick = goForward;
+    navLabel.textContent = '';
+    progressFill.style.width = '0%';
+    progressLabel.textContent = '';
+  } else if (currentPageIndex < totalSectionPages) {
+    // Section pages
+    navBack.style.display = '';
+    navForward.disabled = false;
+
+    if (currentPageIndex === totalSectionPages - 1) {
+      navForward.textContent = 'Review & Submit →';
+      navForward.className = 'btn btn-success';
+    } else {
+      navForward.textContent = 'Next Section →';
+      navForward.className = 'btn btn-primary';
+    }
+    navForward.onclick = goForward;
+    navLabel.textContent = `${currentPageIndex + 1} / ${totalSectionPages}`;
+  } else {
+    // Review page
+    navBack.style.display = '';
+    navForward.textContent = 'Submit Assessment';
+    navForward.className = 'btn btn-success';
+    navForward.disabled = false;
+    navForward.onclick = submitAssessment;
+    navLabel.textContent = 'Review';
+  }
+}
+
+function updateProgress() {
+  if (totalSectionPages > 0 && currentPageIndex >= 0) {
+    const pct = ((currentPageIndex + 1) / totalSectionPages) * 100;
+    progressFill.style.width = pct + '%';
+    progressLabel.textContent = `Section ${currentPageIndex + 1} of ${totalSectionPages}`;
+  }
+}
+
+// ─── Start Assessment ───────────────────────────────────────────
+function startAssessment() {
+  const opt = selStudent.options[selStudent.selectedIndex];
+  if (!opt) return;
+
+  const grade = opt.dataset.grade;
+  const isEoy = chkKgEoy.checked;
+
+  showLoader('Building assessment…');
+
+  if (typeof google !== 'undefined' && google.script) {
+    google.script.run
+      .withSuccessHandler(buildAssessmentPages)
+      .withFailureHandler(handleError)
+      .getAssessmentSections(grade, isEoy);
+  } else {
+    // Demo data
+    setTimeout(() => {
+      buildAssessmentPages([
+        {
+          name: 'Single Consonants & Vowels',
+          words: [
+            { word: 'SAM', number: 1, components: ['s', 'a', 'm'], lessons: { 's': [3], 'a': [1], 'm': [2] } },
+            { word: 'PIN', number: 2, components: ['p', 'i', 'n'], lessons: { 'p': [6], 'i': [8], 'n': [9] } },
+            { word: 'COD', number: 3, components: ['c', 'o', 'd'], lessons: { 'c': [14], 'o': [12], 'd': [13] } },
+            { word: 'FAN', number: 4, components: ['f', 'an'], lessons: { 'f': [7], 'an': [11] } },
+            { word: 'BUG', number: 5, components: ['b', 'u', 'g'], lessons: { 'b': [17], 'u': [15], 'g': [16] } }
+          ]
+        },
+        {
+          name: 'Blends',
+          words: [
+            { word: 'BRICK', number: 1, components: ['br'], lessons: { 'br': [25] } },
+            { word: 'CREEK', number: 2, components: ['cr'], lessons: { 'cr': [25] } },
+            { word: 'FLOP', number: 3, components: ['fl'], lessons: { 'fl': [27] } }
+          ]
+        },
+        {
+          name: 'Digraphs',
+          words: [
+            { word: 'JAZZ', number: 1, components: ['zz'], lessons: { 'zz': [42] } },
+            { word: 'ALL', number: 2, components: ['all'], lessons: { 'all': [43] } },
+            { word: 'LUNCH', number: 3, components: ['ch'], lessons: { 'ch': [48] } }
+          ]
+        }
+      ]);
+    }, 300);
+  }
+}
+
+// ─── Build Assessment Pages ─────────────────────────────────────
+function buildAssessmentPages(sectionData) {
+  sections = sectionData;
+  totalSectionPages = sections.length;
+  assessmentContainer.innerHTML = '';
+
+  if (sections.length === 0) {
+    toast('No assessment sections for this grade level.', 'error');
+    hideLoader();
+    return;
+  }
+
+  sections.forEach((section, si) => {
+    const page = document.createElement('div');
+    page.id = `page-section-${si}`;
+    page.className = 'page';
+
+    // ─── Section bar (sticky header) ────────────────────────
+    const bar = document.createElement('div');
+    bar.className = 'section-bar';
+    bar.innerHTML = `
+      <div>
+        <h2>${section.name}</h2>
+        <div class="section-counter">${section.words.length} words · Section ${si + 1} of ${totalSectionPages}</div>
+      </div>
+      <div class="bulk-actions">
+        <button class="bulk-btn" data-si="${si}" data-action="correct">✓ All Correct</button>
+        <button class="bulk-btn" data-si="${si}" data-action="incorrect">✗ All Incorrect</button>
+        <button class="bulk-btn" data-si="${si}" data-action="reset">↺ Reset</button>
+      </div>
+    `;
+    page.appendChild(bar);
+
+    // ─── Word cards area ────────────────────────────────────
+    const wordsArea = document.createElement('div');
+    wordsArea.className = 'words-area';
+
+    const wordList = document.createElement('div');
+    wordList.className = 'word-list';
+
+    section.words.forEach((word, wi) => {
+      const components = Array.isArray(word.components) ? word.components :
+                         (typeof word.components === 'string' ? [word.components] : []);
+
+      const card = document.createElement('div');
+      card.className = 'word-card';
+      card.id = `wc-${si}-${wi}`;
+
+      card.innerHTML = `
+        <div class="word-number">${word.number}</div>
+        <div class="word-label">${word.word}</div>
+        <div class="components-row">
+          ${components.map(c => `
+            <button type="button" class="comp-btn" data-state="unset"
+                    data-si="${si}" data-wi="${wi}" data-comp="${c}"
+                    data-lessons='${JSON.stringify(word.lessons[c] || [])}'>
+              ${c}
+            </button>
+          `).join('')}
+        </div>
+      `;
+
+      wordList.appendChild(card);
+    });
+
+    wordsArea.appendChild(wordList);
+    page.appendChild(wordsArea);
+    assessmentContainer.appendChild(page);
+  });
+
+  // ─── Event delegation for component buttons ───────────────
+  assessmentContainer.addEventListener('click', e => {
+    const btn = e.target.closest('.comp-btn');
+    if (btn) {
+      toggleComponent(btn);
+      return;
+    }
+
+    const bulk = e.target.closest('.bulk-btn');
+    if (bulk) {
+      const si = parseInt(bulk.dataset.si);
+      const action = bulk.dataset.action;
+      bulkAction(si, action);
+    }
+  });
+
+  hideLoader();
+  showSectionPage(0);
+}
+
+// ─── Component Toggle (3-state: unset → correct → incorrect → correct) ──
+function toggleComponent(btn) {
+  const state = btn.dataset.state;
+  if (state === 'unset' || state === 'incorrect') {
+    btn.dataset.state = 'correct';
+  } else {
+    btn.dataset.state = 'incorrect';
+  }
+  updateWordCardState(btn);
+}
+
+// ─── Update word card background based on component states ──────
+function updateWordCardState(btn) {
+  const si = btn.dataset.si;
+  const wi = btn.dataset.wi;
+  const card = $(`wc-${si}-${wi}`);
+  if (!card) return;
+
+  const btns = card.querySelectorAll('.comp-btn');
+  const states = Array.from(btns).map(b => b.dataset.state);
+
+  card.classList.remove('all-correct', 'all-incorrect', 'partial');
+
+  if (states.every(s => s === 'correct')) {
+    card.classList.add('all-correct');
+  } else if (states.every(s => s === 'incorrect')) {
+    card.classList.add('all-incorrect');
+  } else if (states.some(s => s !== 'unset')) {
+    card.classList.add('partial');
+  }
+}
+
+// ─── Bulk Actions ───────────────────────────────────────────────
+function bulkAction(si, action) {
+  const btns = document.querySelectorAll(`.comp-btn[data-si="${si}"]`);
+  btns.forEach(btn => {
+    if (action === 'correct') btn.dataset.state = 'correct';
+    else if (action === 'incorrect') btn.dataset.state = 'incorrect';
+    else btn.dataset.state = 'unset';
+    updateWordCardState(btn);
+  });
+
+  if (action !== 'reset') {
+    toast(`All components marked ${action}`, 'success');
+  }
+}
+
+// ─── Review Summary ─────────────────────────────────────────────
+function buildReviewSummary() {
+  const allBtns = document.querySelectorAll('.comp-btn');
+  let total = 0, correct = 0, incorrect = 0, unset = 0;
+
+  allBtns.forEach(btn => {
+    total++;
+    if (btn.dataset.state === 'correct') correct++;
+    else if (btn.dataset.state === 'incorrect') incorrect++;
+    else unset++;
+  });
+
+  const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
+
+  // Summary stats
+  $('review-summary').innerHTML = `
+    <div class="summary-stat">
+      <div class="value">${selStudent.value.split(' ')[0]}</div>
+      <div class="label">Student</div>
+    </div>
+    <div class="summary-stat">
+      <div class="value">${total}</div>
+      <div class="label">Total Items</div>
+    </div>
+    <div class="summary-stat">
+      <div class="value green">${correct}</div>
+      <div class="label">Correct</div>
+    </div>
+    <div class="summary-stat">
+      <div class="value red">${incorrect}</div>
+      <div class="label">Incorrect</div>
+    </div>
+    <div class="summary-stat">
+      <div class="value">${pct}%</div>
+      <div class="label">Mastery</div>
+    </div>
+  `;
+
+  // Section completion chips
+  const chipsContainer = $('review-chips');
+  chipsContainer.innerHTML = '';
+  sections.forEach((section, si) => {
+    const sectionBtns = document.querySelectorAll(`.comp-btn[data-si="${si}"]`);
+    const sectionTotal = sectionBtns.length;
+    const sectionAssessed = Array.from(sectionBtns).filter(b => b.dataset.state !== 'unset').length;
+
+    const chip = document.createElement('span');
+    chip.className = 'section-chip';
+    if (sectionAssessed === sectionTotal) chip.classList.add('complete');
+    else if (sectionAssessed > 0) chip.classList.add('incomplete');
+
+    chip.textContent = `${section.name.split('(')[0].trim()} ${sectionAssessed}/${sectionTotal}`;
+    chip.style.cursor = 'pointer';
+    chip.addEventListener('click', () => showSectionPage(si));
+    chipsContainer.appendChild(chip);
+  });
+
+  // Warning
+  const warning = $('review-warning');
+  if (unset > 0) {
+    warning.style.display = 'flex';
+    warning.innerHTML = `⚠️ ${unset} component(s) not yet assessed. You can still submit.`;
+  } else {
+    warning.style.display = 'none';
+  }
+}
+
+// ─── Submit Assessment ──────────────────────────────────────────
+function submitAssessment() {
+  // Confirm if unassessed components
+  const unsetCount = document.querySelectorAll('.comp-btn[data-state="unset"]').length;
+  if (unsetCount > 0) {
+    if (!confirm(`${unsetCount} component(s) haven't been assessed. Submit anyway?`)) return;
+  }
+
+  // Build submission data
+  const finalSections = JSON.parse(JSON.stringify(sections));
+
+  finalSections.forEach((section, si) => {
+    section.words.forEach((word, wi) => {
+      const updatedComponents = [];
+      const btns = document.querySelectorAll(`.comp-btn[data-si="${si}"][data-wi="${wi}"]`);
+
+      btns.forEach(btn => {
+        updatedComponents.push({
+          name: btn.dataset.comp,
+          lessons: JSON.parse(btn.dataset.lessons),
+          correct: btn.dataset.state === 'correct' ? true :
+                   btn.dataset.state === 'incorrect' ? false : null
+        });
+      });
+
+      word.components = updatedComponents;
+    });
+  });
+
+  const formData = {
+    studentName: selStudent.value,
+    grade: selStudent.options[selStudent.selectedIndex].dataset.grade,
+    scorer: selScorer.value,
+    teacher: selTeacher.value || '',
+    date: inpDate.value,
+    isKindergartenEndOfYear: chkKgEoy.checked,
+    notes: $('inp-notes').value,
+    sections: finalSections
+  };
+
+  showLoader('Submitting assessment…');
+  navForward.disabled = true;
+
+  if (typeof google !== 'undefined' && google.script) {
+    google.script.run
+      .withSuccessHandler(onSubmitSuccess)
+      .withFailureHandler(handleError)
+      .submitInitialAssessment(formData);
+  } else {
+    // Demo
+    setTimeout(() => {
+      onSubmitSuccess({
+        success: true,
+        message: 'Assessment for Amara Johnson submitted!',
+        summary: {
+          overall: '72.5%',
+          foundational: '85.0%',
+          sectionsAssessed: 3,
+          totalComponents: 11,
+          correctComponents: 8,
+          missedComponents: 3
+        }
+      });
+    }, 800);
+  }
+}
+
+function onSubmitSuccess(response) {
+  hideLoader();
+  navForward.disabled = false;
+
+  if (!response.success) {
+    toast(response.message || 'Submission failed', 'error');
+    return;
+  }
+
+  // Show success modal
+  $('success-msg').textContent = response.message;
+
+  if (response.summary) {
+    $('success-stats').innerHTML = `
+      <div class="summary-stat">
+        <div class="value">${response.summary.overall}</div>
+        <div class="label">Overall</div>
+      </div>
+      <div class="summary-stat">
+        <div class="value">${response.summary.foundational}</div>
+        <div class="label">Foundational</div>
+      </div>
+      <div class="summary-stat">
+        <div class="value green">${response.summary.correctComponents}</div>
+        <div class="label">Correct</div>
+      </div>
+      <div class="summary-stat">
+        <div class="value red">${response.summary.missedComponents}</div>
+        <div class="label">Missed</div>
+      </div>
+    `;
+  }
+
+  $('success-modal').classList.add('show');
+}
+
+// ─── Reset & Modal ──────────────────────────────────────────────
+function resetForm() {
+  closeModal();
+  sections = [];
+  currentPageIndex = -1;
+  totalSectionPages = 0;
+  assessmentContainer.innerHTML = '';
+  selStudent.value = '';
+  inpDate.valueAsDate = new Date();
+  chkKgEoy.checked = false;
+  $('inp-notes').value = '';
+  kgToggle.style.display = 'none';
+  navForward.disabled = true;
+  showSetupPage();
+}
+
+function closeModal() {
+  $('success-modal').classList.remove('show');
+}
+
+// ─── Add New Student ────────────────────────────────────────────
+function saveNewStudent() {
+  const name = $('inp-new-name').value.trim();
+  const grade = $('sel-new-grade').value;
+
+  if (!name || !grade) {
+    toast('Enter both name and grade.', 'error');
+    return;
+  }
+
+  showLoader('Adding student…');
+
+  if (typeof google !== 'undefined' && google.script) {
+    google.script.run
+      .withSuccessHandler(response => {
+        hideLoader();
+        if (response.success) {
+          populateStudents(response.students);
+          selStudent.value = name;
+          onStudentChange();
+          $('inp-new-name').value = '';
+          $('sel-new-grade').value = '';
+          $('add-student-area').classList.remove('open');
+          toast(response.message, 'success');
+        } else {
+          toast(response.message, 'error');
+        }
+      })
+      .withFailureHandler(handleError)
+      .addAssessmentStudent({ name, grade });
+  } else {
+    // Demo
+    setTimeout(() => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = `${name} (Grade ${grade === '0' ? 'K' : grade})`;
+      opt.dataset.grade = grade;
+      opt.dataset.teacher = '';
+      selStudent.appendChild(opt);
+      selStudent.value = name;
+      onStudentChange();
+      $('inp-new-name').value = '';
+      $('sel-new-grade').value = '';
+      $('add-student-area').classList.remove('open');
+      hideLoader();
+      toast('Student added!', 'success');
+    }, 300);
+  }
+}
+
+// ─── Utilities ──────────────────────────────────────────────────
+function showLoader(msg) {
+  $('loader-text').textContent = msg || 'Loading…';
+  $('loader').classList.add('show');
+}
+
+function hideLoader() {
+  $('loader').classList.remove('show');
+}
+
+function toast(msg, type) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function handleError(error) {
+  hideLoader();
+  navForward.disabled = false;
+  toast('Error: ' + (error.message || 'Something went wrong'), 'error');
+  console.error(error);
+}
+</script>
+</body>
+</html>
