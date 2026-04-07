@@ -85,6 +85,49 @@ export interface SubmitAssessmentResult {
 
 // ── Queries ──────────────────────────────────────────────────────────────
 
+export interface SchoolAssessmentRow extends AssessmentSummary {
+  studentFirstName: string;
+  studentLastName: string;
+  gradeName: string;
+}
+
+/**
+ * Lists every assessment for the school in a given year. Used by the
+ * /dashboard/assessments index page so school admins can scan recent
+ * baselines and end-of-semester snapshots at a glance.
+ */
+export async function listSchoolAssessments(
+  schoolId: number,
+  yearId: number,
+): Promise<SchoolAssessmentRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("initial_assessments")
+    .select(
+      "assessment_id, student_id, year_id, snapshot_type, assessment_date, scorer_id, is_kindergarten_eoy, foundational_pct, kg_pct, first_grade_pct, second_grade_pct, overall_pct, notes, created_at, staff:scorer_id(first_name, last_name), students!inner(first_name, last_name, school_id, grade_levels(name))",
+    )
+    .eq("year_id", yearId)
+    .eq("students.school_id", schoolId)
+    .order("assessment_date", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []) as unknown as (RawAssessmentRow & {
+    students: {
+      first_name: string;
+      last_name: string;
+      school_id: number;
+      grade_levels: { name: string } | null;
+    };
+  })[];
+
+  return rows.map((r) => ({
+    ...toAssessmentSummary(r),
+    studentFirstName: r.students.first_name,
+    studentLastName: r.students.last_name,
+    gradeName: r.students.grade_levels?.name ?? "",
+  }));
+}
+
 /**
  * Returns every assessment snapshot for a student in a given year, ordered
  * by snapshot type (baseline → S1 → S2).
