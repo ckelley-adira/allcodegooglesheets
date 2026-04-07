@@ -481,6 +481,11 @@ BEGIN
   -- with the first 5 lessons marked completed and lesson 6 'current'. Then
   -- generate lesson_progress rows for each student in the group covering
   -- those 5 lessons with a performance pattern based on the student's index.
+  --
+  -- Idempotency: if a group already has any active sequence, we leave it
+  -- alone — including its lessons and any associated lesson_progress.
+  -- This makes the seed purely additive and safe to re-run after manual
+  -- testing has happened.
   -- ──────────────────────────────────────────────────────────────────────────
 
   FOR v_group_id, v_school_id, v_year_id, v_teacher_id IN
@@ -489,23 +494,26 @@ BEGIN
     WHERE g.school_id IN (v_pilot_id, v_cca_id, v_adel_id)
     ORDER BY g.group_id
   LOOP
-    -- Create the sequence (one per group), idempotent via demote-then-insert
-    -- pattern from buildSequence — but for seed we just check existence first.
     SELECT sequence_id INTO v_sequence_id
     FROM public.instructional_sequences
     WHERE group_id = v_group_id AND status = 'active';
 
-    IF v_sequence_id IS NULL THEN
-      INSERT INTO public.instructional_sequences
-        (group_id, year_id, name, start_date, end_date, status, sort_order)
-      VALUES (
-        v_group_id, v_year_id, 'Sequence 1',
-        (CURRENT_DATE - INTERVAL '35 days')::date,
-        (CURRENT_DATE + INTERVAL '21 days')::date,
-        'active', 1
-      )
-      RETURNING sequence_id INTO v_sequence_id;
+    -- Skip groups that already have an active sequence — leave them alone
+    -- to preserve any manually-built sequences and their progress data.
+    IF v_sequence_id IS NOT NULL THEN
+      CONTINUE;
     END IF;
+
+    -- Create the sequence
+    INSERT INTO public.instructional_sequences
+      (group_id, year_id, name, start_date, end_date, status, sort_order)
+    VALUES (
+      v_group_id, v_year_id, 'Sequence 1',
+      (CURRENT_DATE - INTERVAL '35 days')::date,
+      (CURRENT_DATE + INTERVAL '21 days')::date,
+      'active', 1
+    )
+    RETURNING sequence_id INTO v_sequence_id;
 
     -- Add the 8 lesson rows: lessons L1-L8.
     -- L1-L5 completed, L6 current, L7-L8 upcoming.
@@ -530,8 +538,7 @@ BEGIN
         CASE WHEN v_lesson_status = 'completed'
              THEN now() - INTERVAL '5 days' * (8 - v_lesson_idx)
              ELSE NULL END
-      )
-      ON CONFLICT (sequence_id, lesson_id) DO NOTHING;
+      );
     END LOOP;
 
     -- Generate lesson_progress for each student in the group, covering
