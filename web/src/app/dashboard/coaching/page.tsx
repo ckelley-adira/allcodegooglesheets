@@ -21,6 +21,52 @@ import { getCliffAlerts } from "@/lib/dal/cliffs";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { ScopeTiles, type ScopeTileItem } from "@/components/filters";
+
+const PRIORITY_TYPE_ORDER: PriorityItemType[] = [
+  "tier3",
+  "systemic",
+  "coaching",
+  "fidelity",
+  "fasttrack",
+  "celebration",
+];
+
+const PRIORITY_TYPE_LABEL: Record<PriorityItemType, string> = {
+  celebration: "🎉 Celebration",
+  fasttrack: "🟢 Speed Up",
+  coaching: "🔵 Coaching Focus",
+  systemic: "🔴 Systemic",
+  fidelity: "🟡 Fidelity",
+  tier3: "🚨 Tier 3",
+};
+
+const PRIORITY_TYPE_TONE: Record<
+  PriorityItemType,
+  ScopeTileItem["tone"]
+> = {
+  celebration: "default",
+  fasttrack: "success",
+  coaching: "info",
+  systemic: "danger",
+  fidelity: "warning",
+  tier3: "danger",
+};
+
+function isPriorityType(v: string): v is PriorityItemType {
+  return (
+    v === "celebration" ||
+    v === "fasttrack" ||
+    v === "coaching" ||
+    v === "systemic" ||
+    v === "fidelity" ||
+    v === "tier3"
+  );
+}
+
+interface CoachingPageProps {
+  searchParams: Promise<{ type?: string }>;
+}
 
 const TYPE_STYLES: Record<
   PriorityItemType,
@@ -64,11 +110,16 @@ const TYPE_STYLES: Record<
   },
 };
 
-export default async function CoachingPage() {
+export default async function CoachingPage({
+  searchParams,
+}: CoachingPageProps) {
+  const { type: typeParam } = await searchParams;
   const user = await requireRole("coach", "school_admin", "tilt_admin");
   const schoolId = await getActiveSchoolId(user);
   const years = await listAcademicYears(schoolId);
   const currentYear = years.find((y) => y.isCurrent);
+  const activeTypeFilter: PriorityItemType | null =
+    typeParam && isPriorityType(typeParam) ? typeParam : null;
 
   if (!currentYear) {
     return (
@@ -233,10 +284,48 @@ export default async function CoachingPage() {
         </section>
       )}
 
-      {/* Priority matrix */}
+      {/* Priority-type drill-down tiles */}
+      {snapshot.priorities.length > 0 && (
+        <ScopeTiles
+          heading="Priority Matrix"
+          hint="Click a tile to filter the list below to just that bucket."
+          items={[
+            {
+              key: "all",
+              count: snapshot.priorities.length,
+              label: "All Priorities",
+              subtitle: activeTypeFilter ? "Clear filter" : "Every bucket",
+              href: "/dashboard/coaching",
+              active: activeTypeFilter === null,
+              tone: "default",
+            },
+            ...PRIORITY_TYPE_ORDER.filter((t) =>
+              snapshot.priorities.some((p) => p.type === t),
+            ).map<ScopeTileItem>((t) => {
+              const count = snapshot.priorities.filter(
+                (p) => p.type === t,
+              ).length;
+              return {
+                key: t,
+                count,
+                label: PRIORITY_TYPE_LABEL[t],
+                href: `/dashboard/coaching?type=${t}`,
+                active: activeTypeFilter === t,
+                tone: PRIORITY_TYPE_TONE[t],
+              };
+            }),
+          ]}
+        />
+      )}
+
+      {/* Priority matrix (filtered) */}
       <section className="space-y-3">
         <h2 className="text-lg font-semibold tracking-tight">
-          Priority Matrix ({snapshot.priorities.length})
+          {activeTypeFilter
+            ? `${PRIORITY_TYPE_LABEL[activeTypeFilter]} (${
+                snapshot.priorities.filter((p) => p.type === activeTypeFilter).length
+              })`
+            : `Priority Matrix (${snapshot.priorities.length})`}
         </h2>
         {snapshot.priorities.length === 0 ? (
           <div className="rounded-lg border border-dashed border-zinc-300 bg-zinc-50 p-6 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900/50 dark:text-zinc-400">
@@ -245,7 +334,10 @@ export default async function CoachingPage() {
           </div>
         ) : (
           <div className="space-y-2">
-            {snapshot.priorities.map((p, i) => {
+            {(activeTypeFilter
+              ? snapshot.priorities.filter((p) => p.type === activeTypeFilter)
+              : snapshot.priorities
+            ).map((p, i) => {
               const style = TYPE_STYLES[p.type];
               return (
                 <div
