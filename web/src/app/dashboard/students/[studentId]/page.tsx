@@ -20,6 +20,7 @@ import {
   type SnapshotType,
 } from "@/lib/dal/assessments";
 import { getStudentWeeklySnapshots } from "@/lib/dal/weekly-snapshots";
+import { getLatestBandAssignment, ARCHETYPE_META } from "@/lib/dal/bands";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatPct, pctColor } from "@/lib/format/percent";
@@ -28,6 +29,29 @@ import {
   DEFICIT_META,
   getDiagnosticRulesForSections,
 } from "@/lib/diagnostic/framework";
+
+const BAND_LABELS = {
+  not_started: "Not Started",
+  intervention: "Intervention",
+  on_track: "On Track",
+  advanced: "Advanced",
+} as const;
+
+const BAND_BADGE_CLASS = {
+  not_started: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
+  intervention: "bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300",
+  on_track: "bg-green-100 text-green-800 dark:bg-green-950/40 dark:text-green-300",
+  advanced: "bg-purple-100 text-purple-800 dark:bg-purple-950/40 dark:text-purple-300",
+} as const;
+
+const MOVEMENT_LABELS = {
+  initial: "Initial",
+  accelerating: "Accelerating ↑↑",
+  advancing: "Advancing ↑",
+  stable: "Stable",
+  regressing: "Regressing ↓",
+  exiting: "Exiting",
+} as const;
 
 interface StudentDetailPageProps {
   params: Promise<{ studentId: string }>;
@@ -76,10 +100,11 @@ export default async function StudentDetailPage({
     notFound();
   }
 
-  const [detail, assessments, weeklySnapshots] = await Promise.all([
+  const [detail, assessments, weeklySnapshots, bandAssignment] = await Promise.all([
     getStudentDetail(studentId, activeSchoolId, currentYear.yearId),
     getStudentAssessments(studentId, activeSchoolId, currentYear.yearId),
     getStudentWeeklySnapshots(studentId, currentYear.yearId, 8),
+    getLatestBandAssignment(studentId, currentYear.yearId),
   ]);
   if (!detail) notFound();
 
@@ -149,6 +174,76 @@ export default async function StudentDetailPage({
           </div>
         </div>
       </div>
+
+      {/* Band + Archetype (D.1) */}
+      {bandAssignment && (
+        <section className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+          <div className="flex flex-wrap items-start gap-4">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                Band &amp; Archetype
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Badge className={BAND_BADGE_CLASS[bandAssignment.band]}>
+                  {BAND_LABELS[bandAssignment.band]}
+                </Badge>
+                <span className="text-sm font-semibold">
+                  {ARCHETYPE_META[bandAssignment.archetype].label}
+                </span>
+                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                  {MOVEMENT_LABELS[bandAssignment.movement]}
+                </span>
+                {bandAssignment.swissCheeseGapCount >= 20 &&
+                  (bandAssignment.archetype === "advanced_decoding" ||
+                    bandAssignment.archetype === "near_proficient") && (
+                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+                      Gap-Fill Flag
+                    </span>
+                  )}
+              </div>
+              <p className="mt-2 text-xs text-zinc-600 dark:text-zinc-400">
+                {ARCHETYPE_META[bandAssignment.archetype].implication}
+              </p>
+              {bandAssignment.ceilingSection && (
+                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                  Highest section at 80%+ mastery:{" "}
+                  <span className="font-semibold">
+                    {bandAssignment.ceilingSection}
+                  </span>
+                  {bandAssignment.ceilingLessonNumber !== null && (
+                    <>
+                      {" "}· Ceiling lesson L{bandAssignment.ceilingLessonNumber}
+                    </>
+                  )}
+                </p>
+              )}
+            </div>
+            <div className="text-right">
+              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                Swiss Cheese gaps
+              </p>
+              <p
+                className={cn(
+                  "mt-1 text-3xl font-bold tabular-nums",
+                  bandAssignment.swissCheeseGapCount >= 20
+                    ? "text-amber-600 dark:text-amber-400"
+                    : bandAssignment.swissCheeseGapCount > 0
+                      ? "text-zinc-700 dark:text-zinc-300"
+                      : "text-green-600 dark:text-green-400",
+                )}
+              >
+                {bandAssignment.swissCheeseGapCount}
+              </p>
+              <p className="mt-0.5 text-[10px] text-zinc-400">
+                unpassed lessons below ceiling
+              </p>
+              <p className="mt-2 text-[10px] text-zinc-400">
+                as of {bandAssignment.assignedDate}
+              </p>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Big Four metric cards (per-student) */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
