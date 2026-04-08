@@ -673,3 +673,387 @@ export async function loadCoachingProgress(
 
   return (progressRows ?? []) as unknown as RawProgressRow[];
 }
+
+// ── Priority Matrix ──────────────────────────────────────────────────────
+
+/**
+ * Builds the Coaching Priority Matrix from the four metrics. Ported
+ * from fcdBuildPriorityMatrix_ — every rule preserved with the exact
+ * thresholds Christina specified.
+ *
+ * Rules:
+ *   1. Celebration      — completedPrevSection && prevMastery >= 80
+ *   2. Weak Section Close — completedPrevSection && prevMastery < 80
+ *   3. Coaching Focus   — highReteach && lowAbsence
+ *   4. Systemic         — lowGrowth && highAbsence
+ *   5. Fast-Track       — highPassRate && lowLessonNum && !bridging
+ *   6. Fidelity Check   — lowPassRate && lowReteach && !bridging
+ *   7. MTSS Tier 3      — per-student: tier3Flag && absencePct < 30
+ *
+ * Sort: descending by urgency.
+ */
+export function buildPriorityMatrix(
+  reteach: Record<number, ReteachInfo>,
+  mastery: Record<number, GroupMasteryInfo>,
+  growth: Record<number, StudentGrowthInfo>,
+  absence: Record<number, StudentAbsenceInfo>,
+  groupNames: Record<number, string>,
+  windowRows: RawProgressRow[],
+): PriorityItem[] {
+  const priorities: PriorityItem[] = [];
+
+  // Collect union of group ids from reteach + mastery
+  const allGroupIds = new Set<number>();
+  for (const id of Object.keys(reteach)) allGroupIds.add(Number(id));
+  for (const id of Object.keys(mastery)) allGroupIds.add(Number(id));
+
+  // Max lesson per group, within window
+  const maxLessonByGroup = new Map<number, number>();
+  for (const r of windowRows) {
+    if (!r.ufli_lessons) continue;
+    const existing = maxLessonByGroup.get(r.group_id) ?? 0;
+    if (r.ufli_lessons.lesson_number > existing) {
+      maxLessonByGroup.set(r.group_id, r.ufli_lessons.lesson_number);
+    }
+  }
+
+  for (const groupId of allGroupIds) {
+    const rt = reteach[groupId] ?? {
+      groupId,
+      maxReteachCount: 0,
+      maxReteachLessonNumber: null,
+      maxReteachLessonName: null,
+      totalLessonsTaught: 0,
+      reteaches: [],
+    };
+    const ms = mastery[groupId] ?? null;
+    const groupName = groupNames[groupId] ?? `Group ${groupId}`;
+
+    // Group-level absence average
+    let grpAbsSum = 0;
+    let grpAbsN = 0;
+    for (const a of Object.values(absence)) {
+      if (a.groupId === groupId) {
+        grpAbsSum += a.absencePct;
+        grpAbsN++;
+      }
+    }
+    const grpAbsAvg = grpAbsN > 0 ? grpAbsSum / grpAbsN : 0;
+
+    // Group-level growth average
+    let grpGrowthSum = 0;
+    let grpGrowthN = 0;
+    for (const g of Object.values(growth)) {
+      if (g.groupId === groupId) {
+        grpGrowthSum += g.ratioPct;
+        grpGrowthN++;
+      }
+    }
+    const grpGrowthAvg = grpGrowthN > 0 ? grpGrowthSum / grpGrowthN : 0;
+
+    const maxLessonInGroup = maxLessonByGroup.get(groupId) ?? 0;
+
+    const highReteach =
+      rt.maxReteachCount >= COACHING_THRESHOLDS.RETEACH_WARNING;
+    const lowReteach = rt.maxReteachCount === 0;
+    const lowAbsence = grpAbsAvg < COACHING_THRESHOLDS.ABSENCE_WARNING;
+    const highAbsence = grpAbsAvg >= COACHING_THRESHOLDS.ABSENCE_WARNING;
+    const highPassRate =
+      ms !== null && ms.masteryPct >= COACHING_THRESHOLDS.FAST_TRACK_PASS_RATE;
+    const lowPassRate =
+      ms !== null && ms.masteryPct < COACHING_THRESHOLDS.FIDELITY_LOW_PASS_RATE;
+    const lowLessonNum =
+      maxLessonInGroup > 0 &&
+      maxLessonInGroup <= COACHING_THRESHOLDS.FAST_TRACK_MAX_LESSON;
+    const lowGrowth = grpGrowthAvg < COACHING_THRESHOLDS.SYSTEMIC_LOW_GROWTH_PCT;
+    const isBridging = ms?.isBridging ?? false;
+
+    // Rule: Section completion celebration / weak section close
+    if (ms?.completedPrevSection && ms.prevSectionMasteryPct !== null) {
+      if (ms.prevSectionMasteryPct >= 80) {
+        priorities.push({
+          type: "celebration",
+          icon: "🎉",
+          label: "Section Complete!",
+          groupId,
+          groupName,
+          studentId: null,
+          studentName: null,
+          detail: `Completed ${ms.completedPrevSection} with ${ms.prevSectionMasteryPct}% at mastery — now entering ${ms.section ?? "next section"}`,
+          action: `Celebrate this group! Strong section finish. Monitor first few lessons in ${ms.section ?? "the new section"} for transition support.`,
+          urgency: 1,
+        });
+      } else {
+        priorities.push({
+          type: "fidelity",
+          icon: "🟡",
+          label: "Weak Section Close",
+          groupId,
+          groupName,
+          studentId: null,
+          studentName: null,
+          detail: `Moved past ${ms.completedPrevSection} with only ${ms.prevSectionMasteryPct}% at mastery — gaps may carry forward into ${ms.section ?? "the next section"}`,
+          action: `Review whether ${ms.completedPrevSection} skills are solid enough to support ${ms.section ?? "the next section"}. Consider targeted reteach.`,
+          urgency: 4,
+        });
+      }
+    }
+
+    // Rule 1: Coaching Focus — high reteach + low absence
+    if (highReteach && lowAbsence) {
+      const lessonLabel = rt.maxReteachLessonNumber
+        ? `L${rt.maxReteachLessonNumber}${rt.maxReteachLessonName ? " " + rt.maxReteachLessonName : ""}`
+        : "A lesson";
+      priorities.push({
+        type: "coaching",
+        icon: "🔵",
+        label: "Coaching Focus",
+        groupId,
+        groupName,
+        studentId: null,
+        studentName: null,
+        detail: `${lessonLabel} retaught ${rt.maxReteachCount}× — ${ms?.totalStudents ?? 0} students present`,
+        action:
+          "Visit this group. Check UFLI Step 5 (Word Work) scaffolding and corrective feedback timing.",
+        urgency: 3 + rt.maxReteachCount,
+      });
+    }
+
+    // Rule 2: Systemic Attendance — low growth + high absence
+    if (lowGrowth && highAbsence) {
+      priorities.push({
+        type: "systemic",
+        icon: "🔴",
+        label: "Systemic: Attendance",
+        groupId,
+        groupName,
+        studentId: null,
+        studentName: null,
+        detail: `Avg growth at ${Math.round(grpGrowthAvg)}% of aimline with ${Math.round(grpAbsAvg)}% avg absence rate`,
+        action:
+          "Contact families/MTSS attendance lead. This is a presence problem, not a reading problem.",
+        urgency: 5 + Math.round(grpAbsAvg / 10),
+      });
+    }
+
+    // Rule 3: Fast-Track — high pass rate + low lesson number + not bridging
+    if (highPassRate && lowLessonNum && !isBridging) {
+      priorities.push({
+        type: "fasttrack",
+        icon: "🟢",
+        label: "Section Complete",
+        groupId,
+        groupName,
+        studentId: null,
+        studentName: null,
+        detail: `${ms?.masteryPct ?? 0}% at mastery on ${ms?.section ?? "current section"} (Lesson ${maxLessonInGroup}) — group is under-challenged`,
+        action:
+          "Skip ahead. This group is ready to accelerate past current sequence.",
+        urgency: 2,
+      });
+    }
+
+    // Rule 4: Fidelity Check — low pass rate + low reteach + not bridging
+    if (
+      lowPassRate &&
+      lowReteach &&
+      ms !== null &&
+      ms.totalStudents > 0 &&
+      !isBridging
+    ) {
+      priorities.push({
+        type: "fidelity",
+        icon: "🟡",
+        label: "Fidelity Check",
+        groupId,
+        groupName,
+        studentId: null,
+        studentName: null,
+        detail: `Only ${ms.masteryPct}% at mastery but max ${rt.maxReteachCount} reteaches — curriculum is being covered, not taught`,
+        action:
+          "Observe lesson delivery. Is teacher teaching to mastery or just moving through the scope?",
+        urgency: 4,
+      });
+    }
+  }
+
+  // Per-student MTSS Tier 3 flags
+  for (const g of Object.values(growth)) {
+    if (!g.tier3Flag) continue;
+    const a = absence[g.studentId];
+    const absencePct = a?.absencePct ?? 0;
+    if (absencePct >= COACHING_THRESHOLDS.ABSENCE_WARNING) continue;
+    const groupName = groupNames[g.groupId] ?? `Group ${g.groupId}`;
+    priorities.push({
+      type: "tier3",
+      icon: "🚨",
+      label: "MTSS Escalation",
+      groupId: g.groupId,
+      groupName,
+      studentId: g.studentId,
+      studentName: g.studentName,
+      detail: `${g.studentName} — ${g.belowAimlineWeeks} consecutive weeks below aimline, ${g.avgPerWeek} lessons/wk (aimline: ${g.aimline})`,
+      action:
+        "Schedule Tier 3 data review. Consider Phonemic Awareness assessment (UFLI Step 3) before continuing Grapheme work.",
+      urgency: 8,
+    });
+  }
+
+  priorities.sort((a, b) => b.urgency - a.urgency);
+  return priorities;
+}
+
+// ── Main composer ────────────────────────────────────────────────────────
+
+/**
+ * The single entry point for the Coaching Priority Matrix. Fetches
+ * everything it needs in parallel, runs the four metrics, builds the
+ * priority matrix, and returns a composed snapshot ready to render.
+ */
+export async function getCoachingSnapshot(
+  schoolId: number,
+  yearId: number,
+): Promise<CoachingSnapshot> {
+  const supabase = await createClient();
+  const { startIso, endIso } = activityWindow();
+
+  // 1. Groups in the school
+  const { data: groupsRaw } = await supabase
+    .from("instructional_groups")
+    .select("group_id, group_name, is_active")
+    .eq("school_id", schoolId)
+    .eq("is_active", true);
+
+  const groupRows = (groupsRaw ?? []) as Array<{
+    group_id: number;
+    group_name: string;
+    is_active: boolean;
+  }>;
+  const groupIds = groupRows.map((g) => g.group_id);
+  const groupNames: Record<number, string> = {};
+  for (const g of groupRows) groupNames[g.group_id] = g.group_name;
+
+  if (groupIds.length === 0) {
+    return {
+      windowDays: COACHING_THRESHOLDS.ACTIVITY_WINDOW_DAYS,
+      groupCount: 0,
+      groupsWithReteach: 0,
+      tier3Count: 0,
+      totalAbsences: 0,
+      reteach: {},
+      mastery: {},
+      growth: {},
+      absence: {},
+      priorities: [],
+      groupNames: {},
+    };
+  }
+
+  // 2. Active memberships for these groups (+ student names)
+  const { data: memberRows } = await supabase
+    .from("group_memberships")
+    .select(
+      "group_id, student_id, students!inner(first_name, last_name, school_id, enrollment_status)",
+    )
+    .in("group_id", groupIds)
+    .eq("is_active", true);
+
+  const groupMembers = new Map<number, Array<{ studentId: number }>>();
+  const studentMeta = new Map<
+    number,
+    { studentName: string; groupId: number }
+  >();
+  for (const row of memberRows ?? []) {
+    const r = row as unknown as {
+      group_id: number;
+      student_id: number;
+      students: {
+        first_name: string;
+        last_name: string;
+        school_id: number;
+        enrollment_status: string;
+      } | null;
+    };
+    if (!r.students || r.students.school_id !== schoolId) continue;
+    if (r.students.enrollment_status !== "active") continue;
+
+    let arr = groupMembers.get(r.group_id);
+    if (!arr) {
+      arr = [];
+      groupMembers.set(r.group_id, arr);
+    }
+    arr.push({ studentId: r.student_id });
+    studentMeta.set(r.student_id, {
+      studentName: `${r.students.first_name} ${r.students.last_name}`.trim(),
+      groupId: r.group_id,
+    });
+  }
+
+  // 3. Parallel data loads
+  const studentIds = Array.from(studentMeta.keys());
+
+  const [windowRows, fullYearRowsRaw, snapshotRowsRaw] = await Promise.all([
+    loadCoachingProgress(schoolId, yearId, startIso, endIso),
+    studentIds.length > 0
+      ? supabase
+          .from("lesson_progress")
+          .select(
+            "student_id, group_id, status, date_recorded, ufli_lessons!inner(lesson_number, lesson_name, is_review)",
+          )
+          .in("student_id", studentIds)
+          .eq("year_id", yearId)
+          .eq("status", "Y")
+      : Promise.resolve({ data: [] }),
+    studentIds.length > 0
+      ? supabase
+          .from("weekly_snapshots")
+          .select("student_id, week_start_date, lessons_taken, lessons_passed")
+          .in("student_id", studentIds)
+          .eq("year_id", yearId)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const fullYearRows = ((fullYearRowsRaw.data ?? []) as unknown) as RawProgressRow[];
+  const snapshots = (snapshotRowsRaw.data ?? []) as unknown as WeeklySnapshotLite[];
+
+  // 4. Run the four metrics
+  const reteach = computeReteach(windowRows, startIso, endIso);
+  const mastery = computeGroupMastery(windowRows, fullYearRows, groupMembers);
+  const growth = computeGrowth(snapshots, studentMeta);
+  const absence = computeAbsence(windowRows, studentMeta);
+
+  // 5. Build the priority matrix
+  const priorities = buildPriorityMatrix(
+    reteach,
+    mastery,
+    growth,
+    absence,
+    groupNames,
+    windowRows,
+  );
+
+  // 6. Summary counts
+  let groupsWithReteach = 0;
+  for (const r of Object.values(reteach)) {
+    if (r.maxReteachCount >= COACHING_THRESHOLDS.RETEACH_WARNING) {
+      groupsWithReteach++;
+    }
+  }
+  const tier3Count = priorities.filter((p) => p.type === "tier3").length;
+  let totalAbsences = 0;
+  for (const a of Object.values(absence)) totalAbsences += a.absences;
+
+  return {
+    windowDays: COACHING_THRESHOLDS.ACTIVITY_WINDOW_DAYS,
+    groupCount: groupIds.length,
+    groupsWithReteach,
+    tier3Count,
+    totalAbsences,
+    reteach,
+    mastery,
+    growth,
+    absence,
+    priorities,
+    groupNames,
+  };
+}
