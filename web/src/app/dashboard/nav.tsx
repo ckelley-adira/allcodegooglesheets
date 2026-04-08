@@ -46,6 +46,18 @@ const NAV_ITEMS: NavItem[] = [
     requiresFlag: "ufli_progress_tracking",
   },
   {
+    label: "Coaching",
+    href: "/dashboard/coaching",
+    roles: ["coach", "school_admin", "tilt_admin"],
+    requiresFlag: "ufli_progress_tracking",
+  },
+  {
+    label: "Monday Digest",
+    href: "/dashboard/monday-digest",
+    roles: ["coach", "school_admin", "tilt_admin"],
+    requiresFlag: "ufli_progress_tracking",
+  },
+  {
     label: "Snapshots",
     href: "/dashboard/snapshots",
     roles: ["school_admin", "tilt_admin"],
