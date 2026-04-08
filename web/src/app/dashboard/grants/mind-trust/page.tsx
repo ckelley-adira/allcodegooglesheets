@@ -29,6 +29,7 @@ import {
   type GrantReportStudentRow,
 } from "@/lib/dal/grant-report";
 import { cn } from "@/lib/utils";
+import { PrintButton } from "../print-button";
 
 interface MindTrustPageProps {
   searchParams: Promise<{
@@ -170,17 +171,20 @@ export default async function MindTrustReportPage({
   });
 
   return (
-    <div className="space-y-6">
-      {/* Breadcrumb — hidden in print */}
-      <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400 print:hidden">
-        <Link
-          href="/dashboard/grants"
-          className="hover:text-zinc-900 dark:hover:text-zinc-100"
-        >
-          Grants
-        </Link>
-        <span>/</span>
-        <span className="text-zinc-900 dark:text-zinc-100">Mind Trust</span>
+    <div className="grant-report space-y-6">
+      {/* Breadcrumb + print button — hidden in print */}
+      <div className="flex items-center justify-between gap-2 text-sm text-zinc-500 dark:text-zinc-400 print:hidden">
+        <div className="flex items-center gap-2">
+          <Link
+            href="/dashboard/grants"
+            className="hover:text-zinc-900 dark:hover:text-zinc-100"
+          >
+            Grants
+          </Link>
+          <span>/</span>
+          <span className="text-zinc-900 dark:text-zinc-100">Mind Trust</span>
+        </div>
+        <PrintButton />
       </div>
 
       {/* Filter bar — hidden in print */}

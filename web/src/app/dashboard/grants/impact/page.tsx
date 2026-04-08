@@ -19,6 +19,7 @@ import { requireRole } from "@/lib/auth";
 import { getActiveSchoolId } from "@/lib/auth/school-context";
 import { listAcademicYears } from "@/lib/dal/groups";
 import { getGrantReportDataset } from "@/lib/dal/grant-report";
+import { PrintButton } from "../print-button";
 import {
   ARCHETYPE_META,
   type BandLevel,
@@ -146,17 +147,22 @@ export default async function ImpactReportPage({
   const total = aggregates.studentCount;
 
   return (
-    <div className="space-y-6">
-      {/* Breadcrumb — hidden in print */}
-      <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400 print:hidden">
-        <Link
-          href="/dashboard/grants"
-          className="hover:text-zinc-900 dark:hover:text-zinc-100"
-        >
-          Grants
-        </Link>
-        <span>/</span>
-        <span className="text-zinc-900 dark:text-zinc-100">Aggregate Impact</span>
+    <div className="grant-report space-y-6">
+      {/* Breadcrumb + print button — hidden in print */}
+      <div className="flex items-center justify-between gap-2 text-sm text-zinc-500 dark:text-zinc-400 print:hidden">
+        <div className="flex items-center gap-2">
+          <Link
+            href="/dashboard/grants"
+            className="hover:text-zinc-900 dark:hover:text-zinc-100"
+          >
+            Grants
+          </Link>
+          <span>/</span>
+          <span className="text-zinc-900 dark:text-zinc-100">
+            Aggregate Impact
+          </span>
+        </div>
+        <PrintButton />
       </div>
 
       {/* Filter bar — hidden in print */}

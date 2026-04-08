@@ -24,3 +24,101 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ─── Grant report print styles (Phase D.5e) ──────────────────────────
+ *
+ * Any page that renders a <div class="grant-report"> ... gets a
+ * dedicated print treatment: the dashboard shell (sidebar + top bar)
+ * is hidden, margins collapse, background colors print exactly, and
+ * tables try not to split rows across pages.
+ *
+ * Funders will literally print these — this CSS is a first-class
+ * concern, not an afterthought. Uses :has() for scoping, which is
+ * supported in Chrome 105+, Safari 15.4+, Firefox 121+. All modern
+ * evergreen browsers.
+ */
+@media print {
+  /* Force color-accurate printing for header bars, row stripes, etc. */
+  *,
+  *::before,
+  *::after {
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+
+  /* When a grant report is on the page, hide the dashboard chrome */
+  body:has(.grant-report) aside,
+  body:has(.grant-report) > div > div > header:first-of-type,
+  body:has(.grant-report) .print\:hidden {
+    display: none !important;
+  }
+
+  body:has(.grant-report) {
+    background: white !important;
+  }
+
+  body:has(.grant-report) main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .grant-report {
+    max-width: none !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    color: #000 !important;
+    font-size: 10pt;
+    line-height: 1.35;
+  }
+
+  /* Keep section headers attached to their first row */
+  .grant-report section {
+    break-inside: avoid-page;
+    page-break-inside: avoid;
+  }
+
+  /* Let tables split across pages cleanly */
+  .grant-report table {
+    break-inside: auto;
+    page-break-inside: auto;
+    width: 100% !important;
+  }
+  .grant-report thead {
+    display: table-header-group;
+  }
+  .grant-report tfoot {
+    display: table-footer-group;
+  }
+  .grant-report tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Tighten row padding for denser print output */
+  .grant-report td,
+  .grant-report th {
+    padding: 4pt 6pt !important;
+    font-size: 9pt;
+  }
+
+  /* Hero cards + growth callouts should stay together */
+  .grant-report header,
+  .grant-report .print-keep {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* Remove all link underlines and blue color in print */
+  .grant-report a {
+    text-decoration: none !important;
+    color: inherit !important;
+  }
+
+  /* Page margins — Letter paper with 0.5in gutter */
+  @page {
+    margin: 0.5in;
+    size: letter;
+  }
+}
+
