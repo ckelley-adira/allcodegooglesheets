@@ -31,12 +31,21 @@ import { EditGroupForm } from "./edit-group-form";
 import { SequencePanel } from "./sequences/sequence-panel";
 import { BuildSequenceForm } from "./sequences/build-sequence-form";
 
+type GroupTab = "roster" | "sequences" | "settings";
+
+const VALID_TABS: GroupTab[] = ["roster", "sequences", "settings"];
+
 interface GroupDetailPageProps {
   params: Promise<{ groupId: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }
 
-export default async function GroupDetailPage({ params }: GroupDetailPageProps) {
+export default async function GroupDetailPage({
+  params,
+  searchParams,
+}: GroupDetailPageProps) {
   const { groupId: groupIdParam } = await params;
+  const { tab: tabParam } = await searchParams;
   const groupId = Number(groupIdParam);
   const user = await requireAuth();
   const activeSchoolId = await getActiveSchoolId(user);
@@ -49,6 +58,16 @@ export default async function GroupDetailPage({ params }: GroupDetailPageProps) 
   const canEdit =
     ["coach", "school_admin", "tilt_admin"].includes(user.role) ||
     user.isTiltAdmin;
+
+  // Active tab — default to Roster (the most common task). "settings" is
+  // only valid when the user has edit permissions; anonymous link-sharing
+  // with ?tab=settings falls back to Roster.
+  const requestedTab =
+    tabParam && VALID_TABS.includes(tabParam as GroupTab)
+      ? (tabParam as GroupTab)
+      : "roster";
+  const activeTab: GroupTab =
+    requestedTab === "settings" && !canEdit ? "roster" : requestedTab;
 
   const [
     members,
@@ -117,8 +136,32 @@ export default async function GroupDetailPage({ params }: GroupDetailPageProps) 
         </div>
       </div>
 
-      {/* Edit group settings */}
-      {canEdit && (
+      {/* Tab strip */}
+      <div className="flex gap-1 border-b border-zinc-200 dark:border-zinc-800">
+        <TabLink
+          groupId={groupId}
+          tab="roster"
+          activeTab={activeTab}
+          label={`Roster (${members.length})`}
+        />
+        <TabLink
+          groupId={groupId}
+          tab="sequences"
+          activeTab={activeTab}
+          label={`Sequences${allSequences.length > 0 ? ` (${allSequences.length})` : ""}`}
+        />
+        {canEdit && (
+          <TabLink
+            groupId={groupId}
+            tab="settings"
+            activeTab={activeTab}
+            label="Settings"
+          />
+        )}
+      </div>
+
+      {/* Settings tab: edit group form */}
+      {activeTab === "settings" && canEdit && (
         <EditGroupForm
           group={group}
           grades={grades}
@@ -126,7 +169,8 @@ export default async function GroupDetailPage({ params }: GroupDetailPageProps) 
         />
       )}
 
-      {/* Instructional Sequence section */}
+      {/* Sequences tab: instructional sequence + history */}
+      {activeTab === "sequences" && (
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Instructional Sequence</h2>
@@ -184,8 +228,10 @@ export default async function GroupDetailPage({ params }: GroupDetailPageProps) 
           </details>
         )}
       </section>
+      )}
 
-      {/* Student roster */}
+      {/* Roster tab: student list + add form */}
+      {activeTab === "roster" && (
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">
@@ -295,6 +341,33 @@ export default async function GroupDetailPage({ params }: GroupDetailPageProps) 
           </table>
         </div>
       </div>
+      )}
     </div>
+  );
+}
+
+function TabLink({
+  groupId,
+  tab,
+  activeTab,
+  label,
+}: {
+  groupId: number;
+  tab: GroupTab;
+  activeTab: GroupTab;
+  label: string;
+}) {
+  const isActive = tab === activeTab;
+  return (
+    <Link
+      href={`/dashboard/groups/${groupId}?tab=${tab}`}
+      className={
+        isActive
+          ? "border-b-2 border-zinc-900 px-4 py-2 text-sm font-semibold text-zinc-900 dark:border-zinc-100 dark:text-zinc-100"
+          : "border-b-2 border-transparent px-4 py-2 text-sm font-medium text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+      }
+    >
+      {label}
+    </Link>
   );
 }
