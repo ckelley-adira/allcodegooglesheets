@@ -139,6 +139,12 @@ export const students = pgTable("students", {
     .default("active"),
   enrollmentDate: date("enrollment_date").notNull(),
   withdrawalDate: date("withdrawal_date"),
+  /**
+   * Nullable media release consent flag (Phase D.5 prelude). Consumed
+   * by Tier 2+ grant reporting templates that include named-student
+   * stories. null = consent status unknown; no UI surface in Tier 1.
+   */
+  mediaReleaseConsent: boolean("media_release_consent"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
