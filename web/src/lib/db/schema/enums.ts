@@ -104,3 +104,43 @@ export const assessmentSnapshotTypeEnum = pgEnum("assessment_snapshot_type", [
   "semester_1_end",
   "semester_2_end",
 ]);
+
+/**
+ * Banding level (D.1, Section 5.1). Preserved from the current Banding
+ * Report for historical continuity and funder reporting. Reflects
+ * grade-level expectation status — distinct from the archetype
+ * dimension which reflects phonics-knowledge shape.
+ */
+export const bandLevelEnum = pgEnum("band_level", [
+  "not_started",
+  "intervention",
+  "on_track",
+  "advanced",
+]);
+
+/**
+ * Student archetype (D.1, Section 5.1). Derived from the 1,007-student
+ * K-means clustering analysis. Reflects the SHAPE of phonics knowledge,
+ * not grade-level status. A student can be in the Intervention band but
+ * be an Advanced Decoding archetype.
+ */
+export const studentArchetypeEnum = pgEnum("student_archetype", [
+  "pre_alphabetic",
+  "early_alphabetic",
+  "consolidated",
+  "advanced_decoding",
+  "near_proficient",
+]);
+
+/**
+ * Band movement type (D.1, Section 5.3). Computed weekly by comparing
+ * the current band assignment to the previous week's.
+ */
+export const bandMovementEnum = pgEnum("band_movement", [
+  "initial",
+  "accelerating",
+  "advancing",
+  "stable",
+  "regressing",
+  "exiting",
+]);

@@ -16,12 +16,17 @@ import {
   numeric,
   timestamp,
   unique,
+  varchar,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import {
   benchmarkTypeEnum,
   bandLabelEnum,
   coachingPriorityEnum,
+  bandLevelEnum,
+  studentArchetypeEnum,
+  bandMovementEnum,
 } from "./enums";
 import { students, instructionalGroups, academicYears } from "./core";
 
@@ -133,6 +138,58 @@ export const coachingMetricsRelations = relations(
     }),
     academicYear: one(academicYears, {
       fields: [coachingMetrics.yearId],
+      references: [academicYears.yearId],
+    }),
+  }),
+);
+
+// ---------------------------------------------------------------------------
+// band_assignments — weekly per-student band + archetype (Phase D.1)
+// ---------------------------------------------------------------------------
+// Section 5 of Adira_Reads_Future_State_Data_Model_v1.docx is canonical.
+// Two dimensions: band (grade-level expectation status) + archetype (shape
+// of phonics knowledge). NOT collapsed. Assigned weekly on Fridays.
+
+export const bandAssignments = pgTable(
+  "band_assignments",
+  {
+    bandAssignmentId: bigserial("band_assignment_id", {
+      mode: "number",
+    }).primaryKey(),
+    studentId: integer("student_id")
+      .notNull()
+      .references(() => students.studentId, { onDelete: "cascade" }),
+    yearId: integer("year_id")
+      .notNull()
+      .references(() => academicYears.yearId),
+    assignedDate: date("assigned_date").notNull(),
+    band: bandLevelEnum("band").notNull(),
+    archetype: studentArchetypeEnum("archetype").notNull(),
+    movement: bandMovementEnum("movement").notNull().default("initial"),
+    gradeName: varchar("grade_name", { length: 10 }),
+    ceilingSection: varchar("ceiling_section", { length: 100 }),
+    ceilingLessonNumber: smallint("ceiling_lesson_number"),
+    swissCheeseGapCount: smallint("swiss_cheese_gap_count")
+      .notNull()
+      .default(0),
+    // Shape: { letters, cvc, blends, closed_syllable, vce, vowel_teams, advanced }
+    profileVector: jsonb("profile_vector").notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [unique("uq_band_per_student_date").on(t.studentId, t.yearId, t.assignedDate)],
+);
+
+export const bandAssignmentsRelations = relations(
+  bandAssignments,
+  ({ one }) => ({
+    student: one(students, {
+      fields: [bandAssignments.studentId],
+      references: [students.studentId],
+    }),
+    academicYear: one(academicYears, {
+      fields: [bandAssignments.yearId],
       references: [academicYears.yearId],
     }),
   }),
