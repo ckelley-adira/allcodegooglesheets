@@ -13,8 +13,11 @@ import { getActiveSchoolId } from "@/lib/auth/school-context";
 import { listAcademicYears } from "@/lib/dal/groups";
 import { getBigFourMetrics } from "@/lib/dal/metrics";
 import { getSchoolPacingSummary } from "@/lib/dal/school-pacing";
+import { getCliffAlerts } from "@/lib/dal/cliffs";
+import { getGrowthHighlights } from "@/lib/dal/highlights";
 import { cn } from "@/lib/utils";
 import { formatPct, pctColor } from "@/lib/format/percent";
+import { ScopeTiles, type ScopeTileItem } from "@/components/filters";
 
 export default async function DashboardPage() {
   const user = await requireAuth();
@@ -38,15 +41,86 @@ export default async function DashboardPage() {
     );
   }
 
-  const [metrics, pacing] = await Promise.all([
+  // Only the Coach / School Admin / TILT Admin tier gets the Weekly Rhythm
+  // tile row. Tutors don't have access to the downstream coaching pages,
+  // so the extra queries are wasted for them.
+  const canSeeRhythm =
+    user.role === "coach" ||
+    user.role === "school_admin" ||
+    user.isTiltAdmin;
+
+  const [metrics, pacing, cliffAlerts, highlights] = await Promise.all([
     getBigFourMetrics(activeSchoolId, currentYear.yearId),
     getSchoolPacingSummary(activeSchoolId),
+    canSeeRhythm
+      ? getCliffAlerts(activeSchoolId, currentYear.yearId)
+      : Promise.resolve(null),
+    canSeeRhythm
+      ? getGrowthHighlights(activeSchoolId, currentYear.yearId)
+      : Promise.resolve(null),
   ]);
 
   const attentionCount =
     pacing.staleOneWeekGroupCount +
     pacing.staleTwoWeekGroupCount +
     pacing.neverLoggedGroupCount;
+
+  // Build the Weekly Rhythm tile items
+  const rhythmTiles: ScopeTileItem[] = canSeeRhythm
+    ? [
+        {
+          key: "attention",
+          count: attentionCount,
+          label: "Groups Needing Attention",
+          subtitle: "Stale or never logged",
+          href: "/dashboard/attention",
+          tone: attentionCount > 0 ? "warning" : "default",
+        },
+        {
+          key: "cliffs",
+          count: cliffAlerts?.groupsAlertedCount ?? 0,
+          label: "Approaching Cliffs",
+          subtitle: "Within 3 lessons of a known cliff",
+          href: "/dashboard/coaching",
+          tone:
+            (cliffAlerts?.groupsAlertedCount ?? 0) > 0 ? "warning" : "default",
+        },
+        {
+          key: "top-movers",
+          count: highlights?.topMovers.length ?? 0,
+          label: "Top Movers",
+          subtitle: "Students above aimline (4w)",
+          href: "/dashboard/highlights",
+          tone: (highlights?.topMovers.length ?? 0) > 0 ? "success" : "default",
+        },
+        {
+          key: "band-advancers",
+          count: highlights?.bandAdvancers.length ?? 0,
+          label: "Band Advancers",
+          subtitle: "Moved up since last capture",
+          href: "/dashboard/highlights",
+          tone:
+            (highlights?.bandAdvancers.length ?? 0) > 0 ? "success" : "default",
+        },
+        {
+          key: "cliff-survivors",
+          count: highlights?.cliffSurvivors.length ?? 0,
+          label: "Cliff Survivors",
+          subtitle: "Crossed a cliff (4w)",
+          href: "/dashboard/highlights",
+          tone:
+            (highlights?.cliffSurvivors.length ?? 0) > 0 ? "info" : "default",
+        },
+        {
+          key: "bands",
+          count: "→",
+          label: "Banding Report",
+          subtitle: "Distribution + archetypes",
+          href: "/dashboard/bands",
+          tone: "default",
+        },
+      ]
+    : [];
 
   return (
     <div className="space-y-4">
@@ -261,6 +335,21 @@ export default async function DashboardPage() {
           )
         ) : null}
       </section>
+
+      {/* Weekly Rhythm — quick-nav drill-down tiles for coach+ */}
+      {canSeeRhythm && rhythmTiles.length > 0 && (
+        <section className="space-y-3 pt-4">
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight">
+              Weekly Rhythm
+            </h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Quick-nav to the reports you visit most. Counts are live.
+            </p>
+          </div>
+          <ScopeTiles items={rhythmTiles} />
+        </section>
+      )}
     </div>
   );
 }
