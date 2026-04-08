@@ -346,68 +346,144 @@ usage, the teardown helper should be removed or require an explicit
 
 ---
 
-## 5.1 Follow-up questions surfaced by the answers
+## 5.1 Follow-up answers
 
-These are smaller than Q1–Q7 but need answers before IM.1 runs.
+### Q1a. School short codes ✅
 
-### Q1a. School short codes for Allegiant + Global Prep
+- **CCA** → `CCA` (already exists from test data — will be wiped before real import)
+- **Global Prep** → `GPA` (Global Prep Academy)
+- **Allegiant** → `APA` (Allegiant Preparatory Academy) — **build by hand**, no staff/student/group import. Only `import_initial_assessments()` runs for APA.
 
-`schools.short_code` is a unique `VARCHAR(10)` used as the natural key
-throughout the import pipeline (it's how staging rows identify which
-school they belong to). CCA already exists with `short_code = 'CCA'`.
-The other two need codes:
+### Q1b. Test-data CCA collision ✅
 
-- **Allegiant** — proposed: `ALLEG` (or `ALG`? Chrstina's preference)
+- [x] **Wipe the test-data CCA state before the real CCA import.**
 
-  > _TBD_
+  First step of the CCA import run is `import_teardown_school('CCA')`,
+  which removes every FY26 row scoped to that school in dependency
+  order. Schools + academic_years rows are preserved.
 
-- **Global Prep** — proposed: `GPA` (Global Prep Academy) or `GP`
+### Q1c. FY26 dates ✅
 
-  > _TBD_
+- [x] **FY26**, 2025-08-01 → 2026-06-30, `is_current = true`.
 
-### Q1b. Test-data CCA collision
+  IM.1 migration will create missing `academic_years` rows for any
+  pilot school that doesn't have one yet. CCA's existing FY26 row
+  survives the teardown; GPA + APA get theirs created fresh.
 
-The test data seed `supabase/seed/002_test_data.sql` already created
-CCA with fake teachers, students, groups, and lesson_progress. The
-real CCA import needs to wipe that state first.
+### Q1d. Source CSV format ✅
 
-**Recommendation:** run `import_teardown_school('CCA')` as the first
-step of the CCA import. Allegiant and Global Prep don't have this
-problem because they don't exist yet.
+Christina confirmed the exact column headers per tab. Actual sheet
+headers use spaces / parentheses — we'll rename them to snake_case
+before upload so they match the staging table column names directly.
 
-> _Confirm OK to wipe test-CCA data before real import: TBD_
+**Upload path:** Supabase dashboard → Table Editor → staging table
+name → "Insert" button → "Import data from CSV". Handles column
+mapping automatically when headers match. No SQL pasting, no
+scripting.
 
-### Q1c. Academic year creation for new schools
+**Rename headers before upload.** Save CSV from Google Sheets, open
+it in any editor, replace the header row with the snake_case
+version below, save, upload.
 
-`academic_years` rows need to exist before any lesson_progress import
-can resolve a `year_id` for its dates. CCA has one (from the test
-seed), but Allegiant and Global Prep don't.
+#### Teacher Roster
 
-**Proposed:** IM.1 migration creates the schools table entries AND
-the `academic_years` row for each new pilot school, using FY26 with
-start_date=2025-08-01, end_date=2026-06-30, is_current=true. Matches
-the test seed convention.
+| Source header          | Staging column        | Notes |
+|------------------------|-----------------------|-------|
+| `Teacher Name`         | `teacher_name`        | Full name, space-delimited |
+| —                      | **`email`** (REQUIRED) | **Not in source — must be added manually before upload.** See "Teacher email sourcing" below. |
+| `Grade Assignment(s)`  | `grade_assignments`   | Free-text; captured for context only, not written to staff table |
 
-> _Confirm dates + label for FY26: TBD_
+**Christina must add 2 columns before upload:**
+- `email` — teacher's real email address (becomes the login email)
+- `school_code` — `CCA` or `GPA` (tells the transform which school)
 
-### Q1d. Source CSV column mapping
+Everything else is optional. Role defaults to `tutor` unless a
+`role` column is added and populated with `coach` / `school_admin`.
 
-Each of the 4 staging tables needs to match the header row of the
-actual legacy sheet CSV export. I can propose a mapping based on the
-`.gs` files in `docs/` — but Christina needs to verify the exact
-column names by exporting one sheet and pasting the header row here:
+#### Student Roster
 
-**Staff tab header row from Global Prep (or any pilot):**
-> _TBD — paste first row of exported CSV_
+| Source header   | Staging column     | Notes |
+|-----------------|--------------------|-------|
+| `Student Name`  | `student_name`     | "Last, First" or "First Last" — both accepted, transform normalizes |
+| `Grade`         | `grade_raw`        | "KG", "K", "1", "Grade 1", "G1", "3rd" — transform normalizes to canonical grade name |
+| `Teacher`       | `teacher_name`     | Informational; used later to nudge Christina when building groups |
+| `Group`         | `group_label`      | Informational; used later to nudge Christina when building groups |
 
-**Student Roster tab header row:**
-> _TBD_
+**Christina must add 2 columns before upload:**
+- `school_code` — `CCA` or `GPA`
+- `student_number` — the school's SIS student ID (goes into `students.student_number`, which has a unique constraint)
 
-**Initial Assessment tab header row:**
-> _TBD_
+If no SIS numbers are available, use a deterministic generated key
+like `FIX-CCA-G3-001` so the import is re-runnable.
 
-**Small Group Progress tab header row:**
-> _TBD_
+#### Initial Assessment
+
+Source format is identical to the UFLI Map — one row per student,
+one column per lesson (L1..L128, values `Y` / `N` / `A` / empty).
+
+| Source header   | Staging column     | Notes |
+|-----------------|--------------------|-------|
+| `Student Name`  | `student_name`     | Matches `student_name` from Student Roster |
+| `L1` .. `L128`  | `lesson_results_json` | Wide-to-long: transform collapses all 128 columns into a single JSONB object `{"L1":"Y","L2":"N",...}` |
+
+**Christina must add 2 columns before upload:**
+- `school_code` — `CCA`, `GPA`, or `APA`
+- `assessment_date` — single date for the whole import (e.g. `2025-08-15`); stored in `initial_assessments.assessment_date`
+
+The staging table has all 128 `L*` columns as plain text. The
+transform reads them, builds the JSON blob, and writes both the
+header row into `initial_assessments` AND the lesson rows into
+`initial_assessment_lessons` + synthetic rows into `lesson_progress`
+with `source = 'assessment'` (matches the wizard's behavior).
+
+#### Small Group Progress
+
+| Source header    | Staging column     | Notes |
+|------------------|--------------------|-------|
+| `Date`           | `date_recorded_raw`| ISO, US, or EU date formats — transform normalizes |
+| `Group Name`     | `group_label`      | Must match a group Christina creates manually via `/dashboard/groups` after staff + students import |
+| `Student Name`   | `student_name`     | Matches Student Roster |
+| `Lesson Number`  | `lesson_number`    | Integer 1..128 |
+| `Status`         | `status`           | One of `Y`, `N`, `A` |
+
+**Christina must add 1 column before upload:**
+- `school_code` — `CCA` or `GPA` (APA historical lessons are NOT being imported)
+
+Does NOT need a `teacher_email` column — Christina's pre-work on
+the Groups page establishes the group → teacher mapping, so the
+transform joins `staging_lesson_progress` → `instructional_groups`
+via `group_label` + `school_id` and picks up the `staff_id` from
+the group row.
+
+### Q1d.1. Teacher email sourcing 🟡
+
+The legacy Teacher Roster sheet does not include emails. Two options:
+
+- [x] **Christina adds an `email` column to the CSV before upload.**
+
+  For each teacher in the roster, type the real email that will be
+  used for first-login. If a teacher doesn't have a school email yet,
+  use their personal email and they can update it later via the
+  Staff page.
+
+  The staging transform will refuse to import rows where `email` is
+  null or doesn't match a basic email shape.
+
+**Non-negotiable:** `staff.email` is `UNIQUE NOT NULL` in the live
+schema, and the first-login claim flow (IM.6) matches by email.
+Without real emails we can't provision auth access.
+
+### Q1d.2. APA scope ✅
+
+- [x] **APA = `import_initial_assessments()` only.** Teachers,
+  students, and groups for APA are created by hand through the
+  existing UI. The initial assessment import runs standalone because
+  it only needs `students` and `schools` to already exist.
+
+  This means `import_initial_assessments()` must work independently
+  of `import_teachers` and `import_students`. The transform already
+  reads `school_code` so it can scope to just APA even when only
+  APA's data is in the staging table.
 
 ---
 
