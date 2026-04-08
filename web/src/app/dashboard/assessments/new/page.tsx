@@ -64,12 +64,25 @@ export default async function NewAssessmentPage() {
 
 /**
  * Converts a grade name like "KG", "K", "1", "2", "G3" to the numeric grade
- * level (0=KG, 1-8). Returns 0 for unrecognized values so KG-only sections
- * still render rather than crashing.
+ * level (0=KG, 1-8).
+ *
+ * Returns 0 for unrecognized values so KG-only sections still render rather
+ * than crashing.
+ *
+ * BUG FIX (2026-04): the previous implementation did
+ *   parseInt(gradeName.toUpperCase().replace(/[^0-9KG]/g, ""), 10)
+ * which returned NaN for "G1".."G8" because parseInt("G3") bails on the
+ * non-digit first character. Every G1-G8 student was silently downgraded
+ * to grade 0 and rendered as a KG student, so the assessment wizard only
+ * showed KG-eligible sections (alphabet + blends, plus digraphs + VCE if
+ * KG-EOY). That's the "only Alphabet and Digraphs" symptom. Fix: strip
+ * the leading G prefix before parseInt.
  */
 function parseGradeNumber(gradeName: string): number {
-  const cleaned = gradeName.toUpperCase().replace(/[^0-9KG]/g, "");
-  if (cleaned === "K" || cleaned === "KG") return 0;
-  const n = parseInt(cleaned, 10);
+  const upper = gradeName.toUpperCase().trim();
+  if (upper === "K" || upper === "KG") return 0;
+  // Strip optional leading "G" prefix, then any remaining non-digits
+  const digitsOnly = upper.replace(/^G/, "").replace(/[^0-9]/g, "");
+  const n = parseInt(digitsOnly, 10);
   return isNaN(n) ? 0 : n;
 }
