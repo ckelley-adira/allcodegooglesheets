@@ -7,8 +7,14 @@
   <title>UFLI Assessment</title>
   <style>
     /* ═══════════════════════════════════════════════════════════════
-       UFLI ASSESSMENT FORM — MASTER SYSTEM v2.0
+       UFLI ASSESSMENT FORM — MASTER SYSTEM v2.1
        Mobile-first, tablet-optimized for paper transcription
+
+       COMPONENT DATA CONTRACT (v2.1):
+         word.components is now an array of objects: { name, lessons }
+         where lessons is number[]. The HTML never looks up word.lessons
+         directly — that lookup moved to _AssessmentData.gs (server side).
+         See BUG FIX note in _AssessmentData.gs getAssessmentSections().
        ═══════════════════════════════════════════════════════════════ */
 
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -27,29 +33,29 @@
       --blue-50:  #f0f9fa;
 
       /* Functional colors */
-      --correct:     #22c55e;
-      --correct-bg:  #dcfce7;
-      --correct-dark:#16a34a;
-      --incorrect:     #ef4444;
-      --incorrect-bg:  #fee2e2;
+      --correct:       #22c55e;
+      --correct-bg:    #dcfce7;
+      --correct-dark:  #16a34a;
+      --incorrect:      #ef4444;
+      --incorrect-bg:   #fee2e2;
       --incorrect-dark: #dc2626;
-      --unset:       #94a3b8;
-      --unset-bg:    #f1f5f9;
-      --warning:     #f59e0b;
-      --warning-bg:  #fef3c7;
+      --unset:         #94a3b8;
+      --unset-bg:      #f1f5f9;
+      --warning:       #f59e0b;
+      --warning-bg:    #fef3c7;
 
       /* Neutrals */
-      --white:   #ffffff;
-      --gray-50: #f8fafc;
-      --gray-100:#f1f5f9;
-      --gray-200:#e2e8f0;
-      --gray-300:#cbd5e1;
-      --gray-400:#94a3b8;
-      --gray-500:#64748b;
-      --gray-600:#475569;
-      --gray-700:#334155;
-      --gray-800:#1e293b;
-      --gray-900:#0f172a;
+      --white:    #ffffff;
+      --gray-50:  #f8fafc;
+      --gray-100: #f1f5f9;
+      --gray-200: #e2e8f0;
+      --gray-300: #cbd5e1;
+      --gray-400: #94a3b8;
+      --gray-500: #64748b;
+      --gray-600: #475569;
+      --gray-700: #334155;
+      --gray-800: #1e293b;
+      --gray-900: #0f172a;
 
       /* Layout */
       --radius-sm: 6px;
@@ -103,7 +109,7 @@
       padding-bottom: 100px; /* Space for fixed nav */
     }
 
-    /* ─── Progress Bar (top-level) ──────────────────────────────── */
+    /* ─── Progress Bar ──────────────────────────────────────────── */
     .progress-strip {
       background: rgba(255,255,255,0.15);
       height: 4px;
@@ -390,14 +396,6 @@
     }
     .bulk-btn:active { transform: scale(0.97); }
 
-    .section-instruction {
-      width: 100%;
-      font-size: 12px;
-      opacity: 0.65;
-      font-style: italic;
-      margin-top: 4px;
-    }
-
     /* ─── Word Cards ────────────────────────────────────────────── */
     .words-area {
       background: var(--white);
@@ -427,10 +425,10 @@
 
     .word-card:hover { background: var(--gray-50); }
 
-    /* Word card states */
-    .word-card.all-correct { background: var(--correct-bg); }
+    /* Word card states — set by updateWordCardState() */
+    .word-card.all-correct  { background: var(--correct-bg); }
     .word-card.all-incorrect { background: var(--incorrect-bg); }
-    .word-card.partial { background: var(--warning-bg); }
+    .word-card.partial      { background: var(--warning-bg); }
 
     .word-number {
       width: 32px;
@@ -463,7 +461,16 @@
       justify-content: flex-end;
     }
 
-    /* ─── Component Buttons (the core interaction) ─────────────── */
+    /* ─── Component Buttons ─────────────────────────────────────── */
+    /*
+     * Each button stores:
+     *   data-state:   "unset" | "correct" | "incorrect"
+     *   data-si:      section index
+     *   data-wi:      word index within section
+     *   data-comp:    component name string (e.g. "ch", "igh")
+     *   data-lessons: JSON array of lesson numbers (e.g. [46])
+     *                 Pre-resolved by server; no client-side lookup needed.
+     */
     .comp-btn {
       min-width: 52px;
       min-height: 48px;
@@ -482,7 +489,7 @@
 
     .comp-btn:active { transform: scale(0.93); }
 
-    /* States */
+    /* Unset: waiting to be scored */
     .comp-btn[data-state="unset"] {
       background: var(--white);
       border-color: var(--gray-300);
@@ -493,6 +500,7 @@
       background: var(--gray-50);
     }
 
+    /* Correct: student got this component right */
     .comp-btn[data-state="correct"] {
       background: var(--correct);
       border-color: var(--correct-dark);
@@ -500,6 +508,7 @@
       box-shadow: 0 2px 6px rgba(34,197,94,0.3);
     }
 
+    /* Incorrect: student missed this component */
     .comp-btn[data-state="incorrect"] {
       background: var(--incorrect);
       border-color: var(--incorrect-dark);
@@ -508,15 +517,6 @@
     }
 
     /* ─── Section Completion Chips ──────────────────────────────── */
-    .section-chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
-      padding: 12px 20px;
-      background: var(--gray-50);
-      border-bottom: 1px solid var(--gray-200);
-    }
-
     .section-chip {
       padding: 4px 10px;
       border-radius: 20px;
@@ -528,22 +528,11 @@
       transition: all var(--transition);
     }
 
-    .section-chip.complete {
-      background: var(--correct-bg);
-      color: var(--correct-dark);
-    }
+    .section-chip.complete   { background: var(--correct-bg);  color: var(--correct-dark); }
+    .section-chip.active     { background: var(--blue-500);     color: var(--white); }
+    .section-chip.incomplete { background: var(--warning-bg);   color: var(--warning); }
 
-    .section-chip.active {
-      background: var(--blue-500);
-      color: var(--white);
-    }
-
-    .section-chip.incomplete {
-      background: var(--warning-bg);
-      color: var(--warning);
-    }
-
-    /* ─── Review Summary ───────────────────────────────────────── */
+    /* ─── Review Summary ────────────────────────────────────────── */
     .summary-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
@@ -566,7 +555,7 @@
     }
 
     .summary-stat .value.green { color: var(--correct-dark); }
-    .summary-stat .value.red { color: var(--incorrect-dark); }
+    .summary-stat .value.red   { color: var(--incorrect-dark); }
 
     .summary-stat .label {
       font-size: 11px;
@@ -619,11 +608,8 @@
       pointer-events: none;
       box-shadow: var(--shadow-lg);
     }
-    .toast.show {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-    }
-    .toast.error { background: var(--incorrect); }
+    .toast.show    { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.error   { background: var(--incorrect); }
     .toast.success { background: var(--correct-dark); }
 
     /* ─── Success Modal ────────────────────────────────────────── */
@@ -652,7 +638,7 @@
 
     @keyframes modalIn {
       from { opacity: 0; transform: scale(0.9); }
-      to { opacity: 1; transform: scale(1); }
+      to   { opacity: 1; transform: scale(1); }
     }
 
     .modal .check-circle {
@@ -674,22 +660,11 @@
       fill: none;
     }
 
-    .modal h2 {
-      font-size: 20px;
-      font-weight: 700;
-      color: var(--gray-800);
-      margin-bottom: 8px;
-    }
-
-    .modal p {
-      font-size: 14px;
-      color: var(--gray-500);
-      margin-bottom: 20px;
-    }
-
+    .modal h2 { font-size: 20px; font-weight: 700; color: var(--gray-800); margin-bottom: 8px; }
+    .modal p  { font-size: 14px; color: var(--gray-500); margin-bottom: 20px; }
     .modal .btn { margin-top: 8px; }
 
-    /* ─── Loader ────────────────────────────────────────────────── */
+    /* ─── Loader ───────────────────────────────────────────────── */
     .loader-overlay {
       position: fixed;
       inset: 0;
@@ -713,11 +688,7 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .loader-text {
-      font-size: 14px;
-      color: var(--gray-500);
-      font-weight: 500;
-    }
+    .loader-text { font-size: 14px; color: var(--gray-500); font-weight: 500; }
 
     /* ─── Responsive ───────────────────────────────────────────── */
     @media (max-width: 600px) {
@@ -734,9 +705,7 @@
       }
 
       .word-label { min-width: auto; }
-
       .bottom-nav { padding: 10px 12px; }
-
       .summary-grid { grid-template-columns: repeat(2, 1fr); }
     }
   </style>
@@ -847,17 +816,9 @@
           <h2>Review & Submit</h2>
         </div>
         <div class="card-body">
-
-          <!-- Section completion chips -->
           <div id="review-chips" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px;"></div>
-
-          <!-- Summary stats -->
           <div id="review-summary" class="summary-grid"></div>
-
-          <!-- Warning for unassessed -->
           <div id="review-warning" class="warning-bar" style="display: none;"></div>
-
-          <!-- Notes -->
           <div class="field" style="margin-top: 20px;">
             <label for="inp-notes">Assessment Notes (Optional)</label>
             <textarea id="inp-notes" placeholder="Additional observations about this student…"></textarea>
@@ -899,12 +860,29 @@
 
 <script>
 // ═══════════════════════════════════════════════════════════════════
-// UFLI ASSESSMENT FORM — CLIENT-SIDE LOGIC
+// UFLI ASSESSMENT FORM — CLIENT-SIDE LOGIC  v2.1
+//
+// COMPONENT DATA CONTRACT (v2.1):
+//   word.components arrives from getAssessmentSections() as an array of
+//   objects: { name: string, lessons: number[] }
+//
+//   The server (_AssessmentData.gs) pre-resolves lesson numbers into each
+//   component object before sending. This form never reads word.lessons
+//   directly — that parallel lookup object is deleted server-side.
+//
+//   Component buttons store lessons as a JSON array in data-lessons,
+//   set at render time from comp.lessons (already resolved). On submit,
+//   AssessmentEngine.gs reads comp.lessons from the submitted payload.
+//
+// TOGGLE BEHAVIOR:
+//   unset → correct → incorrect → correct (cycling)
+//   Clicking an unset button marks it correct (first tap = correct is the
+//   most common scoring action when transcribing from paper).
 // ═══════════════════════════════════════════════════════════════════
 
 // ─── State ──────────────────────────────────────────────────────
 let sections = [];           // Assessment sections from server
-let currentPageIndex = -1;   // -1 = setup, 0..N = sections, N+1 = review
+let currentPageIndex = -1;   // -1 = setup, 0..N-1 = sections, N = review
 let totalSectionPages = 0;
 
 // ─── DOM References ─────────────────────────────────────────────
@@ -939,12 +917,12 @@ function init() {
       .withFailureHandler(handleError)
       .getAssessmentScorerList();
   } else {
-    // Demo mode
+    // Demo mode — simulates server response with normalized component objects
     setTimeout(() => {
       populateStudents([
-        { name: 'Amara Johnson', grade: '1', teacher: 'Ms. Helman' },
+        { name: 'Amara Johnson',    grade: '1', teacher: 'Ms. Helman' },
         { name: 'DeShawn Williams', grade: '0', teacher: 'Mrs. Perry' },
-        { name: 'Sofia Martinez', grade: '3', teacher: 'Mr. Chen' }
+        { name: 'Sofia Martinez',   grade: '3', teacher: 'Mr. Chen' }
       ]);
       populateScorers(['Ms. Helman', 'Reading Specialist', 'Interventionist']);
     }, 400);
@@ -972,7 +950,7 @@ function populateStudents(students) {
     const opt = document.createElement('option');
     opt.value = s.name;
     opt.textContent = `${s.name} (Grade ${s.grade === '0' || s.grade === 0 ? 'K' : s.grade})`;
-    opt.dataset.grade = s.grade;
+    opt.dataset.grade   = s.grade;
     opt.dataset.teacher = s.teacher || '';
     selStudent.appendChild(opt);
   });
@@ -983,7 +961,7 @@ function populateScorers(scorers) {
   selScorer.innerHTML = '<option value="" disabled selected>Select scorer…</option>';
   scorers.forEach(s => {
     const opt = document.createElement('option');
-    opt.value = s;
+    opt.value       = s;
     opt.textContent = s;
     selScorer.appendChild(opt);
   });
@@ -995,20 +973,21 @@ function onStudentChange() {
   if (!opt) return;
 
   const grade = opt.dataset.grade;
+
+  // Show KG EOY toggle only for Kindergarten students
   kgToggle.style.display = (grade === '0') ? 'block' : 'none';
   if (grade !== '0') chkKgEoy.checked = false;
 
-  // Auto-fill teacher
+  // Auto-fill teacher dropdown from roster data
   const teacher = opt.dataset.teacher;
   if (teacher) {
-    // Check if teacher option exists, if not add it
     let found = false;
     for (const o of selTeacher.options) {
       if (o.value === teacher) { found = true; break; }
     }
     if (!found) {
       const tOpt = document.createElement('option');
-      tOpt.value = teacher;
+      tOpt.value       = teacher;
       tOpt.textContent = teacher;
       selTeacher.appendChild(tOpt);
     }
@@ -1026,13 +1005,10 @@ function checkReady() {
 // ─── Navigation ─────────────────────────────────────────────────
 function goForward() {
   if (currentPageIndex === -1) {
-    // Setup → Start assessment
     startAssessment();
   } else if (currentPageIndex < totalSectionPages - 1) {
-    // Next section
     showSectionPage(currentPageIndex + 1);
   } else {
-    // Last section → Review
     showReviewPage();
   }
 }
@@ -1041,13 +1017,10 @@ function goBack() {
   if (currentPageIndex === -1) return;
 
   if (currentPageIndex === 0) {
-    // First section → Setup
     showSetupPage();
   } else if (currentPageIndex === totalSectionPages) {
-    // Review → Last section
     showSectionPage(totalSectionPages - 1);
   } else {
-    // Previous section
     showSectionPage(currentPageIndex - 1);
   }
 }
@@ -1072,7 +1045,7 @@ function showSectionPage(index) {
 function showReviewPage() {
   hideAllPages();
   $('page-review').classList.add('active');
-  currentPageIndex = totalSectionPages; // Beyond last section
+  currentPageIndex = totalSectionPages;
   buildReviewSummary();
   updateNav();
   progressFill.style.width = '100%';
@@ -1086,43 +1059,43 @@ function hideAllPages() {
 
 function updateNav() {
   if (currentPageIndex === -1) {
-    // Setup page
     navBack.style.display = 'none';
     navForward.textContent = 'Start Assessment →';
-    navForward.className = 'btn btn-primary';
-    navForward.onclick = goForward;
-    navLabel.textContent = '';
+    navForward.className   = 'btn btn-primary';
+    navForward.onclick     = goForward;
+    navLabel.textContent   = '';
     progressFill.style.width = '0%';
     progressLabel.textContent = '';
+
   } else if (currentPageIndex < totalSectionPages) {
-    // Section pages
-    navBack.style.display = '';
-    navForward.disabled = false;
+    navBack.style.display  = '';
+    navForward.disabled    = false;
+    navForward.onclick     = goForward;
+    navLabel.textContent   = `${currentPageIndex + 1} / ${totalSectionPages}`;
 
     if (currentPageIndex === totalSectionPages - 1) {
       navForward.textContent = 'Review & Submit →';
-      navForward.className = 'btn btn-success';
+      navForward.className   = 'btn btn-success';
     } else {
       navForward.textContent = 'Next Section →';
-      navForward.className = 'btn btn-primary';
+      navForward.className   = 'btn btn-primary';
     }
-    navForward.onclick = goForward;
-    navLabel.textContent = `${currentPageIndex + 1} / ${totalSectionPages}`;
+
   } else {
     // Review page
-    navBack.style.display = '';
+    navBack.style.display  = '';
     navForward.textContent = 'Submit Assessment';
-    navForward.className = 'btn btn-success';
-    navForward.disabled = false;
-    navForward.onclick = submitAssessment;
-    navLabel.textContent = 'Review';
+    navForward.className   = 'btn btn-success';
+    navForward.disabled    = false;
+    navForward.onclick     = submitAssessment;
+    navLabel.textContent   = 'Review';
   }
 }
 
 function updateProgress() {
   if (totalSectionPages > 0 && currentPageIndex >= 0) {
     const pct = ((currentPageIndex + 1) / totalSectionPages) * 100;
-    progressFill.style.width = pct + '%';
+    progressFill.style.width  = pct + '%';
     progressLabel.textContent = `Section ${currentPageIndex + 1} of ${totalSectionPages}`;
   }
 }
@@ -1143,33 +1116,34 @@ function startAssessment() {
       .withFailureHandler(handleError)
       .getAssessmentSections(grade, isEoy);
   } else {
-    // Demo data
+    // Demo mode — components are already normalized { name, lessons } objects,
+    // matching the shape returned by _AssessmentData.gs getAssessmentSections().
     setTimeout(() => {
       buildAssessmentPages([
         {
           name: 'Single Consonants & Vowels',
           words: [
-            { word: 'SAM', number: 1, components: ['s', 'a', 'm'], lessons: { 's': [3], 'a': [1], 'm': [2] } },
-            { word: 'PIN', number: 2, components: ['p', 'i', 'n'], lessons: { 'p': [6], 'i': [8], 'n': [9] } },
-            { word: 'COD', number: 3, components: ['c', 'o', 'd'], lessons: { 'c': [14], 'o': [12], 'd': [13] } },
-            { word: 'FAN', number: 4, components: ['f', 'an'], lessons: { 'f': [7], 'an': [11] } },
-            { word: 'BUG', number: 5, components: ['b', 'u', 'g'], lessons: { 'b': [17], 'u': [15], 'g': [16] } }
+            { word: 'SAM', number: 1, components: [{ name: 's', lessons: [3] }, { name: 'a', lessons: [1] }, { name: 'm', lessons: [2] }] },
+            { word: 'PIN', number: 2, components: [{ name: 'p', lessons: [6] }, { name: 'i', lessons: [8] }, { name: 'n', lessons: [9] }] },
+            { word: 'COD', number: 3, components: [{ name: 'c', lessons: [14] }, { name: 'o', lessons: [12] }, { name: 'd', lessons: [13] }] },
+            { word: 'FAN', number: 4, components: [{ name: 'f', lessons: [7] }, { name: 'an', lessons: [11] }] },
+            { word: 'BUG', number: 5, components: [{ name: 'b', lessons: [17] }, { name: 'u', lessons: [15] }, { name: 'g', lessons: [16] }] }
           ]
         },
         {
           name: 'Blends',
           words: [
-            { word: 'BRICK', number: 1, components: ['br'], lessons: { 'br': [25] } },
-            { word: 'CREEK', number: 2, components: ['cr'], lessons: { 'cr': [25] } },
-            { word: 'FLOP', number: 3, components: ['fl'], lessons: { 'fl': [27] } }
+            { word: 'BRICK', number: 1, components: [{ name: 'br', lessons: [25] }] },
+            { word: 'CREEK', number: 2, components: [{ name: 'cr', lessons: [25] }] },
+            { word: 'FLOP',  number: 3, components: [{ name: 'fl', lessons: [27] }] }
           ]
         },
         {
           name: 'Digraphs',
           words: [
-            { word: 'JAZZ', number: 1, components: ['zz'], lessons: { 'zz': [42] } },
-            { word: 'ALL', number: 2, components: ['all'], lessons: { 'all': [43] } },
-            { word: 'LUNCH', number: 3, components: ['ch'], lessons: { 'ch': [48] } }
+            { word: 'JAZZ',  number: 1, components: [{ name: 'zz', lessons: [42] }] },
+            { word: 'ALL',   number: 2, components: [{ name: 'all', lessons: [43] }] },
+            { word: 'LUNCH', number: 3, components: [{ name: 'ch', lessons: [48] }] }
           ]
         }
       ]);
@@ -1178,6 +1152,16 @@ function startAssessment() {
 }
 
 // ─── Build Assessment Pages ─────────────────────────────────────
+/*
+ * Receives section data from getAssessmentSections() where word.components
+ * is an array of { name: string, lessons: number[] } objects.
+ *
+ * Each component button stores:
+ *   data-comp    = comp.name     (display label)
+ *   data-lessons = JSON.stringify(comp.lessons)  (pre-resolved lesson array)
+ *
+ * No lesson lookup happens here — lessons are already resolved by the server.
+ */
 function buildAssessmentPages(sectionData) {
   sections = sectionData;
   totalSectionPages = sections.length;
@@ -1191,10 +1175,10 @@ function buildAssessmentPages(sectionData) {
 
   sections.forEach((section, si) => {
     const page = document.createElement('div');
-    page.id = `page-section-${si}`;
+    page.id        = `page-section-${si}`;
     page.className = 'page';
 
-    // ─── Section bar (sticky header) ────────────────────────
+    // ─── Sticky section header ──────────────────────────────
     const bar = document.createElement('div');
     bar.className = 'section-bar';
     bar.innerHTML = `
@@ -1210,7 +1194,7 @@ function buildAssessmentPages(sectionData) {
     `;
     page.appendChild(bar);
 
-    // ─── Word cards area ────────────────────────────────────
+    // ─── Word cards ─────────────────────────────────────────
     const wordsArea = document.createElement('div');
     wordsArea.className = 'words-area';
 
@@ -1218,22 +1202,29 @@ function buildAssessmentPages(sectionData) {
     wordList.className = 'word-list';
 
     section.words.forEach((word, wi) => {
-      const components = Array.isArray(word.components) ? word.components :
-                         (typeof word.components === 'string' ? [word.components] : []);
+      // word.components is now { name, lessons }[] — no string-array fallback needed.
+      // Guard defensively in case a legacy string array ever arrives.
+      const components = (word.components || []).map(c =>
+        typeof c === 'string' ? { name: c, lessons: [] } : c
+      );
 
       const card = document.createElement('div');
       card.className = 'word-card';
-      card.id = `wc-${si}-${wi}`;
+      card.id        = `wc-${si}-${wi}`;
 
+      // Each button:
+      //   data-comp    = component name (display label on button)
+      //   data-lessons = JSON array of lesson numbers, pre-resolved by server
       card.innerHTML = `
         <div class="word-number">${word.number}</div>
         <div class="word-label">${word.word}</div>
         <div class="components-row">
-          ${components.map(c => `
+          ${components.map(comp => `
             <button type="button" class="comp-btn" data-state="unset"
-                    data-si="${si}" data-wi="${wi}" data-comp="${c}"
-                    data-lessons='${JSON.stringify(word.lessons[c] || [])}'>
-              ${c}
+                    data-si="${si}" data-wi="${wi}"
+                    data-comp="${comp.name}"
+                    data-lessons='${JSON.stringify(comp.lessons || [])}'>
+              ${comp.name}
             </button>
           `).join('')}
         </div>
@@ -1247,19 +1238,15 @@ function buildAssessmentPages(sectionData) {
     assessmentContainer.appendChild(page);
   });
 
-  // ─── Event delegation for component buttons ───────────────
+  // ─── Event delegation for all comp-btn and bulk-btn clicks ──
   assessmentContainer.addEventListener('click', e => {
-    const btn = e.target.closest('.comp-btn');
+    const btn  = e.target.closest('.comp-btn');
+    const bulk = e.target.closest('.bulk-btn');
+
     if (btn) {
       toggleComponent(btn);
-      return;
-    }
-
-    const bulk = e.target.closest('.bulk-btn');
-    if (bulk) {
-      const si = parseInt(bulk.dataset.si);
-      const action = bulk.dataset.action;
-      bulkAction(si, action);
+    } else if (bulk) {
+      bulkAction(parseInt(bulk.dataset.si), bulk.dataset.action);
     }
   });
 
@@ -1267,51 +1254,42 @@ function buildAssessmentPages(sectionData) {
   showSectionPage(0);
 }
 
-// ─── Component Toggle (3-state: unset → correct → incorrect → correct) ──
+// ─── Component Toggle (unset → correct → incorrect → correct) ───
+/*
+ * First tap = correct (most common action when transcribing from paper).
+ * Second tap = incorrect.
+ * Subsequent taps cycle between correct and incorrect.
+ * To un-score a component, use the section Reset bulk action.
+ */
 function toggleComponent(btn) {
   const state = btn.dataset.state;
-  if (state === 'unset' || state === 'incorrect') {
-    btn.dataset.state = 'correct';
-  } else {
-    btn.dataset.state = 'incorrect';
-  }
+  btn.dataset.state = (state === 'unset' || state === 'incorrect') ? 'correct' : 'incorrect';
   updateWordCardState(btn);
 }
 
-// ─── Update word card background based on component states ──────
+// ─── Word Card Background State ──────────────────────────────────
 function updateWordCardState(btn) {
-  const si = btn.dataset.si;
-  const wi = btn.dataset.wi;
-  const card = $(`wc-${si}-${wi}`);
+  const card = $(`wc-${btn.dataset.si}-${btn.dataset.wi}`);
   if (!card) return;
 
-  const btns = card.querySelectorAll('.comp-btn');
-  const states = Array.from(btns).map(b => b.dataset.state);
-
+  const states = Array.from(card.querySelectorAll('.comp-btn')).map(b => b.dataset.state);
   card.classList.remove('all-correct', 'all-incorrect', 'partial');
 
-  if (states.every(s => s === 'correct')) {
-    card.classList.add('all-correct');
-  } else if (states.every(s => s === 'incorrect')) {
-    card.classList.add('all-incorrect');
-  } else if (states.some(s => s !== 'unset')) {
-    card.classList.add('partial');
-  }
+  if (states.every(s => s === 'correct'))   card.classList.add('all-correct');
+  else if (states.every(s => s === 'incorrect')) card.classList.add('all-incorrect');
+  else if (states.some(s => s !== 'unset')) card.classList.add('partial');
 }
 
 // ─── Bulk Actions ───────────────────────────────────────────────
 function bulkAction(si, action) {
-  const btns = document.querySelectorAll(`.comp-btn[data-si="${si}"]`);
-  btns.forEach(btn => {
-    if (action === 'correct') btn.dataset.state = 'correct';
+  document.querySelectorAll(`.comp-btn[data-si="${si}"]`).forEach(btn => {
+    if (action === 'correct')   btn.dataset.state = 'correct';
     else if (action === 'incorrect') btn.dataset.state = 'incorrect';
-    else btn.dataset.state = 'unset';
+    else                        btn.dataset.state = 'unset';
     updateWordCardState(btn);
   });
 
-  if (action !== 'reset') {
-    toast(`All components marked ${action}`, 'success');
-  }
+  if (action !== 'reset') toast(`All components marked ${action}`, 'success');
 }
 
 // ─── Review Summary ─────────────────────────────────────────────
@@ -1321,14 +1299,13 @@ function buildReviewSummary() {
 
   allBtns.forEach(btn => {
     total++;
-    if (btn.dataset.state === 'correct') correct++;
+    if (btn.dataset.state === 'correct')   correct++;
     else if (btn.dataset.state === 'incorrect') incorrect++;
     else unset++;
   });
 
   const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
 
-  // Summary stats
   $('review-summary').innerHTML = `
     <div class="summary-stat">
       <div class="value">${selStudent.value.split(' ')[0]}</div>
@@ -1352,26 +1329,25 @@ function buildReviewSummary() {
     </div>
   `;
 
-  // Section completion chips
+  // Section completion chips — click to jump back to that section
   const chipsContainer = $('review-chips');
   chipsContainer.innerHTML = '';
   sections.forEach((section, si) => {
-    const sectionBtns = document.querySelectorAll(`.comp-btn[data-si="${si}"]`);
-    const sectionTotal = sectionBtns.length;
+    const sectionBtns     = document.querySelectorAll(`.comp-btn[data-si="${si}"]`);
+    const sectionTotal    = sectionBtns.length;
     const sectionAssessed = Array.from(sectionBtns).filter(b => b.dataset.state !== 'unset').length;
 
     const chip = document.createElement('span');
     chip.className = 'section-chip';
     if (sectionAssessed === sectionTotal) chip.classList.add('complete');
-    else if (sectionAssessed > 0) chip.classList.add('incomplete');
+    else if (sectionAssessed > 0)         chip.classList.add('incomplete');
 
     chip.textContent = `${section.name.split('(')[0].trim()} ${sectionAssessed}/${sectionTotal}`;
-    chip.style.cursor = 'pointer';
     chip.addEventListener('click', () => showSectionPage(si));
     chipsContainer.appendChild(chip);
   });
 
-  // Warning
+  // Warn if any components were left unscored
   const warning = $('review-warning');
   if (unset > 0) {
     warning.style.display = 'flex';
@@ -1382,43 +1358,48 @@ function buildReviewSummary() {
 }
 
 // ─── Submit Assessment ──────────────────────────────────────────
+/*
+ * Builds the submission payload. word.components is sent as an array of:
+ *   { name, lessons, correct }
+ * where lessons is the pre-resolved number[] from data-lessons,
+ * and correct is true | false | null (null = unscored).
+ *
+ * AssessmentEngine.gs mapComponentsToLessons_() reads comp.lessons and
+ * comp.correct from this payload to write lesson-level Y/N values.
+ */
 function submitAssessment() {
-  // Confirm if unassessed components
   const unsetCount = document.querySelectorAll('.comp-btn[data-state="unset"]').length;
   if (unsetCount > 0) {
     if (!confirm(`${unsetCount} component(s) haven't been assessed. Submit anyway?`)) return;
   }
 
-  // Build submission data
+  // Deep clone sections to avoid mutating the live display state
   const finalSections = JSON.parse(JSON.stringify(sections));
 
   finalSections.forEach((section, si) => {
     section.words.forEach((word, wi) => {
-      const updatedComponents = [];
       const btns = document.querySelectorAll(`.comp-btn[data-si="${si}"][data-wi="${wi}"]`);
 
-      btns.forEach(btn => {
-        updatedComponents.push({
-          name: btn.dataset.comp,
-          lessons: JSON.parse(btn.dataset.lessons),
-          correct: btn.dataset.state === 'correct' ? true :
-                   btn.dataset.state === 'incorrect' ? false : null
-        });
-      });
-
-      word.components = updatedComponents;
+      // Replace the word's component array with scored objects.
+      // data-lessons is already a JSON array — parse it back for the payload.
+      word.components = Array.from(btns).map(btn => ({
+        name:    btn.dataset.comp,
+        lessons: JSON.parse(btn.dataset.lessons),
+        correct: btn.dataset.state === 'correct'   ? true  :
+                 btn.dataset.state === 'incorrect' ? false : null
+      }));
     });
   });
 
   const formData = {
-    studentName: selStudent.value,
-    grade: selStudent.options[selStudent.selectedIndex].dataset.grade,
-    scorer: selScorer.value,
-    teacher: selTeacher.value || '',
-    date: inpDate.value,
-    isKindergartenEndOfYear: chkKgEoy.checked,
-    notes: $('inp-notes').value,
-    sections: finalSections
+    studentName:              selStudent.value,
+    grade:                    selStudent.options[selStudent.selectedIndex].dataset.grade,
+    scorer:                   selScorer.value,
+    teacher:                  selTeacher.value || '',
+    date:                     inpDate.value,
+    isKindergartenEndOfYear:  chkKgEoy.checked,
+    notes:                    $('inp-notes').value,
+    sections:                 finalSections
   };
 
   showLoader('Submitting assessment…');
@@ -1430,18 +1411,18 @@ function submitAssessment() {
       .withFailureHandler(handleError)
       .submitInitialAssessment(formData);
   } else {
-    // Demo
+    // Demo response
     setTimeout(() => {
       onSubmitSuccess({
         success: true,
         message: 'Assessment for Amara Johnson submitted!',
         summary: {
-          overall: '72.5%',
-          foundational: '85.0%',
-          sectionsAssessed: 3,
-          totalComponents: 11,
+          overall:           '72.5%',
+          foundational:      '85.0%',
+          sectionsAssessed:  3,
+          totalComponents:   11,
           correctComponents: 8,
-          missedComponents: 3
+          missedComponents:  3
         }
       });
     }, 800);
@@ -1457,7 +1438,6 @@ function onSubmitSuccess(response) {
     return;
   }
 
-  // Show success modal
   $('success-msg').textContent = response.message;
 
   if (response.summary) {
@@ -1488,15 +1468,15 @@ function onSubmitSuccess(response) {
 function resetForm() {
   closeModal();
   sections = [];
-  currentPageIndex = -1;
+  currentPageIndex  = -1;
   totalSectionPages = 0;
   assessmentContainer.innerHTML = '';
-  selStudent.value = '';
-  inpDate.valueAsDate = new Date();
-  chkKgEoy.checked = false;
-  $('inp-notes').value = '';
+  selStudent.value      = '';
+  inpDate.valueAsDate   = new Date();
+  chkKgEoy.checked      = false;
+  $('inp-notes').value  = '';
   kgToggle.style.display = 'none';
-  navForward.disabled = true;
+  navForward.disabled   = true;
   showSetupPage();
 }
 
@@ -1506,7 +1486,7 @@ function closeModal() {
 
 // ─── Add New Student ────────────────────────────────────────────
 function saveNewStudent() {
-  const name = $('inp-new-name').value.trim();
+  const name  = $('inp-new-name').value.trim();
   const grade = $('sel-new-grade').value;
 
   if (!name || !grade) {
@@ -1524,7 +1504,7 @@ function saveNewStudent() {
           populateStudents(response.students);
           selStudent.value = name;
           onStudentChange();
-          $('inp-new-name').value = '';
+          $('inp-new-name').value  = '';
           $('sel-new-grade').value = '';
           $('add-student-area').classList.remove('open');
           toast(response.message, 'success');
@@ -1538,14 +1518,14 @@ function saveNewStudent() {
     // Demo
     setTimeout(() => {
       const opt = document.createElement('option');
-      opt.value = name;
+      opt.value       = name;
       opt.textContent = `${name} (Grade ${grade === '0' ? 'K' : grade})`;
-      opt.dataset.grade = grade;
+      opt.dataset.grade   = grade;
       opt.dataset.teacher = '';
       selStudent.appendChild(opt);
       selStudent.value = name;
       onStudentChange();
-      $('inp-new-name').value = '';
+      $('inp-new-name').value  = '';
       $('sel-new-grade').value = '';
       $('add-student-area').classList.remove('open');
       hideLoader();
@@ -1567,7 +1547,7 @@ function hideLoader() {
 function toast(msg, type) {
   const t = $('toast');
   t.textContent = msg;
-  t.className = 'toast show' + (type ? ' ' + type : '');
+  t.className   = 'toast show' + (type ? ' ' + type : '');
   setTimeout(() => t.classList.remove('show'), 3000);
 }
 
