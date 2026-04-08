@@ -174,10 +174,10 @@ export default async function GroupDetailPage({
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Instructional Sequence</h2>
-          {canEdit && currentYear && (
+          {canEdit && (
             <BuildSequenceForm
               groupId={groupId}
-              yearId={currentYear.yearId}
+              yearId={group.yearId}
               defaultCadenceDays={
                 school?.cadenceDays && school.cadenceDays.length > 0
                   ? school.cadenceDays
