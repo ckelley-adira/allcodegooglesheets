@@ -25,7 +25,15 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { COACHING_THRESHOLDS } from "@/config/ufli";
-import type { SkillSectionName } from "@/lib/curriculum/sections";
+import {
+  sectionForLesson,
+  effectiveSectionLessons,
+  sectionSize as sectionSizeFn,
+  sectionMinThreshold,
+  previousSection,
+  lastLessonInSection,
+  type SkillSectionName,
+} from "@/lib/curriculum/sections";
 
 // ── Shared types ─────────────────────────────────────────────────────────
 
@@ -286,6 +294,183 @@ export function activityWindow(today: Date = new Date()): {
     startDate: start,
     endDate: end,
   };
+}
+
+// ── Metric B: Group Pass Rate + Bridge Detection ────────────────────────
+
+/**
+ * Computes per-group mastery info. Needs both windowed progress rows
+ * (for primary-section detection and lessons-attempted count) and the
+ * full-year progress rows (for high-water-mark section mastery).
+ *
+ * Per-student section mastery = (passed lessons in effective section) /
+ * (total effective lessons). High-water-mark semantics: any Y ever =
+ * passed forever, so we pass every Y row from the full year.
+ *
+ * Primary section is voted: each student's most-recent non-absent
+ * lesson maps to a section, and the section with the most votes wins.
+ *
+ * v2.1 bridge detection: lessonsAttempted (in primary section, from the
+ * window) must meet sectionMinThreshold before mastery flags fire.
+ *
+ * Previous-section completion: if the group's recent lessons include
+ * the last lesson of the previous (non-bridging) section, compute
+ * mastery on that section so the caller can surface a celebration or
+ * weak-section-close flag.
+ */
+export function computeGroupMastery(
+  windowRows: RawProgressRow[],
+  fullYearRows: RawProgressRow[],
+  groupMembers: Map<number, Array<{ studentId: number }>>,
+): Record<number, GroupMasteryInfo> {
+  // 1. Build high-water-mark set per student from the full year
+  // studentId → set of lesson numbers ever passed (Y)
+  const hwm = new Map<number, Set<number>>();
+  for (const r of fullYearRows) {
+    if (r.status !== "Y") continue;
+    if (!r.ufli_lessons) continue;
+    let set = hwm.get(r.student_id);
+    if (!set) {
+      set = new Set();
+      hwm.set(r.student_id, set);
+    }
+    set.add(r.ufli_lessons.lesson_number);
+  }
+
+  // 2. Most-recent non-absent lesson per student in the window
+  // studentId → { date, lessonNumber }
+  const lastLesson = new Map<number, { date: string; lessonNumber: number }>();
+  for (const r of windowRows) {
+    if (r.status === "A") continue;
+    if (!r.ufli_lessons) continue;
+    const existing = lastLesson.get(r.student_id);
+    if (!existing || r.date_recorded > existing.date) {
+      lastLesson.set(r.student_id, {
+        date: r.date_recorded,
+        lessonNumber: r.ufli_lessons.lesson_number,
+      });
+    }
+  }
+
+  // 3. Lessons attempted per group (distinct non-absent lesson numbers in window)
+  const groupLessonsAttempted = new Map<number, Set<number>>();
+  for (const r of windowRows) {
+    if (r.status === "A") continue;
+    if (!r.ufli_lessons) continue;
+    let set = groupLessonsAttempted.get(r.group_id);
+    if (!set) {
+      set = new Set();
+      groupLessonsAttempted.set(r.group_id, set);
+    }
+    set.add(r.ufli_lessons.lesson_number);
+  }
+
+  // 4. Compose per-group
+  const result: Record<number, GroupMasteryInfo> = {};
+  for (const [groupId, members] of groupMembers.entries()) {
+    // Vote for primary section
+    const sectionVotes = new Map<SkillSectionName, number>();
+    for (const m of members) {
+      const ll = lastLesson.get(m.studentId);
+      if (!ll) continue;
+      const section = sectionForLesson(ll.lessonNumber);
+      if (!section) continue;
+      sectionVotes.set(section, (sectionVotes.get(section) ?? 0) + 1);
+    }
+    let primarySection: SkillSectionName | null = null;
+    let maxVotes = 0;
+    for (const [section, votes] of sectionVotes.entries()) {
+      if (votes > maxVotes) {
+        maxVotes = votes;
+        primarySection = section;
+      }
+    }
+
+    // Mastery count on the primary section
+    let masteryCount = 0;
+    let sectionPctSum = 0;
+    let sectionPctN = 0;
+    if (primarySection) {
+      const effective = effectiveSectionLessons(primarySection);
+      const total = effective.length || 1;
+      for (const m of members) {
+        const studentHwm = hwm.get(m.studentId);
+        if (!studentHwm) continue;
+        let passed = 0;
+        for (const ln of effective) if (studentHwm.has(ln)) passed++;
+        const pct = (passed / total) * 100;
+        sectionPctSum += pct;
+        sectionPctN++;
+        if (pct >= COACHING_THRESHOLDS.MASTERY_THRESHOLD) masteryCount++;
+      }
+    }
+
+    const lessonsAttemptedSet = groupLessonsAttempted.get(groupId);
+    let lessonsAttempted = 0;
+    if (primarySection && lessonsAttemptedSet) {
+      const effective = new Set(effectiveSectionLessons(primarySection));
+      for (const ln of lessonsAttemptedSet) {
+        if (effective.has(ln)) lessonsAttempted++;
+      }
+    }
+
+    const size = primarySection ? sectionSizeFn(primarySection) : 0;
+    const minThreshold = primarySection ? sectionMinThreshold(primarySection) : 0;
+    const isBridging =
+      primarySection !== null && lessonsAttempted < minThreshold;
+
+    // Previous section completion detection
+    let completedPrevSection: SkillSectionName | null = null;
+    let prevSectionMasteryPct: number | null = null;
+    if (primarySection) {
+      const prev = previousSection(primarySection);
+      if (prev && lessonsAttemptedSet) {
+        const lastLn = lastLessonInSection(prev);
+        if (lastLn && lessonsAttemptedSet.has(lastLn)) {
+          completedPrevSection = prev;
+          // Compute mastery on prev
+          const prevEffective = effectiveSectionLessons(prev);
+          const prevTotal = prevEffective.length || 1;
+          let prevMasteryCount = 0;
+          let prevCounted = 0;
+          for (const m of members) {
+            const studentHwm = hwm.get(m.studentId);
+            if (!studentHwm) continue;
+            prevCounted++;
+            let passed = 0;
+            for (const ln of prevEffective) if (studentHwm.has(ln)) passed++;
+            const pct = (passed / prevTotal) * 100;
+            if (pct >= COACHING_THRESHOLDS.MASTERY_THRESHOLD) prevMasteryCount++;
+          }
+          prevSectionMasteryPct =
+            prevCounted > 0
+              ? Math.round((prevMasteryCount / prevCounted) * 100)
+              : null;
+        }
+      }
+    }
+
+    result[groupId] = {
+      groupId,
+      section: primarySection,
+      totalStudents: members.length,
+      masteryCount,
+      masteryPct:
+        members.length > 0
+          ? Math.round((masteryCount / members.length) * 100)
+          : 0,
+      avgSectionPct:
+        sectionPctN > 0 ? Math.round(sectionPctSum / sectionPctN) : 0,
+      isBridging,
+      sectionSize: size,
+      minThreshold,
+      lessonsAttempted,
+      completedPrevSection,
+      prevSectionMasteryPct,
+    };
+  }
+
+  return result;
 }
 
 /**
