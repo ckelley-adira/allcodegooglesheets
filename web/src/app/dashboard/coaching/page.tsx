@@ -17,6 +17,8 @@ import {
   getCoachingSnapshot,
   type PriorityItemType,
 } from "@/lib/dal/coaching";
+import { getCliffAlerts } from "@/lib/dal/cliffs";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -81,7 +83,10 @@ export default async function CoachingPage() {
     );
   }
 
-  const snapshot = await getCoachingSnapshot(schoolId, currentYear.yearId);
+  const [snapshot, cliffAlerts] = await Promise.all([
+    getCoachingSnapshot(schoolId, currentYear.yearId),
+    getCliffAlerts(schoolId, currentYear.yearId),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -94,7 +99,7 @@ export default async function CoachingPage() {
       </div>
 
       {/* Rollup cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
           <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
             Groups tracked
@@ -142,6 +147,24 @@ export default async function CoachingPage() {
         </div>
         <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
           <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+            Approaching cliffs
+          </p>
+          <p
+            className={cn(
+              "mt-1 text-3xl font-bold",
+              cliffAlerts.groupsAlertedCount > 0
+                ? "text-orange-600 dark:text-orange-400"
+                : "text-zinc-400",
+            )}
+          >
+            {cliffAlerts.groupsAlertedCount}
+          </p>
+          <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+            Groups within 3 lessons of a known cliff
+          </p>
+        </div>
+        <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
             Missed sessions
           </p>
           <p className="mt-1 text-3xl font-bold">{snapshot.totalAbsences}</p>
@@ -150,6 +173,65 @@ export default async function CoachingPage() {
           </p>
         </div>
       </div>
+
+      {/* Cliff alerts (prospective — heads up before a known cliff) */}
+      {cliffAlerts.alerts.length > 0 && (
+        <section className="space-y-3">
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight">
+              Known-Cliff Alerts ({cliffAlerts.alerts.length})
+            </h2>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+              Prospective heads-up. These groups are within 3 lessons of a
+              cliff identified in the 1,007-student survival analysis.
+              Empirical hazard rates; not slope-based anomaly detection.
+            </p>
+          </div>
+          <div className="space-y-2">
+            {cliffAlerts.alerts.map((alert, i) => (
+              <div
+                key={`cliff-${alert.groupId}-${alert.cliff.id}-${i}`}
+                className="rounded-r-lg border border-l-4 border-orange-500 border-zinc-200 bg-orange-50 p-4 shadow-sm dark:border-zinc-800 dark:bg-orange-950/20"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-lg">⚠️</span>
+                  <Badge className="bg-orange-100 text-orange-800 dark:bg-orange-950/40 dark:text-orange-300">
+                    {alert.cliff.label}
+                  </Badge>
+                  <Link
+                    href={`/dashboard/groups/${alert.groupId}`}
+                    className="text-sm font-semibold hover:underline"
+                  >
+                    {alert.groupName}
+                  </Link>
+                  <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                    · {alert.memberCount} student
+                    {alert.memberCount !== 1 ? "s" : ""} · currently at L
+                    {alert.maxLessonInGroup}
+                  </span>
+                  <span className="ml-auto text-[10px] font-mono uppercase tracking-wider text-orange-700 dark:text-orange-300">
+                    {alert.distance === 0
+                      ? "AT cliff"
+                      : `${alert.distance} lesson${alert.distance !== 1 ? "s" : ""} away`}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                  {alert.cliff.concept}
+                </p>
+                <p className="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+                  Hazard rate: {alert.cliff.hazardRateLabel}
+                  {alert.cliff.masteryDropLabel !== "—" && (
+                    <> · Mastery drop: {alert.cliff.masteryDropLabel}</>
+                  )}
+                </p>
+                <p className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">
+                  {alert.cliff.alertText}
+                </p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Priority matrix */}
       <section className="space-y-3">
