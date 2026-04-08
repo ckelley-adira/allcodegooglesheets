@@ -1,12 +1,14 @@
 # Real-School Data Import — Design Doc
 
-> **Status:** DRAFT · open questions in §5 · no code written yet
+> **Status:** questions answered 2026-04 · ready to start IM.1
 >
 > **Audience:** Christina + Claude (working doc, edit in place)
 >
 > **Purpose:** Decide how to import real school data (teachers, students,
 > initial assessments, historical lesson checks) from the legacy Google
 > Sheets / Apps Script system into the Adira Reads Supabase platform.
+>
+> **Pilot schools:** CCA, Allegiant, Global Prep. 150 students total.
 
 ---
 
@@ -184,112 +186,227 @@ until step 3 — earlier steps are staging infrastructure only.
 
 ## 5. Open questions (answer inline)
 
-### Q1. Source format
+### Q1. Source format ✅
 
 What format will the data arrive in?
 
-- [ ] CSV exports from Google Sheets (one CSV per sheet tab)
+- [x] **CSV exports from Google Sheets (one CSV per sheet tab)**
 - [ ] Google Sheets published to web as CSV URLs
 - [ ] Direct Supabase SQL dump from another system
-- [ ] Other: _________
 
-**Christina's answer:**
-
-> _TBD_
-
----
-
-### Q2. Pilot school vs all schools
-
-Do we pilot with one school first, then fan out, or import all six
-schools in parallel?
-
-- [ ] One pilot school first (strongly recommended) — which one?
-- [ ] All schools at once
-
-**Christina's answer:**
-
-> _TBD_
+**Implication:** staging table load will use Supabase's CSV import
+(`COPY FROM STDIN` via the SQL Editor, or the Supabase dashboard's
+table editor CSV upload). Every staging table has a 1:1 column mapping
+to the expected source CSV headers so the upload is zero-transform.
 
 ---
 
-### Q3. Historical lesson data — group attribution
+### Q2. Pilot school vs all schools ✅
 
-Which of the three options from §3.2 do we use?
+- [x] **Three pilot schools in parallel: CCA, Allegiant, Global Prep**
+  — 150 students total, chosen as a good cross-section of unique
+  features across the network.
 
-- [ ] **Option A** — Preserve historical groups (3× work, no data loss)
-- [ ] **Option B** — One "Historical" group per school (simple, loses teacher attribution)
-- [ ] **Option C** — Null group_id for import source (cleanest, loses all group context)
-
-**Claude's recommendation:** Option B.
-
-**Christina's answer:**
-
-> _TBD_
-
----
-
-### Q4. Historical depth
-
-How much historical lesson data do we import?
-
-- [ ] Current school year only
-- [ ] Last 2 years
-- [ ] Everything available
-- [ ] Other: _________
-
-**Volume implication:** per the data model doc (Section A), each school
-has ~2,000-4,000 `lesson_progress` rows per year. Six schools × N years
-× ~3,000 rows ≈ 18,000 × N rows. Not huge but affects tuning.
-
-**Christina's answer:**
-
-> _TBD_
+**Implications:**
+- **Allegiant** and **Global Prep** don't exist in the schools table
+  yet. They need to be created before IM.2 runs (either as a manual
+  INSERT or as part of IM.1). Short codes TBD — see §5.1.
+- **CCA** already exists in the test data seed (`002_test_data.sql`).
+  The real CCA data import will collide with the test data. Before
+  IM.2 runs for CCA, the teardown helper (Q7 below) must wipe the
+  test-CCA state scoped to `short_code = 'CCA'`.
+- The "three schools in parallel" framing means the staging tables
+  need to handle cross-school imports cleanly. The `school_code`
+  column already covers this — each transform function takes one
+  school at a time so they can be run independently per school even
+  when staging holds all three.
 
 ---
 
-### Q5. Teacher authentication flow
+### Q3. Historical lesson data — group attribution ✅
 
-Pre-created staff rows + email-claim on first login (recommended), or
-manual auth account provisioning per teacher?
+- [x] **Option A — Preserve historical groups**, with a twist: Christina
+  creates the groups manually through the new Groups page AFTER
+  staff + students are imported and BEFORE historical lesson data
+  lands. The import transform then matches each historical lesson
+  row to an existing group by `(group_name, teacher_email)` and
+  uses its `group_id`.
 
-- [ ] Pre-created + email-claim (auto on first successful magic link login)
-- [ ] Manual per teacher
-- [ ] Other: _________
+**Flow:**
+1. IM.2 — staff + students imported
+2. **Christina uses `/dashboard/groups` to create each group + assign
+   teachers + add rosters** (manual step, happens outside the
+   migration flow)
+3. IM.5 — historical lesson import runs. For each staging row, the
+   transform looks up `instructional_groups` filtered by
+   `school_id + group_name` and uses the returned `group_id`. If no
+   match, the row goes to the error list for manual resolution.
 
-**Christina's answer:**
+**Implication for staging schema:** the `staging_lesson_progress` table
+needs both `group_label` (the group name from the legacy sheet) and
+`teacher_email` (for disambiguation when two groups share a name).
+The transform function matches on `group_label` first, falls back to
+`group_label + teacher_email` if multiple groups match.
 
-> _TBD_
+This is cleaner than the pure Option A pattern I originally described
+because Christina's pre-work lets her use the real Groups UI to build
+the groups with correct grade assignments, rosters, and teacher
+assignments — instead of us trying to reverse-engineer that from the
+legacy sheet structure.
 
 ---
 
-### Q6. Initial assessment snapshot type
+### Q4. Historical depth ✅
 
-The legacy system captured a single "Initial Assessment" per student
-(no semester snapshots). Historical assessment rows imported into
-Adira Reads should be recorded as:
+- [x] **Current school year only** (FY26 — roughly Aug 2025 through
+  today).
 
-- [ ] `baseline` (recommended — matches the frozen BOY reference semantics)
-- [ ] Split by date — any assessment before MOY cutoff = `baseline`, between MOY and EOY = `semester_1_end`, after EOY = `semester_2_end`
-- [ ] Other: _________
-
-**Christina's answer:**
-
-> _TBD_
+**Implications:**
+- The `import_historical_lessons()` transform filters staging rows by
+  `date_recorded` and only inserts rows where the date falls inside
+  the current `academic_years` row for that school. Anything outside
+  that window goes to the error list.
+- Volume: ~3,000 lesson_progress rows × 3 schools ≈ 9,000 rows total.
+  Trivial for Supabase to handle in one batch.
+- Weekly snapshots + band assignments will be rebuilt from scratch
+  after the import via the existing `/dashboard/snapshots → Recompute`
+  button — they aren't imported directly.
 
 ---
 
-### Q7. Re-runnability
+### Q5. Teacher authentication flow ✅
 
-Should we build in the ability to truncate + re-import one school
-without touching other schools?
+- [x] **Pre-created + email-claim (auto on first successful magic link
+  login).**
 
-- [ ] Yes — add `school_id` scoping to the teardown helper (recommended for the pilot phase)
-- [ ] No — we only import each school once, ever
-- [ ] Teardown is fine but per-school scoping is overkill
+**Flow:**
+1. IM.2 inserts `staff` rows with `auth_uid = NULL`, real emails from
+   the legacy sheet
+2. A teacher hits `/login`, requests a magic link to their email
+3. They click the link — Supabase Auth creates an `auth.users` row
+   on first successful login
+4. IM.6's `/auth/claim` server action runs after auth:
+   - Matches `auth.users.email` to a `staff` row with
+     `auth_uid IS NULL` and equal `email`
+   - Sets `staff.auth_uid = auth.users.id`
+   - Triggers the custom-claims hook to populate JWT claims
+     (`school_id`, `role`, `is_tilt_admin`)
+5. Teacher lands on `/dashboard` authenticated + school-scoped
 
-**Christina's answer:**
+**Edge cases the claim action must handle:**
+- Email matches zero staff rows → show a friendly "not invited yet"
+  page, let TILT Admin add them via the Staff page
+- Email matches multiple rows (shouldn't happen — `staff.email` has a
+  unique constraint) → error
+- `auth_uid` already set → pass through normally, do nothing
 
+---
+
+### Q6. Initial assessment snapshot type ✅
+
+- [x] **`baseline`** (matches the frozen BOY reference semantics).
+
+**Implication:** the `import_initial_assessments()` transform always
+writes `snapshot_type = 'baseline'`. If a student already has a
+baseline row for the same `(student_id, year_id)`, the transform
+updates it in place via `ON CONFLICT (student_id, year_id,
+snapshot_type) DO UPDATE`. Re-running the import refreshes the
+baseline; there's no risk of duplicates.
+
+---
+
+### Q7. Re-runnability ✅
+
+- [x] **Yes — add `school_id` scoping to the teardown helper.**
+
+**Implication:** `import_teardown_school(p_school_code)` deletes rows
+in dependency order scoped to one school:
+
+```
+band_assignments           (via student.school_id)
+weekly_snapshots           (via student.school_id)
+assessment_component_errors (via assessment → student.school_id)
+initial_assessment_lessons  (via assessment → student.school_id)
+initial_assessments        (via student.school_id)
+lesson_progress            (via student.school_id)
+group_memberships          (via group.school_id)
+instructional_sequence_lessons + instructional_sequences  (via group)
+instructional_groups       (via school_id)
+students                   (via school_id)
+staff                      (via school_id)
+```
+
+Schools + academic_years are preserved so the school row itself
+remains. The teardown intentionally does NOT touch audit_log —
+keeping the teardown event in the audit trail is the whole point.
+
+This is a pilot-phase tool. Once a school is live with real teacher
+usage, the teardown helper should be removed or require an explicit
+"I know what I'm doing" confirmation parameter.
+
+---
+
+## 5.1 Follow-up questions surfaced by the answers
+
+These are smaller than Q1–Q7 but need answers before IM.1 runs.
+
+### Q1a. School short codes for Allegiant + Global Prep
+
+`schools.short_code` is a unique `VARCHAR(10)` used as the natural key
+throughout the import pipeline (it's how staging rows identify which
+school they belong to). CCA already exists with `short_code = 'CCA'`.
+The other two need codes:
+
+- **Allegiant** — proposed: `ALLEG` (or `ALG`? Chrstina's preference)
+
+  > _TBD_
+
+- **Global Prep** — proposed: `GPA` (Global Prep Academy) or `GP`
+
+  > _TBD_
+
+### Q1b. Test-data CCA collision
+
+The test data seed `supabase/seed/002_test_data.sql` already created
+CCA with fake teachers, students, groups, and lesson_progress. The
+real CCA import needs to wipe that state first.
+
+**Recommendation:** run `import_teardown_school('CCA')` as the first
+step of the CCA import. Allegiant and Global Prep don't have this
+problem because they don't exist yet.
+
+> _Confirm OK to wipe test-CCA data before real import: TBD_
+
+### Q1c. Academic year creation for new schools
+
+`academic_years` rows need to exist before any lesson_progress import
+can resolve a `year_id` for its dates. CCA has one (from the test
+seed), but Allegiant and Global Prep don't.
+
+**Proposed:** IM.1 migration creates the schools table entries AND
+the `academic_years` row for each new pilot school, using FY26 with
+start_date=2025-08-01, end_date=2026-06-30, is_current=true. Matches
+the test seed convention.
+
+> _Confirm dates + label for FY26: TBD_
+
+### Q1d. Source CSV column mapping
+
+Each of the 4 staging tables needs to match the header row of the
+actual legacy sheet CSV export. I can propose a mapping based on the
+`.gs` files in `docs/` — but Christina needs to verify the exact
+column names by exporting one sheet and pasting the header row here:
+
+**Staff tab header row from Global Prep (or any pilot):**
+> _TBD — paste first row of exported CSV_
+
+**Student Roster tab header row:**
+> _TBD_
+
+**Initial Assessment tab header row:**
+> _TBD_
+
+**Small Group Progress tab header row:**
 > _TBD_
 
 ---
