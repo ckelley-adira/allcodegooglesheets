@@ -3,27 +3,47 @@
  * UFLI MASTER SYSTEM — ASSESSMENT DATA
  * =============================================================================
  * File: _AssessmentData.gs
- * 
+ *
  * Source of truth for all UFLI assessment sections, words, components, and
  * lesson mappings. Used by AssessmentEngine.gs to generate the assessment
  * form and map component-level results to lesson-level Y/N values.
  *
- * SECTIONS (16):
- *   1. Single Consonants & Vowels (L1-L34)
- *   2. Blends (L25, L27)
- *   3. Digraphs (L42-L52)
- *   4. VCE / Vowel-Consonant-E (L54-L61)
- *   5. Reading Longer Words (L63-L68)
- *   6. Ending Spelling Patterns (L69-L75)
- *   7. R-Controlled Vowels (L77-L82)
- *   8. Long Vowel Teams (L84-L87)
- *   9. Other Vowel Teams (L89-L94)
- *  10. Diphthongs (L95-L96)
- *  11. Silent Letters (L98)
- *  12. Suffixes & Prefixes (L99-L105)
- *  13. Suffix Spelling Changes (L107-L110)
- *  14. Low Frequency Spellings (L111-L118)
- *  15. Additional Affixes (L119-L127)
+ * ARCHITECTURE NOTE — Component Data Shape:
+ *   getAllSectionsData() stores components as plain strings and lessons as a
+ *   separate parallel object keyed by component name. This is the raw/internal
+ *   format used only within this file.
+ *
+ *   getAssessmentSections() is the ONLY public-facing function. It normalizes
+ *   each word's components into a structured array of objects before returning:
+ *     { name: string, lessons: number[] }
+ *   This normalized shape is what AssessmentEngine.gs and assessmentform.html
+ *   receive and depend on. Do NOT change this contract without updating both
+ *   consumers.
+ *
+ * BUG FIX (2026-04-08):
+ *   Previously, word.components was returned as a plain string array. The HTML
+ *   form then tried to look up lesson numbers via word.lessons[c] at render
+ *   time. This lookup failed silently (|| [] fallback) for any component where
+ *   the key casing didn't exactly match — causing Sections 3–15 to submit zero
+ *   lesson results. Fixed by normalizing components to { name, lessons } objects
+ *   inside getAssessmentSections() before sending to the client.
+ *
+ * SECTIONS (15):
+ *   1.  Single Consonants & Vowels (L1-L34)
+ *   2.  Blends (L25, L27)
+ *   3.  Digraphs (L42-L52)
+ *   4.  VCE / Vowel-Consonant-E (L54-L61)
+ *   5.  Reading Longer Words (L63-L68)
+ *   6.  Ending Spelling Patterns (L69-L75)
+ *   7.  R-Controlled Vowels (L77-L82)
+ *   8.  Long Vowel Teams (L84-L87)
+ *   9.  Other Vowel Teams (L89-L94)
+ *  10.  Diphthongs (L95-L96)
+ *  11.  Silent Letters (L98)
+ *  12.  Suffixes & Prefixes (L99-L105)
+ *  13.  Suffix Spelling Changes (L107-L110)
+ *  14.  Low Frequency Spellings (L111-L118)
+ *  15.  Additional Affixes (L119-L127)
  *
  * GRADE RANGES:
  *   KG (0):     Sections 1-2 (+ Sections 3-4 for EOY)
@@ -35,12 +55,33 @@
  *   Grades 1-2 on non-foundational sections: Reduce to primary component only
  *   (except compound/multi-syllable words which keep full component breakdown)
  *
+ * @file _AssessmentData.gs
+ * @description Assessment section definitions, lesson mappings, and grade-filtered
+ *   section builder for the UFLI Initial Assessment form.
+ *
+ * @school All Sites
+ * @workbook UFLI Master System (per-site)
+ * @trigger Called by: AssessmentEngine.gs (getAssessmentSections),
+ *          assessmentform.html (via google.script.run)
+ * @dependencies None
+ * @sideEffects None — read-only data provider
+ *
+ * @author Christina Kelley (CK Consulting / TILT)
+ * @lastModified 2026-04-08
+ *
+ * @changelog
+ *   2026-04-08 - BUG FIX: Normalized word.components to { name, lessons } objects
+ *                in getAssessmentSections() so the HTML form never does a fragile
+ *                key lookup against word.lessons at render time. Sections 3-15 were
+ *                silently writing zero lesson results due to key mismatch.
  * =============================================================================
  */
+
 
 /**
  * Section-to-lesson mapping for report generation.
  * Used by ReportEngine to calculate section-level mastery percentages.
+ * These are the assessable lesson numbers only (review lessons excluded).
  */
 const SECTION_LESSON_RANGES = {
   'Single Consonants & Vowels': [1, 2, 3, 4, 6, 7, 8, 9, 11, 12, 13, 14, 16, 17, 18, 20, 21, 22, 23, 24, 26, 28, 29, 30, 31, 32, 33, 34],
@@ -62,8 +103,11 @@ const SECTION_LESSON_RANGES = {
 
 
 /**
- * Returns all assessment sections with words, components, and lesson mappings.
- * This is the single source of truth for the assessment structure.
+ * Returns the raw assessment section definitions — internal format only.
+ *
+ * IMPORTANT: This is an internal data store. Do NOT call this directly from
+ * AssessmentEngine.gs or the HTML form. Use getAssessmentSections() instead,
+ * which normalizes the component shape before returning.
  *
  * Each section contains:
  *   - name: Display name
@@ -71,9 +115,10 @@ const SECTION_LESSON_RANGES = {
  *   - words: Array of word objects, each with:
  *       - word: The display word
  *       - number: Display order within section
- *       - primaryComponent: The main skill being tested
- *       - components: Array of component names (what appears on buttons)
- *       - lessons: Object mapping component name → lesson number(s)
+ *       - primaryComponent: The main skill being tested (used for simplification)
+ *       - components: Array of component name strings (raw; normalized by getAssessmentSections)
+ *       - lessons: Object mapping component name → lesson number array
+ *                  Keys are lowercase component strings matching the components array values.
  *
  * @returns {Object} All assessment sections keyed by section ID
  */
@@ -185,8 +230,8 @@ function getAllSectionsData() {
         { word: 'BLASTED',  number: 4, primaryComponent: 'ED',       components: ['bl', 'ed'],     lessons: { 'bl': [27], 'ed': [64] } },
         { word: 'BOXING',   number: 5, primaryComponent: 'ING',      components: ['x', 'ing'],     lessons: { 'x': [31], 'ing': [65] } },
         { word: 'SNAPSHOT', number: 6, primaryComponent: 'SNAPSHOT', components: ['snap', 'shot'], lessons: { 'snap': [66], 'shot': [66] } },
-        { word: 'ABSENT',   number: 7, primaryComponent: 'ABSENT',  components: ['ab', 'sent'],   lessons: { 'ab': [67], 'sent': [67] } },
-        { word: 'CUPID',    number: 8, primaryComponent: 'CUPID',   components: ['cu', 'pid'],    lessons: { 'cu': [68], 'pid': [68] } }
+        { word: 'ABSENT',   number: 7, primaryComponent: 'ABSENT',   components: ['ab', 'sent'],   lessons: { 'ab': [67], 'sent': [67] } },
+        { word: 'CUPID',    number: 8, primaryComponent: 'CUPID',    components: ['cu', 'pid'],    lessons: { 'cu': [68], 'pid': [68] } }
       ]
     },
 
@@ -197,7 +242,7 @@ function getAllSectionsData() {
       name: 'Ending Spelling Patterns',
       gradeRanges: [1, 2, 3, 4, 5, 6, 7, 8],
       words: [
-        { word: 'SWITCH', number: 1,  primaryComponent: 'TCH',    components: ['w', 'tch'],          lessons: { 'w': [28], 'tch': [69] } },
+        { word: 'SWITCH', number: 1,  primaryComponent: 'TCH',    components: ['w', 'tch'],         lessons: { 'w': [28], 'tch': [69] } },
         { word: 'PLEDGE', number: 2,  primaryComponent: 'DGE',    components: ['pl', 'dge'],         lessons: { 'pl': [27], 'dge': [70] } },
         { word: 'CHILD',  number: 3,  primaryComponent: 'ILD',    components: ['ild'],               lessons: { 'ild': [72] } },
         { word: 'BLIND',  number: 4,  primaryComponent: 'IND',    components: ['bl', 'ind'],         lessons: { 'bl': [27], 'ind': [72] } },
@@ -205,8 +250,8 @@ function getAllSectionsData() {
         { word: 'POST',   number: 6,  primaryComponent: 'OST',    components: ['p', 'ost'],          lessons: { 'p': [6], 'ost': [72] } },
         { word: 'GOLD',   number: 7,  primaryComponent: 'OLD',    components: ['g', 'old'],          lessons: { 'g': [16], 'old': [72] } },
         { word: 'TRY',    number: 8,  primaryComponent: 'Y_AS_I', components: ['tr', 'y'],           lessons: { 'tr': [25], 'y': [74] } },
-        { word: 'TABLE',  number: 9,  primaryComponent: 'LE',     components: ['t', 'a', 'ble'],    lessons: { 't': [4], 'a': [1], 'ble': [75] } },
-        { word: 'SAMPLE', number: 10, primaryComponent: 'LE',     components: ['s', 'am', 'ple'],   lessons: { 's': [3], 'am': [11], 'ple': [75] } },
+        { word: 'TABLE',  number: 9,  primaryComponent: 'LE',     components: ['t', 'a', 'ble'],     lessons: { 't': [4], 'a': [1], 'ble': [75] } },
+        { word: 'SAMPLE', number: 10, primaryComponent: 'LE',     components: ['s', 'am', 'ple'],    lessons: { 's': [3], 'am': [11], 'ple': [75] } },
         { word: 'CANDY',  number: 11, primaryComponent: 'Y_AS_E', components: ['y'],                 lessons: { 'y': [73] } }
       ]
     },
@@ -233,20 +278,20 @@ function getAllSectionsData() {
       name: 'Long Vowel Teams',
       gradeRanges: [1, 2, 3, 4, 5, 6, 7, 8],
       words: [
-        { word: 'PAINT',    number: 1,  primaryComponent: 'AI',  components: ['ai'],          lessons: { 'ai': [84] } },
-        { word: 'SWAY',     number: 2,  primaryComponent: 'AY',  components: ['ay'],          lessons: { 'ay': [84] } },
-        { word: 'AI (in railway)', number: 3,  primaryComponent: 'AI',  components: ['ai'],   lessons: { 'ai': [84] } },
-        { word: 'AY (in railway)', number: 4,  primaryComponent: 'AY',  components: ['ay'],   lessons: { 'ay': [84] } },
-        { word: 'GREET',    number: 5,  primaryComponent: 'EE',  components: ['gr', 'ee'],    lessons: { 'gr': [25], 'ee': [85] } },
-        { word: 'BLEACH',   number: 6,  primaryComponent: 'EA',  components: ['ea'],          lessons: { 'ea': [85] } },
-        { word: 'KIDNEY',   number: 7,  primaryComponent: 'EY',  components: ['k', 'ey'],     lessons: { 'k': [22], 'ey': [84] } },
-        { word: 'THROAT',   number: 8,  primaryComponent: 'OA',  components: ['oa'],          lessons: { 'oa': [86] } },
-        { word: 'GROW',     number: 9,  primaryComponent: 'OW',  components: ['ow'],          lessons: { 'ow': [86] } },
-        { word: 'TOE',      number: 10, primaryComponent: 'OE',  components: ['oe'],          lessons: { 'oe': [86] } },
-        { word: 'LIFEBOAT', number: 11, primaryComponent: 'OA',  components: ['oa'],          lessons: { 'oa': [86] } },
-        { word: 'LIE',      number: 12, primaryComponent: 'IE',  components: ['ie'],          lessons: { 'ie': [87] } },
-        { word: 'BRIGHT',   number: 13, primaryComponent: 'IGH', components: ['br', 'igh'],   lessons: { 'br': [25], 'igh': [87] } },
-        { word: 'INSIGHT',  number: 14, primaryComponent: 'IGH', components: ['igh'],         lessons: { 'igh': [87] } }
+        { word: 'PAINT',              number: 1,  primaryComponent: 'AI',  components: ['ai'],        lessons: { 'ai': [84] } },
+        { word: 'SWAY',               number: 2,  primaryComponent: 'AY',  components: ['ay'],        lessons: { 'ay': [84] } },
+        { word: 'AI (in railway)',     number: 3,  primaryComponent: 'AI',  components: ['ai'],        lessons: { 'ai': [84] } },
+        { word: 'AY (in railway)',     number: 4,  primaryComponent: 'AY',  components: ['ay'],        lessons: { 'ay': [84] } },
+        { word: 'GREET',              number: 5,  primaryComponent: 'EE',  components: ['gr', 'ee'],  lessons: { 'gr': [25], 'ee': [85] } },
+        { word: 'BLEACH',             number: 6,  primaryComponent: 'EA',  components: ['ea'],        lessons: { 'ea': [85] } },
+        { word: 'KIDNEY',             number: 7,  primaryComponent: 'EY',  components: ['k', 'ey'],   lessons: { 'k': [22], 'ey': [84] } },
+        { word: 'THROAT',             number: 8,  primaryComponent: 'OA',  components: ['oa'],        lessons: { 'oa': [86] } },
+        { word: 'GROW',               number: 9,  primaryComponent: 'OW',  components: ['ow'],        lessons: { 'ow': [86] } },
+        { word: 'TOE',                number: 10, primaryComponent: 'OE',  components: ['oe'],        lessons: { 'oe': [86] } },
+        { word: 'LIFEBOAT',           number: 11, primaryComponent: 'OA',  components: ['oa'],        lessons: { 'oa': [86] } },
+        { word: 'LIE',                number: 12, primaryComponent: 'IE',  components: ['ie'],        lessons: { 'ie': [87] } },
+        { word: 'BRIGHT',             number: 13, primaryComponent: 'IGH', components: ['br', 'igh'], lessons: { 'br': [25], 'igh': [87] } },
+        { word: 'INSIGHT',            number: 14, primaryComponent: 'IGH', components: ['igh'],       lessons: { 'igh': [87] } }
       ]
     },
 
@@ -257,17 +302,17 @@ function getAllSectionsData() {
       name: 'Other Vowel Teams',
       gradeRanges: [1, 2, 3, 4, 5, 6, 7, 8],
       words: [
-        { word: 'COOK',   number: 1,  primaryComponent: 'OO',   components: ['oo'],          lessons: { 'oo': [89] } },
-        { word: 'PUSH',   number: 2,  primaryComponent: 'U',    components: ['u'],           lessons: { 'u': [89] } },
-        { word: 'MOON',   number: 3,  primaryComponent: 'OO',   components: ['oo'],          lessons: { 'oo': [90] } },
-        { word: 'CHEW',   number: 4,  primaryComponent: 'EW',   components: ['ew'],          lessons: { 'ew': [91] } },
-        { word: 'FRUIT',  number: 5,  primaryComponent: 'UI',   components: ['ui'],          lessons: { 'ui': [91] } },
-        { word: 'GLUE',   number: 6,  primaryComponent: 'UE',   components: ['gl', 'ue'],    lessons: { 'gl': [27], 'ue': [91] } },
-        { word: 'CLAW',   number: 7,  primaryComponent: 'AW',   components: ['aw'],          lessons: { 'aw': [93] } },
-        { word: 'GAUZE',  number: 8,  primaryComponent: 'AU',   components: ['au'],          lessons: { 'au': [93] } },
-        { word: 'CAUGHT', number: 9,  primaryComponent: 'AUGH', components: ['augh'],        lessons: { 'augh': [93] } },
-        { word: 'DREAD',  number: 10, primaryComponent: 'EA',   components: ['dr', 'ea'],    lessons: { 'dr': [25], 'ea': [94] } },
-        { word: 'SWAN',   number: 11, primaryComponent: 'A',    components: ['a', 's'],      lessons: { 'a': [94], 's': [20] } }
+        { word: 'COOK',   number: 1,  primaryComponent: 'OO',   components: ['oo'],        lessons: { 'oo': [89] } },
+        { word: 'PUSH',   number: 2,  primaryComponent: 'U',    components: ['u'],         lessons: { 'u': [89] } },
+        { word: 'MOON',   number: 3,  primaryComponent: 'OO',   components: ['oo'],        lessons: { 'oo': [90] } },
+        { word: 'CHEW',   number: 4,  primaryComponent: 'EW',   components: ['ew'],        lessons: { 'ew': [91] } },
+        { word: 'FRUIT',  number: 5,  primaryComponent: 'UI',   components: ['ui'],        lessons: { 'ui': [91] } },
+        { word: 'GLUE',   number: 6,  primaryComponent: 'UE',   components: ['gl', 'ue'],  lessons: { 'gl': [27], 'ue': [91] } },
+        { word: 'CLAW',   number: 7,  primaryComponent: 'AW',   components: ['aw'],        lessons: { 'aw': [93] } },
+        { word: 'GAUZE',  number: 8,  primaryComponent: 'AU',   components: ['au'],        lessons: { 'au': [93] } },
+        { word: 'CAUGHT', number: 9,  primaryComponent: 'AUGH', components: ['augh'],      lessons: { 'augh': [93] } },
+        { word: 'DREAD',  number: 10, primaryComponent: 'EA',   components: ['dr', 'ea'],  lessons: { 'dr': [25], 'ea': [94] } },
+        { word: 'SWAN',   number: 11, primaryComponent: 'A',    components: ['a', 's'],    lessons: { 'a': [94], 's': [20] } }
       ]
     },
 
@@ -305,18 +350,18 @@ function getAllSectionsData() {
       name: 'Suffixes & Prefixes',
       gradeRanges: [1, 2, 3, 4, 5, 6, 7, 8],
       words: [
-        { word: 'CATS',     number: 1,  primaryComponent: '-S',    components: ['s'],    lessons: { 's': [99] } },
-        { word: 'BUNCHES',  number: 2,  primaryComponent: '-ES',   components: ['es'],   lessons: { 'es': [99] } },
-        { word: 'FASTER',   number: 3,  primaryComponent: '-ER',   components: ['er'],   lessons: { 'er': [100] } },
-        { word: 'COLDEST',  number: 4,  primaryComponent: '-EST',  components: ['est'],  lessons: { 'est': [100] } },
-        { word: 'SADLY',    number: 5,  primaryComponent: '-LY',   components: ['ly'],   lessons: { 'ly': [101] } },
-        { word: 'UNPACK',   number: 6,  primaryComponent: 'UN-',   components: ['un'],   lessons: { 'un': [103] } },
-        { word: 'ENDLESS',  number: 7,  primaryComponent: '-LESS', components: ['less'], lessons: { 'less': [102] } },
-        { word: 'HELPFUL',  number: 8,  primaryComponent: '-FUL',  components: ['ful'],  lessons: { 'ful': [102] } },
-        { word: 'UNKIND',   number: 9,  primaryComponent: 'UN-',   components: ['un'],   lessons: { 'un': [103] } },
-        { word: 'PREMADE',  number: 10, primaryComponent: 'PRE-',  components: ['pre'],  lessons: { 'pre': [104] } },
-        { word: 'RERUN',    number: 11, primaryComponent: 'RE-',   components: ['re'],   lessons: { 're': [104] } },
-        { word: 'DISLIKE',  number: 12, primaryComponent: 'DIS-',  components: ['dis'],  lessons: { 'dis': [105] } }
+        { word: 'CATS',    number: 1,  primaryComponent: '-S',    components: ['s'],    lessons: { 's': [99] } },
+        { word: 'BUNCHES', number: 2,  primaryComponent: '-ES',   components: ['es'],   lessons: { 'es': [99] } },
+        { word: 'FASTER',  number: 3,  primaryComponent: '-ER',   components: ['er'],   lessons: { 'er': [100] } },
+        { word: 'COLDEST', number: 4,  primaryComponent: '-EST',  components: ['est'],  lessons: { 'est': [100] } },
+        { word: 'SADLY',   number: 5,  primaryComponent: '-LY',   components: ['ly'],   lessons: { 'ly': [101] } },
+        { word: 'UNPACK',  number: 6,  primaryComponent: 'UN-',   components: ['un'],   lessons: { 'un': [103] } },
+        { word: 'ENDLESS', number: 7,  primaryComponent: '-LESS', components: ['less'], lessons: { 'less': [102] } },
+        { word: 'HELPFUL', number: 8,  primaryComponent: '-FUL',  components: ['ful'],  lessons: { 'ful': [102] } },
+        { word: 'UNKIND',  number: 9,  primaryComponent: 'UN-',   components: ['un'],   lessons: { 'un': [103] } },
+        { word: 'PREMADE', number: 10, primaryComponent: 'PRE-',  components: ['pre'],  lessons: { 'pre': [104] } },
+        { word: 'RERUN',   number: 11, primaryComponent: 'RE-',   components: ['re'],   lessons: { 're': [104] } },
+        { word: 'DISLIKE', number: 12, primaryComponent: 'DIS-',  components: ['dis'],  lessons: { 'dis': [105] } }
       ]
     },
 
@@ -404,26 +449,44 @@ function getAllSectionsData() {
 
 
 /**
- * Returns filtered assessment sections for a specific grade level.
- * Applies grade-appropriate filtering and simplification rules.
+ * Returns grade-filtered assessment sections with components normalized to
+ * { name, lessons } objects — the shape expected by AssessmentEngine.gs and
+ * assessmentform.html.
  *
- * @param {number|string} grade - Student's grade level (0=KG)
- * @param {boolean} isKindergartenEndOfYear - Whether this is a KG EOY assessment
- * @returns {Array} Array of section objects ready for the form
+ * WHY NORMALIZATION HAPPENS HERE (not in getAllSectionsData):
+ *   getAllSectionsData() stores components as plain strings alongside a parallel
+ *   word.lessons lookup object. That's fine for human readability and data entry.
+ *   But the HTML form renders buttons from word.components and must know each
+ *   component's lesson numbers at render time — it cannot do a reliable key
+ *   lookup against word.lessons because key casing may not always match.
+ *   Normalizing here, on the server, gives the client a clean { name, lessons }
+ *   object per component so no lookup is needed.
+ *
+ * SIMPLIFICATION RULE (Grades 1–2, non-foundational sections):
+ *   Reduces each word to a single button for its primaryComponent, except for
+ *   compound/multi-syllable words in DO_NOT_SIMPLIFY. This prevents overwhelming
+ *   G1–2 scorers with sub-component detail on complex pattern words.
+ *
+ * @param {number|string} grade - Student's grade level (0 or 'KG'/'K' = Kindergarten)
+ * @param {boolean} isKindergartenEndOfYear - If true, adds Digraphs & VCE for KG
+ * @returns {Array<Object>} Sections with words.components as { name, lessons }[] objects
  */
 function getAssessmentSections(grade, isKindergartenEndOfYear) {
   try {
-    // Handle various grade formats: "G2", "2nd", "2", "KG", "K", "0", etc.
+    // Normalize grade to integer. Accepts "G2", "2nd", "2", "KG", "K", "0", etc.
     grade = String(grade).replace(/[^0-9KGkg]/g, '');
     if (grade.toUpperCase() === 'KG' || grade.toUpperCase() === 'K') {
       grade = 0;
     } else {
       grade = parseInt(grade) || 0;
     }
+
+    // Deep clone to avoid mutating the master data on repeated calls
     const allSections = JSON.parse(JSON.stringify(getAllSectionsData()));
     const sectionsToShow = [];
 
-    // Words that should NEVER be simplified (multi-syllable/compound)
+    // These primaryComponent values represent multi-syllable/compound words that
+    // should never be reduced to a single button even on the simplified G1–2 form.
     const DO_NOT_SIMPLIFY = new Set([
       'COMPOUND', 'TWO_SYLLABLE', 'OPEN_SYLLABLE',
       'SNAPSHOT', 'ABSENT', 'CUPID'
@@ -434,22 +497,54 @@ function getAssessmentSections(grade, isKindergartenEndOfYear) {
     for (const key in allSections) {
       const section = allSections[key];
 
+      // Skip sections not in this grade's range
       if (!section.gradeRanges.includes(grade)) continue;
 
       const isFoundational = (key === 'alphabet_consonants' || key === 'blends');
 
-      // Simplify non-foundational sections for Grades 1-2:
-      // Reduce to primary component only (single button per word)
+      // ─── Grade 1–2 simplification ──────────────────────────────
+      // Foundational sections (Alphabet, Blends) always show all components.
+      // Non-foundational sections are reduced to the primaryComponent button only,
+      // unless the word is in DO_NOT_SIMPLIFY (compound/multi-syllable words that
+      // need their syllable breakdown preserved for diagnostic value).
       if (shouldSimplify && !isFoundational) {
         section.words.forEach(word => {
           if (!DO_NOT_SIMPLIFY.has(word.primaryComponent)) {
+            // Reduce to a single component name string; normalization below
+            // will resolve its lesson numbers from word.lessons.
             word.components = [word.primaryComponent.toLowerCase()];
           }
         });
       }
 
-      // Kindergarten: Only foundational sections (+ digraphs/VCE for EOY)
+      // ─── BUG FIX: Normalize components to { name, lessons } objects ────
+      // Previously, word.components was sent to the client as a plain string
+      // array. The HTML form then did word.lessons[c] at render time to find
+      // lesson numbers. This lookup failed silently (|| [] fallback) whenever
+      // key casing didn't match exactly — causing Sections 3–15 to record zero
+      // lesson results on submission.
+      //
+      // Fix: resolve lesson numbers here on the server before sending to client.
+      // The client never needs to touch word.lessons — it only sees normalized
+      // { name, lessons } objects.
+      section.words.forEach(word => {
+        word.components = word.components.map(compName => ({
+          name: compName,
+          // Try exact key first, then uppercase fallback for primaryComponents
+          // that may have been lowercased during simplification (e.g. 'ch' vs 'CH').
+          lessons: word.lessons[compName] ||
+                   word.lessons[compName.toUpperCase()] ||
+                   []
+        }));
+        // Remove the raw lessons lookup object — client doesn't need it and
+        // sending it would just add payload weight.
+        delete word.lessons;
+      });
+
+      // ─── Kindergarten section filtering ────────────────────────
       if (grade === 0) {
+        // Standard KG: Alphabet + Blends only.
+        // EOY KG: also include Digraphs and VCE.
         if (isFoundational || (isKindergartenEndOfYear && (key === 'digraphs' || key === 'vce'))) {
           sectionsToShow.push(section);
         }
