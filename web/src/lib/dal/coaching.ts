@@ -24,7 +24,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
-import { COACHING_THRESHOLDS } from "@/config/ufli";
+import { COACHING_THRESHOLDS, TARGET_LESSONS_PER_WEEK } from "@/config/ufli";
 import {
   sectionForLesson,
   effectiveSectionLessons,
@@ -467,6 +467,169 @@ export function computeGroupMastery(
       lessonsAttempted,
       completedPrevSection,
       prevSectionMasteryPct,
+    };
+  }
+
+  return result;
+}
+
+// ── Metric C: Student Growth vs. Expected Slope ─────────────────────────
+
+interface WeeklySnapshotLite {
+  student_id: number;
+  week_start_date: string;
+  lessons_taken: number;
+  lessons_passed: number;
+}
+
+/**
+ * Computes per-student growth info from weekly_snapshots rows
+ * (populated by Phase C.2). Applies the rolling window + aimline and
+ * flags Tier 3 candidates.
+ *
+ * Dedup rule was already applied at snapshot-capture time, so this
+ * function just reads (lessons_taken, lessons_passed) per week and
+ * walks the week sequence to count consecutive below-aimline streaks.
+ * Weeks with zero taken are treated as "no activity" (not counted
+ * toward weeksTracked, not counted toward the streak — matches
+ * fcdCalcGrowthSlope_'s all-absent-week skip behavior).
+ */
+export function computeGrowth(
+  snapshots: WeeklySnapshotLite[],
+  studentMeta: Map<number, { studentName: string; groupId: number }>,
+): Record<number, StudentGrowthInfo> {
+  // Only use the most-recent N weeks per student
+  const rollingWeeks = COACHING_THRESHOLDS.GROWTH_ROLLING_WEEKS;
+  const aimline = TARGET_LESSONS_PER_WEEK;
+  const concernThreshold = aimline * COACHING_THRESHOLDS.GROWTH_CONCERN_RATIO;
+
+  // Bucket per-student, sorted ascending by week_start_date
+  const byStudent = new Map<number, WeeklySnapshotLite[]>();
+  for (const s of snapshots) {
+    let arr = byStudent.get(s.student_id);
+    if (!arr) {
+      arr = [];
+      byStudent.set(s.student_id, arr);
+    }
+    arr.push(s);
+  }
+  for (const arr of byStudent.values()) {
+    arr.sort((a, b) => a.week_start_date.localeCompare(b.week_start_date));
+  }
+
+  const result: Record<number, StudentGrowthInfo> = {};
+
+  for (const [studentId, meta] of studentMeta.entries()) {
+    const arr = byStudent.get(studentId) ?? [];
+    // Take the last `rollingWeeks` entries
+    const recent = arr.slice(-rollingWeeks);
+
+    let weeksTracked = 0;
+    let totalPassed = 0;
+    let consecutiveBelow = 0;
+    let maxConsecutiveBelow = 0;
+
+    for (const week of recent) {
+      // Skip weeks with zero activity (no taken at all = all-absent)
+      if (week.lessons_taken === 0) continue;
+      weeksTracked++;
+      totalPassed += week.lessons_passed;
+
+      if (week.lessons_passed < concernThreshold) {
+        consecutiveBelow++;
+        if (consecutiveBelow > maxConsecutiveBelow) {
+          maxConsecutiveBelow = consecutiveBelow;
+        }
+      } else {
+        consecutiveBelow = 0;
+      }
+    }
+
+    const avgPerWeek = weeksTracked > 0 ? totalPassed / weeksTracked : 0;
+    const ratioPct = Math.round((avgPerWeek / aimline) * 100);
+    const tier3Flag =
+      maxConsecutiveBelow >= COACHING_THRESHOLDS.GROWTH_CONCERN_WEEKS;
+
+    result[studentId] = {
+      studentId,
+      studentName: meta.studentName,
+      groupId: meta.groupId,
+      weeksTracked,
+      totalPassed,
+      avgPerWeek: Math.round(avgPerWeek * 10) / 10,
+      aimline,
+      ratioPct,
+      belowAimlineWeeks: maxConsecutiveBelow,
+      tier3Flag,
+    };
+  }
+
+  return result;
+}
+
+// ── Metric D: Chronic Absenteeism ────────────────────────────────────────
+
+/**
+ * Computes per-student absence info from lesson_progress in the window.
+ *
+ * Ported from fcdCalcAbsenteeism_. For each group, count the distinct
+ * dates it met (any activity). For each student in that group, count
+ * distinct dates marked 'A'. absencePct = absences / group session count.
+ *
+ * Flag thresholds: 30% = warning, 40% = critical.
+ */
+export function computeAbsence(
+  windowRows: RawProgressRow[],
+  studentMeta: Map<number, { studentName: string; groupId: number }>,
+): Record<number, StudentAbsenceInfo> {
+  // groupId → set of distinct dates with any activity
+  const groupDates = new Map<number, Set<string>>();
+  for (const r of windowRows) {
+    let set = groupDates.get(r.group_id);
+    if (!set) {
+      set = new Set();
+      groupDates.set(r.group_id, set);
+    }
+    set.add(r.date_recorded);
+  }
+
+  // studentId → set of distinct absence dates
+  const studentAbsenceDates = new Map<number, Set<string>>();
+  for (const r of windowRows) {
+    if (r.status !== "A") continue;
+    let set = studentAbsenceDates.get(r.student_id);
+    if (!set) {
+      set = new Set();
+      studentAbsenceDates.set(r.student_id, set);
+    }
+    set.add(r.date_recorded);
+  }
+
+  const result: Record<number, StudentAbsenceInfo> = {};
+
+  for (const [studentId, meta] of studentMeta.entries()) {
+    const groupSessionCount = groupDates.get(meta.groupId)?.size ?? 0;
+    const absences = studentAbsenceDates.get(studentId)?.size ?? 0;
+    const absencePct =
+      groupSessionCount > 0
+        ? Math.round((absences / groupSessionCount) * 100)
+        : 0;
+
+    const flag: StudentAbsenceInfo["flag"] =
+      absencePct >= COACHING_THRESHOLDS.ABSENCE_CRITICAL
+        ? "critical"
+        : absencePct >= COACHING_THRESHOLDS.ABSENCE_WARNING
+          ? "warning"
+          : "ok";
+
+    result[studentId] = {
+      studentId,
+      studentName: meta.studentName,
+      groupId: meta.groupId,
+      totalSessions: groupSessionCount,
+      absences,
+      absencePct,
+      flag,
     };
   }
 
