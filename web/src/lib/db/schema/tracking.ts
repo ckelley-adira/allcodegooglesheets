@@ -82,7 +82,7 @@ export const weeklySnapshots = pgTable(
       .references(() => academicYears.yearId),
     weekNumber: smallint("week_number").notNull(),
     weekStartDate: date("week_start_date").notNull(),
-    growthPct: numeric("growth_pct", { precision: 5, scale: 2 }).notNull(),
+    growthPct: numeric("growth_pct", { precision: 6, scale: 2 }).notNull(),
     lessonsTaken: smallint("lessons_taken").notNull().default(0),
     lessonsPassed: smallint("lessons_passed").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
