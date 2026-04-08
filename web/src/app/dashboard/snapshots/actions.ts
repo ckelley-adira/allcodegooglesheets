@@ -19,6 +19,7 @@ import { requireRole } from "@/lib/auth";
 import { getActiveSchoolId } from "@/lib/auth/school-context";
 import { listAcademicYears } from "@/lib/dal/groups";
 import { captureWeeklySnapshots } from "@/lib/dal/weekly-snapshots";
+import { captureBandAssignments } from "@/lib/dal/bands";
 
 export interface CaptureSnapshotsResult {
   ok: boolean;
@@ -26,6 +27,9 @@ export interface CaptureSnapshotsResult {
   weeksProcessed?: number;
   studentsProcessed?: number;
   snapshotsWritten?: number;
+  /** Band assignments written in the same pass (Phase D.1) */
+  bandAssignmentsWritten?: number;
+  bandAssignedDate?: string;
 }
 
 /**
@@ -51,21 +55,35 @@ export async function captureWeeklySnapshotsAction(
   }
 
   try {
-    const result = await captureWeeklySnapshots({
+    // Capture weekly snapshots first — the growth slope metric + the
+    // banding engine both read from the resulting dataset. The
+    // Banding Engine runs against high-water-mark Y lesson sets, so
+    // it technically doesn't require the weekly rollup, but running
+    // them together matches Section 5.3 cadence ("weekly, Friday,
+    // after the Dashboard snapshot is computed").
+    const snapshotResult = await captureWeeklySnapshots({
       schoolId,
       yearId: currentYear.yearId,
       weeks,
     });
 
+    const bandResult = await captureBandAssignments(
+      schoolId,
+      currentYear.yearId,
+    );
+
     revalidatePath("/dashboard/snapshots");
+    revalidatePath("/dashboard/bands");
     revalidatePath("/dashboard/students", "layout");
 
     return {
       ok: true,
-      message: `Captured ${result.weeksProcessed} weeks × ${result.studentsProcessed} students (${result.snapshotsWritten} rows upserted).`,
-      weeksProcessed: result.weeksProcessed,
-      studentsProcessed: result.studentsProcessed,
-      snapshotsWritten: result.snapshotsWritten,
+      message: `Captured ${snapshotResult.weeksProcessed} weeks × ${snapshotResult.studentsProcessed} students (${snapshotResult.snapshotsWritten} snapshot rows). Banded ${bandResult.assignmentsWritten} students for ${bandResult.assignedDate}.`,
+      weeksProcessed: snapshotResult.weeksProcessed,
+      studentsProcessed: snapshotResult.studentsProcessed,
+      snapshotsWritten: snapshotResult.snapshotsWritten,
+      bandAssignmentsWritten: bandResult.assignmentsWritten,
+      bandAssignedDate: bandResult.assignedDate,
     };
   } catch (err) {
     return {
