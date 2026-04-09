@@ -7,6 +7,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 
 // ── Group types ──────────────────────────────────────────────────────────
 
@@ -178,17 +179,18 @@ export async function listGroups(schoolId: number): Promise<GroupRow[]> {
 
   const groupIds = (groups as unknown as RawGroupRow[]).map((g) => g.group_id);
 
-  // Get member counts for each group
-  const { data: memberships, error: memError } = await supabase
-    .from("group_memberships")
-    .select("group_id")
-    .eq("is_active", true)
-    .in("group_id", groupIds);
-
-  if (memError) throw new Error(memError.message);
+  // Get member counts for each group (paginated — 500+ students at scale)
+  const memberships = await fetchAllRows<{ group_id: number }>((from, to) =>
+    supabase
+      .from("group_memberships")
+      .select("group_id")
+      .eq("is_active", true)
+      .in("group_id", groupIds)
+      .range(from, to),
+  );
 
   const countMap = new Map<number, number>();
-  (memberships ?? []).forEach((m: { group_id: number }) => {
+  memberships.forEach((m) => {
     countMap.set(m.group_id, (countMap.get(m.group_id) ?? 0) + 1);
   });
 

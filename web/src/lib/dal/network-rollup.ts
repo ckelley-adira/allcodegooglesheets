@@ -10,6 +10,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { getBigFourMetrics, type BigFourMetrics } from "./metrics";
 import { getSchoolPacingSummary } from "./school-pacing";
 
@@ -68,24 +69,33 @@ export async function getNetworkRollup(): Promise<NetworkRollup> {
     (s) => s.school_id,
   );
 
-  // 2. Per-school counts in one query each (cheap, RLS-bypassed for TILT)
-  const [studentCounts, staffCounts, groupCounts, currentYears] =
+  // 2. Per-school counts (paginated — 50+ schools × 500 students = 25K+)
+  const [studentCountRows, staffCountRows, groupCountRows, currentYears] =
     await Promise.all([
-      supabase
-        .from("students")
-        .select("school_id")
-        .eq("enrollment_status", "active")
-        .in("school_id", schoolIds),
-      supabase
-        .from("staff")
-        .select("school_id")
-        .eq("is_active", true)
-        .in("school_id", schoolIds),
-      supabase
-        .from("instructional_groups")
-        .select("school_id")
-        .eq("is_active", true)
-        .in("school_id", schoolIds),
+      fetchAllRows<{ school_id: number }>((from, to) =>
+        supabase
+          .from("students")
+          .select("school_id")
+          .eq("enrollment_status", "active")
+          .in("school_id", schoolIds)
+          .range(from, to),
+      ),
+      fetchAllRows<{ school_id: number }>((from, to) =>
+        supabase
+          .from("staff")
+          .select("school_id")
+          .eq("is_active", true)
+          .in("school_id", schoolIds)
+          .range(from, to),
+      ),
+      fetchAllRows<{ school_id: number }>((from, to) =>
+        supabase
+          .from("instructional_groups")
+          .select("school_id")
+          .eq("is_active", true)
+          .in("school_id", schoolIds)
+          .range(from, to),
+      ),
       supabase
         .from("academic_years")
         .select("school_id, year_id, label")
@@ -93,9 +103,9 @@ export async function getNetworkRollup(): Promise<NetworkRollup> {
         .in("school_id", schoolIds),
     ]);
 
-  const studentCountMap = countBySchool(studentCounts.data ?? []);
-  const staffCountMap = countBySchool(staffCounts.data ?? []);
-  const groupCountMap = countBySchool(groupCounts.data ?? []);
+  const studentCountMap = countBySchool(studentCountRows);
+  const staffCountMap = countBySchool(staffCountRows);
+  const groupCountMap = countBySchool(groupCountRows);
   const yearMap = new Map<number, { yearId: number; label: string }>();
   for (const y of currentYears.data ?? []) {
     const row = y as { school_id: number; year_id: number; label: string };

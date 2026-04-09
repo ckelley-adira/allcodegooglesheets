@@ -8,6 +8,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -194,18 +195,24 @@ export async function getUfliMapData(
   }
 
   // 4. Get all lesson progress for these students in this year
+  //    Uses fetchAllRows to paginate past the 1,000-row PostgREST default.
   const studentIds = studentRows.map((s) => s.studentId);
-  const { data: progressRows, error: progressError } = await supabase
-    .from("lesson_progress")
-    .select("student_id, lesson_id, status")
-    .in("student_id", studentIds)
-    .eq("year_id", yearId);
-
-  if (progressError) throw new Error(progressError.message);
+  const progressRows = await fetchAllRows<{
+    student_id: number;
+    lesson_id: number;
+    status: string;
+  }>((from, to) =>
+    supabase
+      .from("lesson_progress")
+      .select("student_id, lesson_id, status")
+      .in("student_id", studentIds)
+      .eq("year_id", yearId)
+      .range(from, to),
+  );
 
   // 5. Build the outcomes map
   const outcomesMap = new Map<number, Record<number, "Y" | "N" | "A">>();
-  for (const row of progressRows ?? []) {
+  for (const row of progressRows) {
     if (!outcomesMap.has(row.student_id)) {
       outcomesMap.set(row.student_id, {});
     }

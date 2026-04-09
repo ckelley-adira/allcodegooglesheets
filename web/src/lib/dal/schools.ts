@@ -9,6 +9,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { FEATURE_FLAGS, FEATURE_FLAGS_BY_KEY } from "@/config/features";
 
 // ── Types ────────────────────────────────────────────────────────────────
@@ -163,25 +164,33 @@ export async function listSchools(): Promise<SchoolRow[]> {
   if (error) throw new Error(error.message);
   if (!schools || schools.length === 0) return [];
 
-  // Get student counts per school
-  const { data: studentCounts } = await supabase
-    .from("students")
-    .select("school_id")
-    .eq("enrollment_status", "active");
+  // Get student counts per school (paginated — 50+ schools × 500 students = 25K+)
+  const studentCounts = await fetchAllRows<{ school_id: number }>(
+    (from, to) =>
+      supabase
+        .from("students")
+        .select("school_id")
+        .eq("enrollment_status", "active")
+        .range(from, to),
+  );
 
   const studentCountMap = new Map<number, number>();
-  (studentCounts ?? []).forEach((s: { school_id: number }) => {
+  studentCounts.forEach((s) => {
     studentCountMap.set(s.school_id, (studentCountMap.get(s.school_id) ?? 0) + 1);
   });
 
-  // Get staff counts per school
-  const { data: staffCounts } = await supabase
-    .from("staff")
-    .select("school_id")
-    .eq("is_active", true);
+  // Get staff counts per school (paginated for consistency)
+  const staffCounts = await fetchAllRows<{ school_id: number }>(
+    (from, to) =>
+      supabase
+        .from("staff")
+        .select("school_id")
+        .eq("is_active", true)
+        .range(from, to),
+  );
 
   const staffCountMap = new Map<number, number>();
-  (staffCounts ?? []).forEach((s: { school_id: number }) => {
+  staffCounts.forEach((s) => {
     staffCountMap.set(s.school_id, (staffCountMap.get(s.school_id) ?? 0) + 1);
   });
 

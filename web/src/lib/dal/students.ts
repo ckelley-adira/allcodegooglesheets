@@ -13,6 +13,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 
 export interface StudentRow {
   studentId: number;
@@ -82,17 +83,20 @@ function mapStudentRow(r: RawStudentRow): StudentRow {
  */
 export async function listStudents(schoolId: number): Promise<StudentRow[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("students")
-    .select(
-      "student_id, first_name, last_name, student_number, enrollment_status, enrollment_date, withdrawal_date, grade_id, created_at, grade_levels(name)",
-    )
-    .eq("school_id", schoolId)
-    .order("last_name", { ascending: true })
-    .order("first_name", { ascending: true });
+  // Paginated: 500+ students (including inactive) per school at scale.
+  const data = await fetchAllRows<RawStudentRow>((from, to) =>
+    supabase
+      .from("students")
+      .select(
+        "student_id, first_name, last_name, student_number, enrollment_status, enrollment_date, withdrawal_date, grade_id, created_at, grade_levels(name)",
+      )
+      .eq("school_id", schoolId)
+      .order("last_name", { ascending: true })
+      .order("first_name", { ascending: true })
+      .range(from, to),
+  );
 
-  if (error) throw new Error(error.message);
-  return (data ?? []).map((r) => mapStudentRow(r as unknown as RawStudentRow));
+  return data.map((r) => mapStudentRow(r));
 }
 
 /**

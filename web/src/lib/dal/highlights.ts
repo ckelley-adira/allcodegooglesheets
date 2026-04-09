@@ -17,6 +17,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { TARGET_LESSONS_PER_WEEK } from "@/config/ufli";
 import {
   ARCHETYPE_META,
@@ -143,7 +144,9 @@ export async function getGrowthHighlights(
   const latestBandDate =
     (latestDateRow as { assigned_date: string } | null)?.assigned_date ?? null;
 
-  const [snapshotRowsResult, bandRowsResult, progressRowsResult] =
+  // Paginated: lesson_progress Y rows can exceed 1K at scale (500 students × 128 lessons).
+  // Snapshots and band rows are within limits (4 weeks of weekly data).
+  const [snapshotRowsResult, bandRowsResult, progressRows] =
     await Promise.all([
       supabase
         .from("weekly_snapshots")
@@ -164,15 +167,22 @@ export async function getGrowthHighlights(
             .eq("assigned_date", latestBandDate)
             .in("movement", ["accelerating", "advancing"])
         : Promise.resolve({ data: [] }),
-      supabase
-        .from("lesson_progress")
-        .select(
-          "student_id, date_recorded, ufli_lessons!inner(lesson_number)",
-        )
-        .in("student_id", studentIds)
-        .eq("year_id", yearId)
-        .eq("status", "Y")
-        .gte("date_recorded", windowStartIso),
+      fetchAllRows<{
+        student_id: number;
+        date_recorded: string;
+        ufli_lessons: { lesson_number: number } | null;
+      }>((from, to) =>
+        supabase
+          .from("lesson_progress")
+          .select(
+            "student_id, date_recorded, ufli_lessons!inner(lesson_number)",
+          )
+          .in("student_id", studentIds)
+          .eq("year_id", yearId)
+          .eq("status", "Y")
+          .gte("date_recorded", windowStartIso)
+          .range(from, to),
+      ),
     ]);
 
   // ── 3. Top Movers (from weekly snapshots) ────────────────────────────
@@ -201,11 +211,7 @@ export async function getGrowthHighlights(
 
   // ── 5. Cliff Survivors (from lesson_progress Y rows in window) ───────
   const cliffSurvivors = computeCliffSurvivors(
-    (progressRowsResult.data ?? []) as unknown as Array<{
-      student_id: number;
-      date_recorded: string;
-      ufli_lessons: { lesson_number: number } | null;
-    }>,
+    progressRows,
     studentLookup,
   );
 
