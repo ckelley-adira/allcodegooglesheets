@@ -149,8 +149,6 @@ export function firstLessonInSection(section: SkillSectionName): number | null {
 
 // ── Gateway Logic (Phase MVP-Critical) ──────────────────────────────────────
 
-import { SECTION_REVIEW_LESSONS } from "@/config/ufli";
-
 export type GatewayStatus = "passed" | "failed" | "not_assigned";
 
 export interface SectionGatewayState {
