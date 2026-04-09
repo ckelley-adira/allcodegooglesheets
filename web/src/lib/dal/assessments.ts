@@ -273,6 +273,16 @@ export async function submitAssessment(
   // 1. Score the submission in memory
   const scored = scoreAssessment(input.sections);
 
+  // DEBUG: Log what scoreAssessment produced
+  if (input.sections.length > 0 && input.sections[0].words.length > 0) {
+    const firstWord = input.sections[0].words[0];
+    console.error("[DAL] First word scored results:");
+    for (const component of firstWord.components) {
+      const lessons = component.lessons.map(l => `${l}:${scored.lessonResults.get(l) ?? 'unset'}`).join(", ");
+      console.error(`  ${component.name} (result="${component.result}") → lessons ${lessons}`);
+    }
+  }
+
   // 2. Verify the student belongs to the active school
   const { data: studentRow } = await supabase
     .from("students")

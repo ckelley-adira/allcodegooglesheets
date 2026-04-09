@@ -119,6 +119,11 @@ export function scoreAssessment(sections: SubmittedSection[]): ScoredAssessment 
       const missedNames: string[] = [];
 
       for (const component of word.components) {
+        // DEBUG: Log component processing
+        if (section.key === "alphabet_consonants" && word.number === 1) {
+          console.error(`[SCORING] Processing word "${word.word}" component "${component.name}" with result="${component.result}"`);
+        }
+
         if (component.result === "correct") {
           correctNames.push(component.name);
           for (const lesson of component.lessons) {
@@ -126,6 +131,9 @@ export function scoreAssessment(sections: SubmittedSection[]): ScoredAssessment 
             // N overrides Y: only set Y if not already N
             if (lessonResults.get(lesson) !== "N") {
               lessonResults.set(lesson, "Y");
+              if (section.key === "alphabet_consonants" && word.number === 1) {
+                console.error(`[SCORING] Set lesson ${lesson} to Y`);
+              }
             }
           }
         } else if (component.result === "incorrect") {
@@ -133,6 +141,9 @@ export function scoreAssessment(sections: SubmittedSection[]): ScoredAssessment 
           for (const lesson of component.lessons) {
             if (REVIEW_LESSONS.has(lesson)) continue;
             lessonResults.set(lesson, "N");
+            if (section.key === "alphabet_consonants" && word.number === 1) {
+              console.error(`[SCORING] Set lesson ${lesson} to N`);
+            }
           }
         }
         // unset: leave lessons untouched
@@ -147,6 +158,16 @@ export function scoreAssessment(sections: SubmittedSection[]): ScoredAssessment 
           componentsMissed: missedNames,
         });
       }
+    }
+  }
+
+  // DEBUG: Log final results for first section
+  if (sections.length > 0) {
+    const firstSection = sections[0];
+    const firstWord = firstSection.words[0];
+    console.error(`[SCORING] Final results for "${firstSection.name}" "${firstWord.word}":`);
+    for (const lesson of firstWord.components.flatMap(c => c.lessons)) {
+      console.error(`  Lesson ${lesson}: ${lessonResults.get(lesson) ?? 'unset'}`);
     }
   }
 
