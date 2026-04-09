@@ -22,7 +22,9 @@ import {
   GROWTH_SLOPE_WEEKS,
   REVIEW_LESSONS,
   SKILL_SECTIONS,
+  SECTION_REVIEW_LESSONS,
 } from "@/config/ufli";
+import type { SkillSectionName } from "@/lib/curriculum/sections";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -334,15 +336,45 @@ function computeSkillSectionBreakdown(
   rows: RawProgressRow[],
 ): SkillSectionRow[] {
   const marks = new Set(computeHighWaterMarks(rows));
+  // Build attempted set for gateway check (Y or N, not A)
+  const attempted = new Set<number>();
+  for (const r of rows) {
+    if (r.status === "Y" || r.status === "N") {
+      const ln = r.ufli_lessons?.lesson_number;
+      if (ln) attempted.add(ln);
+    }
+  }
+
   const result: SkillSectionRow[] = [];
   for (const [name, lessonNumbers] of Object.entries(SKILL_SECTIONS)) {
-    let passed = 0;
-    for (const ln of lessonNumbers) if (marks.has(ln)) passed++;
+    const nonReview = lessonNumbers.filter(
+      (ln) => !REVIEW_LESSONS.has(ln)
+    );
+    const reviews = SECTION_REVIEW_LESSONS[name as SkillSectionName] ?? [];
+
+    // Gateway check: all reviews assigned AND all passed → 100%
+    if (reviews.length > 0) {
+      const allAssigned = reviews.every((ln) => attempted.has(ln));
+      const allPassed = reviews.every((ln) => marks.has(ln));
+      if (allAssigned && allPassed) {
+        result.push({
+          name,
+          totalLessons: nonReview.length,
+          passedLessons: nonReview.length,
+          pct: 100,
+        });
+        continue;
+      }
+    }
+
+    // Fallback: non-review mastery only
+    const passed = nonReview.filter((ln) => marks.has(ln)).length;
+    const total = nonReview.length || 1;
     result.push({
       name,
-      totalLessons: lessonNumbers.length,
+      totalLessons: total,
       passedLessons: passed,
-      pct: (passed / lessonNumbers.length) * 100,
+      pct: (passed / total) * 100,
     });
   }
   return result;

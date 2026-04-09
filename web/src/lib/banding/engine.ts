@@ -35,6 +35,8 @@ import {
   SECTION_ORDER,
   sectionForLesson,
   type SkillSectionName,
+  type SectionGatewayState,
+  computeGatewayState as _unused, // imported for type-checking, not used in engine
 } from "@/lib/curriculum/sections";
 
 // ── Types ────────────────────────────────────────────────────────────────
@@ -309,11 +311,15 @@ export function classifyArchetype(vec: ProfileVector): StudentArchetype {
 
 /**
  * Finds the highest skill section (by SECTION_ORDER index) where the
- * student has ≥80% mastery on non-review lessons, using bridge-resolved
- * sectioning so Blends collapses into Single Consonants & Vowels.
+ * student has achieved ceiling status. Uses gateway-first logic (D-MVP-Critical):
+ * - If section has gateway reviews passed → section qualifies (100% credit)
+ * - Else if section has ≥80% mastery on non-review lessons → qualifies
+ *
+ * Bridge-aware: Blends collapses into Single Consonants & Vowels.
  */
 export function findCeilingSection(
   passedLessons: Set<number>,
+  gatewayState?: Map<SkillSectionName, SectionGatewayState>,
 ): SkillSectionName | null {
   // Compute per-section mastery (bridge-aware)
   // For each section, sum non-review lessons in that section's resolved
@@ -337,11 +343,17 @@ export function findCeilingSection(
     }
   }
 
-  // Walk SECTION_ORDER backward, return first section with >=80%
+  // Walk SECTION_ORDER backward, return first section with ceiling status
   for (let i = SECTION_ORDER.length - 1; i >= 0; i--) {
     const section = SECTION_ORDER[i];
     const agg = counts.get(section);
     if (!agg || agg.total === 0) continue;
+
+    // Gateway check first: if gateway passed → 100% credit
+    const gw = gatewayState?.get(section);
+    if (gw?.status === "passed") return section;
+
+    // Fall back to non-review mastery >= 80%
     const pct = (agg.passed / agg.total) * 100;
     if (pct >= 80) return section;
   }
@@ -393,15 +405,20 @@ export function computeSwissCheeseGapCount(
  * Given a set of passed lesson numbers and a student's grade, run the
  * full banding engine and return band + archetype + swiss cheese + the
  * profile vector that led to the archetype choice.
+ *
+ * Per D-MVP-Critical: If gatewayState is provided, it's used to compute
+ * ceiling section (gateway-first logic). Otherwise, behavior is unchanged
+ * (backward compatible).
  */
 export function assignBand(
   passedLessons: Set<number>,
   gradeName: string | null | undefined,
+  gatewayState?: Map<SkillSectionName, SectionGatewayState>,
 ): BandAssignmentResult {
   const hasAnyData = passedLessons.size > 0;
   const profileVector = computeProfileVector(passedLessons);
   const archetype = classifyArchetype(profileVector);
-  const ceilingSection = findCeilingSection(passedLessons);
+  const ceilingSection = findCeilingSection(passedLessons, gatewayState);
   const band = classifyBand(ceilingSection, gradeName, hasAnyData);
   const { ceilingLesson, gapCount } = computeSwissCheeseGapCount(passedLessons);
 

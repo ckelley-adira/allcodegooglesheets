@@ -24,7 +24,12 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
-import { COACHING_THRESHOLDS, TARGET_LESSONS_PER_WEEK } from "@/config/ufli";
+import {
+  COACHING_THRESHOLDS,
+  TARGET_LESSONS_PER_WEEK,
+  SECTION_REVIEW_LESSONS,
+  REVIEW_LESSONS,
+} from "@/config/ufli";
 import {
   sectionForLesson,
   effectiveSectionLessons,
@@ -33,6 +38,8 @@ import {
   previousSection,
   lastLessonInSection,
   type SkillSectionName,
+  computeGatewayState,
+  type SectionGatewayState,
 } from "@/lib/curriculum/sections";
 
 // ── Shared types ─────────────────────────────────────────────────────────
@@ -296,6 +303,24 @@ export function activityWindow(today: Date = new Date()): {
   };
 }
 
+// ── Helper: Gateway-first mastery percentage ────────────────────────────
+
+/**
+ * Compute section mastery with gateway-first logic:
+ *   1. If gateway for this section is "passed" → 100%
+ *   2. Otherwise → (non-review lessons passed / non-review total) × 100
+ */
+function gatewayFirstPct(
+  gatewayState: SectionGatewayState | undefined,
+  nonReviewLessons: number[],
+  passedLessons: Set<number>,
+): number {
+  if (gatewayState?.status === "passed") return 100;
+  const total = nonReviewLessons.length || 1;
+  const passed = nonReviewLessons.filter((l) => passedLessons.has(l)).length;
+  return (passed / total) * 100;
+}
+
 // ── Metric B: Group Pass Rate + Bridge Detection ────────────────────────
 
 /**
@@ -333,6 +358,21 @@ export function computeGroupMastery(
     if (!set) {
       set = new Set();
       hwm.set(r.student_id, set);
+    }
+    set.add(r.ufli_lessons.lesson_number);
+  }
+
+  // 1b. Build attempted review lesson set per student (for gateway checks)
+  // studentId → set of review lesson numbers with Y or N
+  const attemptedByStudent = new Map<number, Set<number>>();
+  for (const r of fullYearRows) {
+    if (r.status === "A") continue; // skip absences
+    if (!r.ufli_lessons) continue;
+    if (!r.ufli_lessons.is_review) continue; // only review lessons
+    let set = attemptedByStudent.get(r.student_id);
+    if (!set) {
+      set = new Set();
+      attemptedByStudent.set(r.student_id, set);
     }
     set.add(r.ufli_lessons.lesson_number);
   }
@@ -386,19 +426,21 @@ export function computeGroupMastery(
       }
     }
 
-    // Mastery count on the primary section
+    // Mastery count on the primary section (gateway-first logic)
     let masteryCount = 0;
     let sectionPctSum = 0;
     let sectionPctN = 0;
     if (primarySection) {
-      const effective = effectiveSectionLessons(primarySection);
-      const total = effective.length || 1;
+      const nonReviewLessons = effectiveSectionLessons(primarySection).filter(
+        (ln) => !REVIEW_LESSONS.has(ln),
+      );
       for (const m of members) {
-        const studentHwm = hwm.get(m.studentId);
-        if (!studentHwm) continue;
-        let passed = 0;
-        for (const ln of effective) if (studentHwm.has(ln)) passed++;
-        const pct = (passed / total) * 100;
+        const passed = hwm.get(m.studentId) ?? new Set<number>();
+        const attempted = attemptedByStudent.get(m.studentId) ?? new Set<number>();
+        const gwState = computeGatewayState(passed, attempted).get(
+          primarySection,
+        );
+        const pct = gatewayFirstPct(gwState, nonReviewLessons, passed);
         sectionPctSum += pct;
         sectionPctN++;
         if (pct >= COACHING_THRESHOLDS.MASTERY_THRESHOLD) masteryCount++;
@@ -419,7 +461,7 @@ export function computeGroupMastery(
     const isBridging =
       primarySection !== null && lessonsAttempted < minThreshold;
 
-    // Previous section completion detection
+    // Previous section completion detection (gateway-first logic)
     let completedPrevSection: SkillSectionName | null = null;
     let prevSectionMasteryPct: number | null = null;
     if (primarySection) {
@@ -428,19 +470,21 @@ export function computeGroupMastery(
         const lastLn = lastLessonInSection(prev);
         if (lastLn && lessonsAttemptedSet.has(lastLn)) {
           completedPrevSection = prev;
-          // Compute mastery on prev
-          const prevEffective = effectiveSectionLessons(prev);
-          const prevTotal = prevEffective.length || 1;
+          // Compute mastery on prev with gateway-first logic
+          const prevNonReviewLessons = effectiveSectionLessons(prev).filter(
+            (ln) => !REVIEW_LESSONS.has(ln),
+          );
           let prevMasteryCount = 0;
           let prevCounted = 0;
           for (const m of members) {
-            const studentHwm = hwm.get(m.studentId);
-            if (!studentHwm) continue;
+            const passed = hwm.get(m.studentId) ?? new Set<number>();
+            const attempted =
+              attemptedByStudent.get(m.studentId) ?? new Set<number>();
+            const gwState = computeGatewayState(passed, attempted).get(prev);
+            const pct = gatewayFirstPct(gwState, prevNonReviewLessons, passed);
             prevCounted++;
-            let passed = 0;
-            for (const ln of prevEffective) if (studentHwm.has(ln)) passed++;
-            const pct = (passed / prevTotal) * 100;
-            if (pct >= COACHING_THRESHOLDS.MASTERY_THRESHOLD) prevMasteryCount++;
+            if (pct >= COACHING_THRESHOLDS.MASTERY_THRESHOLD)
+              prevMasteryCount++;
           }
           prevSectionMasteryPct =
             prevCounted > 0
@@ -768,7 +812,7 @@ export function buildPriorityMatrix(
     const lowGrowth = grpGrowthAvg < COACHING_THRESHOLDS.SYSTEMIC_LOW_GROWTH_PCT;
     const isBridging = ms?.isBridging ?? false;
 
-    // Rule: Section completion celebration / weak section close
+    // Rule: Section completion celebration / weak section close / assign gateway reviews
     if (ms?.completedPrevSection && ms.prevSectionMasteryPct !== null) {
       if (ms.prevSectionMasteryPct >= 80) {
         priorities.push({
@@ -784,6 +828,23 @@ export function buildPriorityMatrix(
           urgency: 1,
         });
       } else {
+        // Weak section close: suggest gateway reviews if available
+        const reviewLessons =
+          SECTION_REVIEW_LESSONS[ms.completedPrevSection] ?? [];
+        if (reviewLessons.length > 0) {
+          priorities.push({
+            type: "coaching",
+            icon: "🔵",
+            label: "Assign Gateway Reviews",
+            groupId,
+            groupName,
+            studentId: null,
+            studentName: null,
+            detail: `${ms.completedPrevSection} completed at ${ms.prevSectionMasteryPct}% — ${reviewLessons.length} gateway reviews available for additional mastery pathway`,
+            action: `Assign ${ms.completedPrevSection} gateway review lessons to this group's sequence. May help students reach mastery via alternative pathway.`,
+            urgency: 4.5,
+          });
+        }
         priorities.push({
           type: "fidelity",
           icon: "🟡",
@@ -1002,7 +1063,7 @@ export async function getCoachingSnapshot(
           )
           .in("student_id", studentIds)
           .eq("year_id", yearId)
-          .eq("status", "Y")
+          .in("status", ["Y", "N"])
       : Promise.resolve({ data: [] }),
     studentIds.length > 0
       ? supabase

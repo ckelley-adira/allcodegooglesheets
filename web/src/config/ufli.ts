@@ -45,6 +45,27 @@ export const SKILL_SECTIONS: Record<string, readonly number[]> = {
 } as const;
 
 /**
+ * For each section that contains review/gateway lessons, the review lesson
+ * numbers within that section. Sections absent from this map have no review
+ * lessons and only non-review mastery applies.
+ *
+ * Gateway rule: if ALL review lessons in a section have been assigned (Y or N)
+ * AND all passed (Y) → 100% mastery for that section, overriding regular pct.
+ */
+export const SECTION_REVIEW_LESSONS: Partial<Record<keyof typeof SKILL_SECTIONS, readonly number[]>> = {
+  "Alphabet Review & Longer Words": [35, 36, 37, 39, 40, 41],
+  Digraphs:                          [49, 53],
+  VCE:                               [57, 59, 62],
+  "Ending Spelling Patterns":        [71, 76],
+  "R-Controlled Vowels":             [79, 83],
+  "Long Vowel Teams":                [88],
+  "Other Vowel Teams":               [92],
+  Diphthongs:                        [97],
+  "Suffixes & Prefixes":             [102, 104, 105, 106],
+  "Additional Affixes":              [128],
+} as const;
+
+/**
  * Performance thresholds (SharedConstants.PERFORMANCE_THRESHOLDS).
  * >= 80% = On Track, >= 50% = Needs Support, < 50% = Intervention
  */

@@ -146,3 +146,67 @@ export function firstLessonInSection(section: SkillSectionName): number | null {
   const lessons = effectiveSectionLessons(section);
   return lessons.length > 0 ? lessons[0] : null;
 }
+
+// ── Gateway Logic (Phase MVP-Critical) ──────────────────────────────────────
+
+import { SECTION_REVIEW_LESSONS } from "@/config/ufli";
+
+export type GatewayStatus = "passed" | "failed" | "not_assigned";
+
+export interface SectionGatewayState {
+  /** The review lessons defined for this section (from config) */
+  reviewLessons: readonly number[];
+  /** Count of review lessons with any Y or N status (assigned) */
+  assignedCount: number;
+  /** Count of review lessons with Y status (passed) */
+  passedCount: number;
+  /** Gateway status: passed (all assigned + all Y) / failed (assigned but not all Y) / not_assigned (none attempted) */
+  status: GatewayStatus;
+}
+
+/**
+ * For each section that has review lessons, compute gateway status.
+ *
+ * Used by banding, coaching, and student detail to determine section mastery:
+ * - If gateway.status = "passed" → section mastery = 100%
+ * - Otherwise → section mastery = (non-review passed / non-review total) × 100
+ *
+ * @param passedLessons  Lesson numbers ever marked Y (high-water-mark set)
+ * @param attemptedLessons  Lesson numbers with any Y or N status (blank = never assigned)
+ * @returns Map of section name → gateway state, only for sections with reviews
+ */
+export function computeGatewayState(
+  passedLessons: Set<number>,
+  attemptedLessons: Set<number>,
+): Map<SkillSectionName, SectionGatewayState> {
+  const result = new Map<SkillSectionName, SectionGatewayState>();
+
+  for (const [section, reviews] of Object.entries(SECTION_REVIEW_LESSONS)) {
+    const assigned = reviews.filter((l) => attemptedLessons.has(l));
+    const passed = reviews.filter((l) => passedLessons.has(l));
+
+    let status: GatewayStatus;
+    if (assigned.length === 0) {
+      // No reviews assigned yet for this section
+      status = "not_assigned";
+    } else if (
+      assigned.length === reviews.length &&
+      passed.length === reviews.length
+    ) {
+      // All reviews assigned AND all passed
+      status = "passed";
+    } else {
+      // Reviews assigned but at least one not passed
+      status = "failed";
+    }
+
+    result.set(section as SkillSectionName, {
+      reviewLessons: reviews,
+      assignedCount: assigned.length,
+      passedCount: passed.length,
+      status,
+    });
+  }
+
+  return result;
+}

@@ -15,6 +15,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { todayISO } from "@/lib/utils";
 import type { CadenceDayCode } from "@/config/cadence";
+import { SECTION_REVIEW_LESSONS } from "@/config/ufli";
+import type { SkillSectionName } from "@/lib/curriculum/sections";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -611,4 +613,123 @@ export async function deleteSequence(sequenceId: number): Promise<void> {
     .delete()
     .eq("sequence_id", sequenceId);
   if (error) throw new Error(error.message);
+}
+
+// ── Gateway lesson assignment ────────────────────────────────────────────
+
+/**
+ * Appends the review lessons for a skill section to the group's active
+ * instructional sequence. Idempotent: lessons already in the sequence
+ * are skipped. Used when a group completes a section at <80% mastery
+ * to offer an alternative mastery pathway via gateway reviews.
+ *
+ * @throws If no active sequence exists, section has no reviews, or query fails
+ * @returns Count of lessons inserted and their lesson numbers
+ */
+export async function insertGatewayLessonsToSequence(
+  groupId: number,
+  sectionName: SkillSectionName,
+): Promise<{ inserted: number; lessonNumbers: number[] }> {
+  const reviewLessonNumbers = SECTION_REVIEW_LESSONS[sectionName];
+  if (!reviewLessonNumbers || reviewLessonNumbers.length === 0) {
+    throw new Error(
+      `Section "${sectionName}" has no review/gateway lessons defined`,
+    );
+  }
+
+  const supabase = await createClient();
+
+  // 1. Get the active sequence for this group
+  const { data: seqRow, error: seqErr } = await supabase
+    .from("instructional_sequences")
+    .select("sequence_id")
+    .eq("group_id", groupId)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (seqErr) throw new Error(seqErr.message);
+  if (!seqRow) {
+    throw new Error(
+      `No active instructional sequence found for group ${groupId}`,
+    );
+  }
+  const sequenceId = (seqRow as { sequence_id: number }).sequence_id;
+
+  // 2. Fetch lesson_id values for each review lesson (in order)
+  const { data: lessonRows, error: lessonErr } = await supabase
+    .from("ufli_lessons")
+    .select("lesson_id, lesson_number")
+    .in("lesson_number", Array.from(reviewLessonNumbers));
+
+  if (lessonErr) throw new Error(lessonErr.message);
+  const lessonMap = new Map<number, number>();
+  for (const row of lessonRows ?? []) {
+    const r = row as { lesson_id: number; lesson_number: number };
+    lessonMap.set(r.lesson_number, r.lesson_id);
+  }
+
+  // 3. Get the current max sort_order in the sequence
+  const { data: maxRow, error: maxErr } = await supabase
+    .from("instructional_sequence_lessons")
+    .select("sort_order")
+    .eq("sequence_id", sequenceId)
+    .order("sort_order", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (maxErr) throw new Error(maxErr.message);
+  let nextSortOrder = 1;
+  if (maxRow) {
+    const m = maxRow as { sort_order: number };
+    nextSortOrder = m.sort_order + 1;
+  }
+
+  // 4. Check which review lessons are already in the sequence (idempotency)
+  const { data: existingRows, error: existErr } = await supabase
+    .from("instructional_sequence_lessons")
+    .select("lesson_id")
+    .eq("sequence_id", sequenceId)
+    .in("lesson_id", Array.from(lessonMap.values()));
+
+  if (existErr) throw new Error(existErr.message);
+  const existingLessonIds = new Set<number>();
+  for (const row of existingRows ?? []) {
+    existingLessonIds.add((row as { lesson_id: number }).lesson_id);
+  }
+
+  // 5. Insert review lessons that aren't already present
+  const toInsert: Array<{
+    sequence_id: number;
+    lesson_id: number;
+    sort_order: number;
+    status: SequenceLessonStatus;
+  }> = [];
+  const insertedLessonNumbers: number[] = [];
+
+  for (const lessonNumber of reviewLessonNumbers) {
+    const lessonId = lessonMap.get(lessonNumber);
+    if (!lessonId) continue; // shouldn't happen, but guard anyway
+    if (existingLessonIds.has(lessonId)) continue; // already in sequence
+
+    toInsert.push({
+      sequence_id: sequenceId,
+      lesson_id: lessonId,
+      sort_order: nextSortOrder,
+      status: "upcoming",
+    });
+    insertedLessonNumbers.push(lessonNumber);
+    nextSortOrder++;
+  }
+
+  if (toInsert.length > 0) {
+    const { error: insertErr } = await supabase
+      .from("instructional_sequence_lessons")
+      .insert(toInsert);
+    if (insertErr) throw new Error(insertErr.message);
+  }
+
+  return {
+    inserted: toInsert.length,
+    lessonNumbers: insertedLessonNumbers,
+  };
 }

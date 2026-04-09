@@ -31,6 +31,7 @@ import {
   type BandMovement,
   type ProfileVector,
 } from "@/lib/banding/engine";
+import { computeGatewayState } from "@/lib/curriculum/sections";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -136,7 +137,8 @@ export async function captureBandAssignments(
   // 2. Passed (Y) lesson numbers across the full year for each student
   // (high-water-mark set — any Y ever = passed forever)
   // 3. Previous week's band assignments (for movement classification)
-  const [progressRowsRaw, prevAssignmentsRaw] = await Promise.all([
+  // 4. Attempted review lessons (Y or N status, is_review=true) for gateway checks
+  const [progressRowsRaw, prevAssignmentsRaw, attemptedReviewRowsRaw] = await Promise.all([
     supabase
       .from("lesson_progress")
       .select("student_id, ufli_lessons!inner(lesson_number)")
@@ -149,6 +151,13 @@ export async function captureBandAssignments(
       .in("student_id", studentIds)
       .eq("year_id", yearId)
       .eq("assigned_date", prevFriday),
+    supabase
+      .from("lesson_progress")
+      .select("student_id, ufli_lessons!inner(lesson_number)")
+      .in("student_id", studentIds)
+      .eq("year_id", yearId)
+      .in("status", ["Y", "N"])
+      .eq("ufli_lessons.is_review", true),
   ]);
 
   const passedByStudent = new Map<number, Set<number>>();
@@ -172,6 +181,22 @@ export async function captureBandAssignments(
     prevBandByStudent.set(r.student_id, r.band);
   }
 
+  // Build map of reviewed (Y or N) lesson numbers per student (for gateway checks)
+  const attemptedByStudent = new Map<number, Set<number>>();
+  for (const row of attemptedReviewRowsRaw.data ?? []) {
+    const r = row as unknown as {
+      student_id: number;
+      ufli_lessons: { lesson_number: number } | null;
+    };
+    if (!r.ufli_lessons) continue;
+    let set = attemptedByStudent.get(r.student_id);
+    if (!set) {
+      set = new Set<number>();
+      attemptedByStudent.set(r.student_id, set);
+    }
+    set.add(r.ufli_lessons.lesson_number);
+  }
+
   // 4. Run the engine per student and build upsert rows
   const rows: Array<{
     student_id: number;
@@ -192,7 +217,9 @@ export async function captureBandAssignments(
 
   for (const student of students) {
     const passed = passedByStudent.get(student.studentId) ?? new Set<number>();
-    const result = assignBand(passed, student.gradeName);
+    const attempted = attemptedByStudent.get(student.studentId) ?? new Set<number>();
+    const gatewayState = computeGatewayState(passed, attempted);
+    const result = assignBand(passed, student.gradeName, gatewayState);
 
     const prev = prevBandByStudent.get(student.studentId) ?? null;
     const movement = classifyMovement(result.band, prev, false);

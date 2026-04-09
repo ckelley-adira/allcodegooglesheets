@@ -223,10 +223,12 @@ export async function getMinGradeSkillsPct(
     if (!denom || denom === 0) continue;
 
     const lessonsInRange: number[] = [];
-    for (let n = 1; n <= denom; n++) lessonsInRange.push(n);
+    for (let n = 1; n <= denom; n++) {
+      if (!REVIEW_LESSONS.has(n)) lessonsInRange.push(n);
+    }
 
     const passed = countMastered(s.studentId, highWater, lessonsInRange);
-    sum += (passed / denom) * 100;
+    sum += (passed / lessonsInRange.length) * 100;
     evaluable++;
   }
 
