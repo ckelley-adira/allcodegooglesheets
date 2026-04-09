@@ -354,12 +354,28 @@ export async function createAcademicYear(
 /**
  * Sets a specific academic year as the current one (unsets all others
  * for the same school in the same operation).
+ *
+ * Per D-002: Validates that yearId belongs to schoolId before updating
+ * to prevent cross-school data corruption.
  */
 export async function setCurrentAcademicYear(
   yearId: number,
   schoolId: number,
 ): Promise<void> {
   const supabase = await createClient();
+
+  // Verify that the year belongs to the school
+  const { data: yearCheck, error: checkError } = await supabase
+    .from("academic_years")
+    .select("year_id")
+    .eq("year_id", yearId)
+    .eq("school_id", schoolId)
+    .maybeSingle();
+
+  if (checkError) throw new Error(checkError.message);
+  if (!yearCheck) {
+    throw new Error("Academic year does not belong to this school");
+  }
 
   const { error: unsetError } = await supabase
     .from("academic_years")
@@ -370,7 +386,8 @@ export async function setCurrentAcademicYear(
   const { error: setError } = await supabase
     .from("academic_years")
     .update({ is_current: true })
-    .eq("year_id", yearId);
+    .eq("year_id", yearId)
+    .eq("school_id", schoolId);
   if (setError) throw new Error(setError.message);
 }
 

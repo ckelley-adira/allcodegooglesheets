@@ -50,7 +50,7 @@ export default async function GroupDetailPage({
   const user = await requireAuth();
   const activeSchoolId = await getActiveSchoolId(user);
 
-  if (!groupId || isNaN(groupId)) notFound();
+  if (!Number.isInteger(groupId) || groupId <= 0) notFound();
 
   const group = await getGroup(groupId, activeSchoolId);
   if (!group) notFound();

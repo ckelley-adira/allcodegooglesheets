@@ -44,7 +44,8 @@ export async function getActiveSchoolId(user?: AuthUser): Promise<number> {
     const cookieValue = cookieStore.get(ACTIVE_SCHOOL_COOKIE)?.value;
     if (cookieValue) {
       const parsed = Number(cookieValue);
-      if (parsed && !isNaN(parsed)) return parsed;
+      // Validate: must be a valid integer > 0 (not just truthy, to support any positive ID)
+      if (Number.isInteger(parsed) && parsed > 0) return parsed;
     }
   }
 

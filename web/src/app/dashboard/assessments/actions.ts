@@ -62,10 +62,10 @@ export async function submitAssessmentAction(
   const notes = (formData.get("notes") as string) || null;
   const sectionsJson = formData.get("sections") as string;
 
-  if (!studentId || isNaN(studentId)) {
+  if (!Number.isInteger(studentId) || studentId <= 0) {
     return { error: "Please select a student.", success: false };
   }
-  if (!yearId || isNaN(yearId)) {
+  if (!Number.isInteger(yearId) || yearId <= 0) {
     return { error: "Academic year is required.", success: false };
   }
   if (!VALID_SNAPSHOTS.includes(snapshotType)) {

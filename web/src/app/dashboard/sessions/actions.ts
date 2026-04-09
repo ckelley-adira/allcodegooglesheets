@@ -54,13 +54,13 @@ export async function recordSessionAction(
     new Date().toISOString().split("T")[0];
   const outcomesJson = formData.get("outcomes") as string;
 
-  if (!groupId || isNaN(groupId)) {
+  if (!Number.isInteger(groupId) || groupId <= 0) {
     return { error: "Please select a group.", success: false };
   }
-  if (!lessonId || isNaN(lessonId)) {
+  if (!Number.isInteger(lessonId) || lessonId <= 0) {
     return { error: "Please select a lesson.", success: false };
   }
-  if (!yearId || isNaN(yearId)) {
+  if (!Number.isInteger(yearId) || yearId <= 0) {
     return { error: "Academic year is required.", success: false };
   }
   if (!outcomesJson) {

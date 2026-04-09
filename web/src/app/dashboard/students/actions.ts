@@ -52,7 +52,7 @@ export async function createStudentAction(
     };
   }
 
-  if (!gradeId || isNaN(gradeId)) {
+  if (!Number.isInteger(gradeId) || gradeId <= 0) {
     return { error: "Please select a grade level.", success: false };
   }
 
@@ -104,7 +104,7 @@ export async function updateStudentAction(
   const activeSchoolId = await getActiveSchoolId(user);
 
   const studentId = Number(formData.get("studentId"));
-  if (!studentId || isNaN(studentId)) {
+  if (!Number.isInteger(studentId) || studentId <= 0) {
     return { error: "Invalid student.", success: false };
   }
 

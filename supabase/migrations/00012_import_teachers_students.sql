@@ -136,6 +136,8 @@ DECLARE
   v_comma_pos int;
   v_parts text[];
   v_n int;
+  v_particle text;
+  v_last_name_count int;
 BEGIN
   v_trimmed := trim(COALESCE(p_name, ''));
   IF v_trimmed = '' THEN
@@ -144,7 +146,7 @@ BEGIN
     RETURN;
   END IF;
 
-  -- "Last, First" format
+  -- "Last, First" format (highest priority, no ambiguity)
   v_comma_pos := position(',' in v_trimmed);
   IF v_comma_pos > 0 THEN
     last_name := trim(substring(v_trimmed FROM 1 FOR v_comma_pos - 1));
@@ -152,12 +154,32 @@ BEGIN
     RETURN;
   END IF;
 
-  -- "First [Middle] Last" format — last word = last_name
+  -- "First [Middle] Last" format with compound last name detection
   v_parts := regexp_split_to_array(v_trimmed, '\s+');
   v_n := array_length(v_parts, 1);
+
   IF v_n >= 2 THEN
-    last_name := v_parts[v_n];
-    first_name := array_to_string(v_parts[1:v_n - 1], ' ');
+    -- Default: last 1 word is the last name
+    v_last_name_count := 1;
+
+    -- HEURISTIC 1: Detect particles (de, von, van, da, di, del, el, al, la, le)
+    -- If penultimate word is a particle, combine last 2 words
+    IF v_n >= 3 THEN
+      v_particle := lower(v_parts[v_n - 1]);
+      IF v_particle IN ('de', 'von', 'van', 'da', 'di', 'del', 'el', 'al', 'la', 'le', 'du', 'des', 'du', 'los', 'las') THEN
+        v_last_name_count := 2;
+      -- HEURISTIC 2: If 4+ words, assume "First Middle Last1 Last2" (compound last name)
+      ELSIF v_n >= 4 THEN
+        v_last_name_count := 2;
+      -- HEURISTIC 3: For 3-word names, check if last word looks like a compound last name marker
+      -- (e.g., starts with lowercase after hyphen, or follows another surname)
+      -- For now, keep traditional single-word last name for 3-word names without particles
+      END IF;
+    END IF;
+
+    -- Extract last_name and first_name based on count
+    last_name := array_to_string(v_parts[v_n - v_last_name_count + 1:v_n], ' ');
+    first_name := array_to_string(v_parts[1:v_n - v_last_name_count], ' ');
   ELSE
     -- Single-word name — treat it as first_name with empty last_name
     first_name := v_trimmed;
@@ -167,8 +189,14 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.split_person_name(text) IS
-  'Splits a free-text person name into (first_name, last_name). Accepts '
-  '"Last, First" and "First [Middle] Last" formats.';
+  'Splits a free-text person name into (first_name, last_name) with compound last name detection.
+  Accepts "Last, First" and "First [Middle] Last" formats.
+
+  Compound last name detection heuristics:
+  1. "Last, First" format: Explicit — "Garcia Lopez, John" → John | Garcia Lopez
+  2. Particles: Detects particles (de, von, van, da, etc.) — "John de Garcia" → John | de Garcia
+  3. 4+ words: Assumes "First Middle Last1 Last2" — "John Mary Garcia Lopez" → John Mary | Garcia Lopez
+  4. Hyphenated: "John Garcia-Lopez" → John | Garcia-Lopez (inherent in word splitting)';
 
 
 -- ── import_teachers ─────────────────────────────────────────────────────────

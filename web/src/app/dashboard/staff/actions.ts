@@ -100,7 +100,7 @@ export async function updateStaffAction(
   const activeSchoolId = await getActiveSchoolId(user);
 
   const staffId = Number(formData.get("staffId"));
-  if (!staffId || isNaN(staffId)) {
+  if (!Number.isInteger(staffId) || staffId <= 0) {
     return { error: "Invalid staff member.", success: false };
   }
 

@@ -33,7 +33,7 @@ export default async function SchoolDetailPage({
 
   const { schoolId: schoolIdParam } = await params;
   const schoolId = Number(schoolIdParam);
-  if (!schoolId || isNaN(schoolId)) notFound();
+  if (!Number.isInteger(schoolId) || schoolId <= 0) notFound();
 
   const school = await getSchool(schoolId);
   if (!school) notFound();

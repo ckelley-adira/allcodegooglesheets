@@ -25,7 +25,12 @@ export async function setActiveSchoolAction(formData: FormData): Promise<void> {
   await requireRole("tilt_admin");
 
   const schoolId = Number(formData.get("schoolId"));
-  if (!schoolId || isNaN(schoolId)) return;
+
+  // Validate: must be a positive integer
+  if (!Number.isInteger(schoolId) || schoolId <= 0) {
+    // Silently fail for invalid input (cookie not set)
+    return;
+  }
 
   const cookieStore = await cookies();
   cookieStore.set(ACTIVE_SCHOOL_COOKIE, String(schoolId), {
@@ -52,7 +57,12 @@ export async function switchSchoolAndOpenDashboardAction(
   await requireRole("tilt_admin");
 
   const schoolId = Number(formData.get("schoolId"));
-  if (!schoolId || isNaN(schoolId)) return;
+
+  // Validate: must be a positive integer
+  if (!Number.isInteger(schoolId) || schoolId <= 0) {
+    // Silently fail for invalid input (stay on current page)
+    return;
+  }
 
   const cookieStore = await cookies();
   cookieStore.set(ACTIVE_SCHOOL_COOKIE, String(schoolId), {

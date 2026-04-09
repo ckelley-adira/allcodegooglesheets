@@ -51,10 +51,10 @@ export async function createGroupAction(
     gradeIds = formData
       .getAll("gradeIds")
       .map((v) => Number(v))
-      .filter((n) => !isNaN(n) && n > 0);
+      .filter((n) => Number.isInteger(n) && n > 0);
   } else {
     const single = Number(formData.get("gradeId"));
-    gradeIds = single && !isNaN(single) ? [single] : [];
+    gradeIds = Number.isInteger(single) && single > 0 ? [single] : [];
   }
 
   if (!groupName) {
@@ -74,10 +74,10 @@ export async function createGroupAction(
       success: false,
     };
   }
-  if (!yearId || isNaN(yearId)) {
+  if (!Number.isInteger(yearId) || yearId <= 0) {
     return { error: "Please select an academic year.", success: false };
   }
-  if (!staffId || isNaN(staffId)) {
+  if (!Number.isInteger(staffId) || staffId <= 0) {
     return { error: "Please assign a staff member.", success: false };
   }
 
@@ -141,7 +141,7 @@ export async function updateGroupAction(
   const activeSchoolId = await getActiveSchoolId(user);
 
   const groupId = Number(formData.get("groupId"));
-  if (!groupId || isNaN(groupId)) {
+  if (!Number.isInteger(groupId) || groupId <= 0) {
     return { error: "Invalid group.", success: false };
   }
 
@@ -164,14 +164,14 @@ export async function updateGroupAction(
     const ids = formData
       .getAll("gradeIds")
       .map((v) => Number(v))
-      .filter((n) => !isNaN(n) && n > 0);
+      .filter((n) => Number.isInteger(n) && n > 0);
     if (ids.length > 0) {
       gradeIds = ids;
       gradeId = ids[0];
     }
   } else if (formData.get("gradeId")) {
     const single = Number(formData.get("gradeId"));
-    if (!isNaN(single) && single > 0) {
+    if (Number.isInteger(single) && single > 0) {
       gradeId = single;
       gradeIds = [single];
     }
@@ -276,25 +276,39 @@ export async function addStudentAction(
  */
 export async function removeStudentAction(
   formData: FormData,
-): Promise<void> {
+): Promise<GroupFormState> {
   const user = await requireRole("coach", "school_admin", "tilt_admin");
   const activeSchoolId = await getActiveSchoolId(user);
 
   const membershipId = Number(formData.get("membershipId"));
   const groupId = formData.get("groupId") as string;
 
-  if (!membershipId) return;
+  // Validate input: membershipId must be a positive integer
+  if (!Number.isInteger(membershipId) || membershipId <= 0) {
+    return { error: "Invalid membership ID.", success: false };
+  }
 
-  await dalRemoveStudent(membershipId);
+  if (!groupId) {
+    return { error: "Invalid group ID.", success: false };
+  }
 
-  await auditLog({
-    schoolId: activeSchoolId,
-    userId: user.staffId,
-    action: "UPDATE",
-    tableName: "group_memberships",
-    recordId: membershipId,
-    newValue: { isActive: false, leftDate: "now" },
-  });
+  try {
+    await dalRemoveStudent(membershipId);
 
-  revalidatePath(`/dashboard/groups/${groupId}`);
+    await auditLog({
+      schoolId: activeSchoolId,
+      userId: user.staffId,
+      action: "UPDATE",
+      tableName: "group_memberships",
+      recordId: membershipId,
+      newValue: { isActive: false, leftDate: "now" },
+    });
+
+    revalidatePath(`/dashboard/groups/${groupId}`);
+    return { error: null, success: true };
+  } catch (err: unknown) {
+    const message =
+      err instanceof Error ? err.message : "Failed to remove student from group.";
+    return { error: message, success: false };
+  }
 }

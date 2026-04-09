@@ -108,7 +108,7 @@ export async function updateSchoolAction(
   const user = await requireRole("tilt_admin");
 
   const schoolId = Number(formData.get("schoolId"));
-  if (!schoolId || isNaN(schoolId)) {
+  if (!Number.isInteger(schoolId) || schoolId <= 0) {
     return { error: "Invalid school.", success: false };
   }
 
@@ -206,7 +206,7 @@ export async function createAcademicYearAction(
   const endDate = formData.get("endDate") as string;
   const isCurrent = formData.get("isCurrent") === "true";
 
-  if (!schoolId || isNaN(schoolId)) {
+  if (!Number.isInteger(schoolId) || schoolId <= 0) {
     return { error: "Invalid school.", success: false };
   }
   if (!label || !startDate || !endDate) {
@@ -260,7 +260,11 @@ export async function setCurrentYearAction(formData: FormData): Promise<void> {
 
   const yearId = Number(formData.get("yearId"));
   const schoolId = Number(formData.get("schoolId"));
-  if (!yearId || !schoolId) return;
+
+  // Validate IDs are numeric and positive (not just truthy)
+  if (!Number.isInteger(yearId) || yearId <= 0 || !Number.isInteger(schoolId) || schoolId <= 0) {
+    throw new Error("Invalid year or school ID");
+  }
 
   await dalSetCurrentYear(yearId, schoolId);
 
@@ -293,7 +297,7 @@ export async function saveFeatureFlagsAction(
   const user = await requireRole("tilt_admin");
 
   const schoolId = Number(formData.get("schoolId"));
-  if (!schoolId || isNaN(schoolId)) {
+  if (!Number.isInteger(schoolId) || schoolId <= 0) {
     return { error: "Invalid school.", success: false };
   }
 
