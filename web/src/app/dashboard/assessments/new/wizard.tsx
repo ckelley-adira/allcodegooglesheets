@@ -131,8 +131,11 @@ export function AssessmentWizard({
   ) => {
     const current =
       sections[sectionIdx].words[wordIdx].components[componentIdx].result;
+    // Cycle: unset → correct → incorrect → unset
     const next: ComponentResult =
-      current === "unset" || current === "incorrect" ? "correct" : "incorrect";
+      current === "unset" ? "correct" :
+      current === "correct" ? "incorrect" :
+      "unset";
     updateComponent(sectionIdx, wordIdx, componentIdx, next);
   };
 
@@ -234,11 +237,19 @@ export function AssessmentWizard({
               if (typeof sectionsStr === "string") {
                 try {
                   const parsed = JSON.parse(sectionsStr);
+                  console.log("[FORM JSON] Full sections JSON:", JSON.stringify(parsed, null, 2).substring(0, 1000));
                   if (parsed.length > 0) {
                     const firstWord = parsed[0].words[0];
                     console.log("[FORM DEBUG] First word:", firstWord.word);
                     console.log("[FORM DEBUG] First word first component raw:", firstWord.components[0]);
                     console.log("[FORM DEBUG] Is first component an object?", typeof firstWord.components[0] === "object");
+                    // Log a sampling of component results
+                    console.log("[FORM DEBUG] Component results in first section:");
+                    for (const w of parsed[0].words.slice(0, 3)) {
+                      for (const c of w.components) {
+                        console.log(`  ${w.word} / ${c.name}: ${c.result}`);
+                      }
+                    }
                   }
                 } catch(e) {
                   console.error("[FORM DEBUG] Failed to parse sections:", e);
