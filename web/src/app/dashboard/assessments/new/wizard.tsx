@@ -271,6 +271,17 @@ export function AssessmentWizard({
               type="hidden"
               name="sections"
               value={JSON.stringify(sections)}
+              ref={(el) => {
+                if (el && el.value) {
+                  console.log("[FORM INPUT VALUE] Hidden input sections value first 500 chars:", el.value.substring(0, 500));
+                  try {
+                    const parsed = JSON.parse(el.value);
+                    console.log("[FORM INPUT PARSED] First word result:", parsed[0]?.words[0]?.components[0]?.result);
+                  } catch(e) {
+                    console.error("[FORM INPUT ERROR]", e);
+                  }
+                }
+              }}
             />
             <SubmitButton />
             <button
