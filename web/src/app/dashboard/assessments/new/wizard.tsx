@@ -109,8 +109,13 @@ export function AssessmentWizard({
       section.words = section.words.slice();
       const word = { ...section.words[wordIdx] };
       word.components = word.components.slice();
+      const currentComponent = word.components[componentIdx];
+      // Ensure component is an object, not a string
+      const component = typeof currentComponent === "string"
+        ? { name: "", lessons: [], result: "unset" }
+        : currentComponent;
       word.components[componentIdx] = {
-        ...word.components[componentIdx],
+        ...component,
         result: nextResult,
       };
       section.words[wordIdx] = word;
@@ -140,7 +145,11 @@ export function AssessmentWizard({
       const section = { ...next[sectionIdx] };
       section.words = section.words.map((w) => ({
         ...w,
-        components: w.components.map((c) => ({ ...c, result: nextResult })),
+        components: w.components.map((c) => {
+          // Ensure c is an object with proper structure
+          const component = typeof c === "string" ? { name: "", lessons: [], result: "unset" } : c;
+          return { ...component, result: nextResult };
+        }),
       }));
       next[sectionIdx] = section;
       return next;
@@ -220,16 +229,16 @@ export function AssessmentWizard({
         >
           <form
             action={(fd) => {
-              // DEBUG: Log what's being submitted
+              // DEBUG: Log what's being submitted (clearer format)
               const sectionsStr = fd.get("sections");
               if (typeof sectionsStr === "string") {
                 try {
                   const parsed = JSON.parse(sectionsStr);
                   if (parsed.length > 0) {
-                    console.log("[FORM DEBUG] First section first 3 words:", parsed[0].words.slice(0, 3).map((w: any) => ({
-                      word: w.word,
-                      components: w.components.map((c: any) => `${c.name}:${c.result}`)
-                    })));
+                    const firstWord = parsed[0].words[0];
+                    console.log("[FORM DEBUG] First word:", firstWord.word);
+                    console.log("[FORM DEBUG] First word first component raw:", firstWord.components[0]);
+                    console.log("[FORM DEBUG] Is first component an object?", typeof firstWord.components[0] === "object");
                   }
                 } catch(e) {
                   console.error("[FORM DEBUG] Failed to parse sections:", e);

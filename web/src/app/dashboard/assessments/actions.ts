@@ -78,11 +78,15 @@ export async function submitAssessmentAction(
   let sections: SubmittedSection[];
   try {
     sections = JSON.parse(sectionsJson) as SubmittedSection[];
-    // DEBUG: Log the first 3 words' component results
+    // DEBUG: Log the first word's first component
     if (sections.length > 0 && sections[0].words.length > 0) {
-      console.error("[ASSESSMENT DEBUG] First section components:");
-      sections[0].words.slice(0, 3).forEach((w, idx) => {
-        console.error(`  Word ${idx + 1} (${w.word}):`, w.components.map(c => `${c.name}:${c.result}`).join(", "));
+      const firstWord = sections[0].words[0];
+      console.error("[ASSESSMENT DEBUG] First word:", firstWord.word);
+      console.error("[ASSESSMENT DEBUG] First word first component:", firstWord.components[0]);
+      console.error("[ASSESSMENT DEBUG] Component has name/lessons/result?", {
+        name: firstWord.components[0]?.name,
+        lessons: firstWord.components[0]?.lessons,
+        result: firstWord.components[0]?.result,
       });
     }
   } catch {
