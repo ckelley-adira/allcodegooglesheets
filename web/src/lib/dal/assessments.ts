@@ -12,6 +12,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import {
   scoreAssessment,
   type SubmittedSection,
@@ -97,24 +98,26 @@ export async function listSchoolAssessments(
   yearId: number,
 ): Promise<SchoolAssessmentRow[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("initial_assessments")
-    .select(
-      "assessment_id, student_id, year_id, snapshot_type, assessment_date, scorer_id, is_kindergarten_eoy, foundational_pct, kg_pct, first_grade_pct, second_grade_pct, overall_pct, notes, created_at, staff:scorer_id(first_name, last_name), students!inner(first_name, last_name, school_id, grade_levels(name))",
-    )
-    .eq("year_id", yearId)
-    .eq("students.school_id", schoolId)
-    .order("assessment_date", { ascending: false });
-
-  if (error) throw new Error(error.message);
-  const rows = (data ?? []) as unknown as (RawAssessmentRow & {
+  // Paginated: 500 students × 3 snapshots = 1,500 rows at scale.
+  type AssessmentWithStudent = RawAssessmentRow & {
     students: {
       first_name: string;
       last_name: string;
       school_id: number;
       grade_levels: { name: string } | null;
     };
-  })[];
+  };
+  const rows = await fetchAllRows<AssessmentWithStudent>((from, to) =>
+    supabase
+      .from("initial_assessments")
+      .select(
+        "assessment_id, student_id, year_id, snapshot_type, assessment_date, scorer_id, is_kindergarten_eoy, foundational_pct, kg_pct, first_grade_pct, second_grade_pct, overall_pct, notes, created_at, staff:scorer_id(first_name, last_name), students!inner(first_name, last_name, school_id, grade_levels(name))",
+      )
+      .eq("year_id", yearId)
+      .eq("students.school_id", schoolId)
+      .order("assessment_date", { ascending: false })
+      .range(from, to),
+  );
 
   return rows.map((r) => ({
     ...toAssessmentSummary(r),

@@ -27,6 +27,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { TARGET_LESSONS_PER_WEEK } from "@/config/ufli";
 
 // ── Types ────────────────────────────────────────────────────────────────
@@ -155,29 +156,28 @@ export async function captureWeeklySnapshots(
   }
 
   // ── 3. Fetch lesson_progress for these students in the window ────────
-  const { data: progressRows, error: progressErr } = await supabase
-    .from("lesson_progress")
-    .select("student_id, lesson_id, status, date_recorded")
-    .in("student_id", studentIds)
-    .eq("year_id", options.yearId)
-    .gte("date_recorded", earliestIso)
-    .lte("date_recorded", latestIso);
-
-  if (progressErr) {
-    throw new Error(`Failed to load lesson_progress: ${progressErr.message}`);
-  }
+  const progressRows = await fetchAllRows<{
+    student_id: number;
+    lesson_id: number;
+    status: "Y" | "N" | "A";
+    date_recorded: string;
+  }>(
+    (from, to) =>
+      supabase
+        .from("lesson_progress")
+        .select("student_id, lesson_id, status, date_recorded")
+        .in("student_id", studentIds)
+        .eq("year_id", options.yearId)
+        .gte("date_recorded", earliestIso)
+        .lte("date_recorded", latestIso)
+        .range(from, to),
+  );
 
   // ── 4. Bucket by (student, week_index) and apply Y>N>A dedup ──────────
   // Structure: studentId → weekIndex → lessonId → bestStatus
   const buckets = new Map<number, Map<number, Map<number, "Y" | "N" | "A">>>();
 
-  for (const row of progressRows ?? []) {
-    const r = row as {
-      student_id: number;
-      lesson_id: number;
-      status: "Y" | "N" | "A";
-      date_recorded: string;
-    };
+  for (const r of progressRows) {
 
     // Locate the week index for this date. Dates are ISO-sortable so we
     // linearly probe; only 8 weeks, so O(n*8) is fine.
@@ -380,22 +380,24 @@ export async function getSchoolSnapshotSummary(
     };
   }
 
-  const { data: allSnapshots } = await supabase
-    .from("weekly_snapshots")
-    .select(
-      "student_id, week_number, week_start_date, growth_pct, lessons_taken, lessons_passed",
-    )
-    .in("student_id", studentIds)
-    .eq("year_id", yearId);
-
-  const rows = (allSnapshots ?? []) as Array<{
+  const rows = await fetchAllRows<{
     student_id: number;
     week_number: number;
     week_start_date: string;
     growth_pct: string | number;
     lessons_taken: number;
     lessons_passed: number;
-  }>;
+  }>(
+    (from, to) =>
+      supabase
+        .from("weekly_snapshots")
+        .select(
+          "student_id, week_number, week_start_date, growth_pct, lessons_taken, lessons_passed",
+        )
+        .in("student_id", studentIds)
+        .eq("year_id", yearId)
+        .range(from, to),
+  );
 
   if (rows.length === 0) {
     return {

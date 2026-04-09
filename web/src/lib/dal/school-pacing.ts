@@ -14,6 +14,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { classifyHealth, daysBetween, type GroupHealth } from "./group-health";
 
 export type { GroupHealth };
@@ -79,26 +80,37 @@ export async function getSchoolPacingSummary(
     (g) => g.group_id,
   );
 
-  // 2. Member counts per group
-  const { data: memberships } = await supabase
-    .from("group_memberships")
-    .select("group_id, student_id")
-    .eq("is_active", true)
-    .in("group_id", groupIds);
+  // 2. Member counts per group (paginated — 500+ students × many groups)
+  const memberships = await fetchAllRows<{ group_id: number; student_id: number }>(
+    (from, to) =>
+      supabase
+        .from("group_memberships")
+        .select("group_id, student_id")
+        .eq("is_active", true)
+        .in("group_id", groupIds)
+        .range(from, to),
+  );
 
   const memberCountMap = new Map<number, number>();
   const memberStudentIds = new Set<number>();
-  for (const m of memberships ?? []) {
-    const row = m as { group_id: number; student_id: number };
+  for (const row of memberships) {
     memberCountMap.set(row.group_id, (memberCountMap.get(row.group_id) ?? 0) + 1);
     memberStudentIds.add(row.student_id);
   }
 
   // 3. Last activity per group + recent (7-day) student activity for coverage
-  const { data: progressRows } = await supabase
-    .from("lesson_progress")
-    .select("group_id, student_id, date_recorded")
-    .in("group_id", groupIds);
+  //    Paginated: all lesson_progress for all groups can be 50K+ rows at scale.
+  const progressRows = await fetchAllRows<{
+    group_id: number;
+    student_id: number;
+    date_recorded: string;
+  }>((from, to) =>
+    supabase
+      .from("lesson_progress")
+      .select("group_id, student_id, date_recorded")
+      .in("group_id", groupIds)
+      .range(from, to),
+  );
 
   const lastActivityMap = new Map<number, string>();
   const sevenDaysAgo = new Date();
@@ -106,12 +118,7 @@ export async function getSchoolPacingSummary(
   const sevenDaysAgoIso = sevenDaysAgo.toISOString().split("T")[0];
   const studentsWithRecent = new Set<number>();
 
-  for (const r of progressRows ?? []) {
-    const row = r as {
-      group_id: number;
-      student_id: number;
-      date_recorded: string;
-    };
+  for (const row of progressRows) {
     const existing = lastActivityMap.get(row.group_id);
     if (!existing || row.date_recorded > existing) {
       lastActivityMap.set(row.group_id, row.date_recorded);
@@ -120,6 +127,7 @@ export async function getSchoolPacingSummary(
       studentsWithRecent.add(row.student_id);
     }
   }
+
 
   // 4. Total active students for the school (includes students who may
   // not be in any group yet)

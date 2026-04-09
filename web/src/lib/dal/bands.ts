@@ -22,6 +22,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import {
   assignBand,
   classifyMovement,
@@ -138,34 +139,39 @@ export async function captureBandAssignments(
   // (high-water-mark set — any Y ever = passed forever)
   // 3. Previous week's band assignments (for movement classification)
   // 4. Attempted review lessons (Y or N status, is_review=true) for gateway checks
-  const [progressRowsRaw, prevAssignmentsRaw, attemptedReviewRowsRaw] = await Promise.all([
-    supabase
-      .from("lesson_progress")
-      .select("student_id, ufli_lessons!inner(lesson_number)")
-      .in("student_id", studentIds)
-      .eq("year_id", yearId)
-      .eq("status", "Y"),
+  //
+  // Queries 2 and 4 are paginated (500 students × 128 lessons = 64K+ rows).
+  type LessonProgressRow = { student_id: number; ufli_lessons: { lesson_number: number } | null };
+  const [progressRowsAll, prevAssignmentsRaw, attemptedReviewRowsAll] = await Promise.all([
+    fetchAllRows<LessonProgressRow>((from, to) =>
+      supabase
+        .from("lesson_progress")
+        .select("student_id, ufli_lessons!inner(lesson_number)")
+        .in("student_id", studentIds)
+        .eq("year_id", yearId)
+        .eq("status", "Y")
+        .range(from, to),
+    ),
     supabase
       .from("band_assignments")
       .select("student_id, band")
       .in("student_id", studentIds)
       .eq("year_id", yearId)
       .eq("assigned_date", prevFriday),
-    supabase
-      .from("lesson_progress")
-      .select("student_id, ufli_lessons!inner(lesson_number)")
-      .in("student_id", studentIds)
-      .eq("year_id", yearId)
-      .in("status", ["Y", "N"])
-      .eq("ufli_lessons.is_review", true),
+    fetchAllRows<LessonProgressRow>((from, to) =>
+      supabase
+        .from("lesson_progress")
+        .select("student_id, ufli_lessons!inner(lesson_number)")
+        .in("student_id", studentIds)
+        .eq("year_id", yearId)
+        .in("status", ["Y", "N"])
+        .eq("ufli_lessons.is_review", true)
+        .range(from, to),
+    ),
   ]);
 
   const passedByStudent = new Map<number, Set<number>>();
-  for (const row of progressRowsRaw.data ?? []) {
-    const r = row as unknown as {
-      student_id: number;
-      ufli_lessons: { lesson_number: number } | null;
-    };
+  for (const r of progressRowsAll) {
     if (!r.ufli_lessons) continue;
     let set = passedByStudent.get(r.student_id);
     if (!set) {
@@ -183,11 +189,7 @@ export async function captureBandAssignments(
 
   // Build map of reviewed (Y or N) lesson numbers per student (for gateway checks)
   const attemptedByStudent = new Map<number, Set<number>>();
-  for (const row of attemptedReviewRowsRaw.data ?? []) {
-    const r = row as unknown as {
-      student_id: number;
-      ufli_lessons: { lesson_number: number } | null;
-    };
+  for (const r of attemptedReviewRowsAll) {
     if (!r.ufli_lessons) continue;
     let set = attemptedByStudent.get(r.student_id);
     if (!set) {

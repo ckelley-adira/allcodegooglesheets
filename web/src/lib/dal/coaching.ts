@@ -24,6 +24,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import {
   COACHING_THRESHOLDS,
   TARGET_LESSONS_PER_WEEK,
@@ -705,17 +706,24 @@ export async function loadCoachingProgress(
   );
   if (studentIds.length === 0) return [];
 
-  const { data: progressRows } = await supabase
-    .from("lesson_progress")
-    .select(
-      "student_id, group_id, status, date_recorded, ufli_lessons!inner(lesson_number, lesson_name, is_review)",
-    )
-    .in("student_id", studentIds)
-    .eq("year_id", yearId)
-    .gte("date_recorded", windowStartIso)
-    .lte("date_recorded", windowEndIso);
+  const progressRows = await fetchAllRows<RawProgressRow>(
+    (from, to) =>
+      supabase
+        .from("lesson_progress")
+        .select(
+          "student_id, group_id, status, date_recorded, ufli_lessons!inner(lesson_number, lesson_name, is_review)",
+        )
+        .in("student_id", studentIds)
+        .eq("year_id", yearId)
+        .gte("date_recorded", windowStartIso)
+        .lte("date_recorded", windowEndIso)
+        .range(from, to) as unknown as PromiseLike<{
+        data: RawProgressRow[] | null;
+        error: { message: string } | null;
+      }>,
+  );
 
-  return (progressRows ?? []) as unknown as RawProgressRow[];
+  return progressRows;
 }
 
 // ── Priority Matrix ──────────────────────────────────────────────────────
@@ -1011,30 +1019,37 @@ export async function getCoachingSnapshot(
   }
 
   // 2. Active memberships for these groups (+ student names)
-  const { data: memberRows } = await supabase
-    .from("group_memberships")
-    .select(
-      "group_id, student_id, students!inner(first_name, last_name, school_id, enrollment_status)",
-    )
-    .in("group_id", groupIds)
-    .eq("is_active", true);
+  type MembershipRow = {
+    group_id: number;
+    student_id: number;
+    students: {
+      first_name: string;
+      last_name: string;
+      school_id: number;
+      enrollment_status: string;
+    } | null;
+  };
+  const memberRows = await fetchAllRows<MembershipRow>(
+    (from, to) =>
+      supabase
+        .from("group_memberships")
+        .select(
+          "group_id, student_id, students!inner(first_name, last_name, school_id, enrollment_status)",
+        )
+        .in("group_id", groupIds)
+        .eq("is_active", true)
+        .range(from, to) as unknown as PromiseLike<{
+        data: MembershipRow[] | null;
+        error: { message: string } | null;
+      }>,
+  );
 
   const groupMembers = new Map<number, Array<{ studentId: number }>>();
   const studentMeta = new Map<
     number,
     { studentName: string; groupId: number }
   >();
-  for (const row of memberRows ?? []) {
-    const r = row as unknown as {
-      group_id: number;
-      student_id: number;
-      students: {
-        first_name: string;
-        last_name: string;
-        school_id: number;
-        enrollment_status: string;
-      } | null;
-    };
+  for (const r of memberRows) {
     if (!r.students || r.students.school_id !== schoolId) continue;
     if (r.students.enrollment_status !== "active") continue;
 
@@ -1053,29 +1068,39 @@ export async function getCoachingSnapshot(
   // 3. Parallel data loads
   const studentIds = Array.from(studentMeta.keys());
 
-  const [windowRows, fullYearRowsRaw, snapshotRowsRaw] = await Promise.all([
+  const [windowRows, fullYearRows, snapshots] = await Promise.all([
     loadCoachingProgress(schoolId, yearId, startIso, endIso),
     studentIds.length > 0
-      ? supabase
-          .from("lesson_progress")
-          .select(
-            "student_id, group_id, status, date_recorded, ufli_lessons!inner(lesson_number, lesson_name, is_review)",
-          )
-          .in("student_id", studentIds)
-          .eq("year_id", yearId)
-          .in("status", ["Y", "N"])
-      : Promise.resolve({ data: [] }),
+      ? fetchAllRows<RawProgressRow>(
+          (from, to) =>
+            supabase
+              .from("lesson_progress")
+              .select(
+                "student_id, group_id, status, date_recorded, ufli_lessons!inner(lesson_number, lesson_name, is_review)",
+              )
+              .in("student_id", studentIds)
+              .eq("year_id", yearId)
+              .in("status", ["Y", "N"])
+              .range(from, to) as unknown as PromiseLike<{
+              data: RawProgressRow[] | null;
+              error: { message: string } | null;
+            }>,
+        )
+      : Promise.resolve([] as RawProgressRow[]),
     studentIds.length > 0
-      ? supabase
-          .from("weekly_snapshots")
-          .select("student_id, week_start_date, lessons_taken, lessons_passed")
-          .in("student_id", studentIds)
-          .eq("year_id", yearId)
-      : Promise.resolve({ data: [] }),
+      ? fetchAllRows<WeeklySnapshotLite>(
+          (from, to) =>
+            supabase
+              .from("weekly_snapshots")
+              .select(
+                "student_id, week_start_date, lessons_taken, lessons_passed",
+              )
+              .in("student_id", studentIds)
+              .eq("year_id", yearId)
+              .range(from, to),
+        )
+      : Promise.resolve([] as WeeklySnapshotLite[]),
   ]);
-
-  const fullYearRows = ((fullYearRowsRaw.data ?? []) as unknown) as RawProgressRow[];
-  const snapshots = (snapshotRowsRaw.data ?? []) as unknown as WeeklySnapshotLite[];
 
   // 4. Run the four metrics
   const reteach = computeReteach(windowRows, startIso, endIso);

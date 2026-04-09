@@ -20,6 +20,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import {
   SKILL_SECTIONS,
   REVIEW_LESSONS,
@@ -311,39 +312,85 @@ export async function getGrantReportDataset(
 
   const studentIds = rawStudents.map((s) => s.studentId);
 
-  // 3. Parallel data loads
+  // 3. Parallel data loads — using fetchAllRows for queries that can
+  //    exceed the Supabase 1,000-row default limit at scale.
+  type LatestBandRow = {
+    student_id: number;
+    assigned_date: string;
+    band: BandLevel;
+    archetype: StudentArchetype;
+    movement: BandMovement;
+    swiss_cheese_gap_count: number;
+  };
+  type MembershipRow = {
+    student_id: number;
+    instructional_groups: {
+      group_id: number;
+      group_name: string;
+      school_id: number;
+    } | null;
+  };
+  type AttendanceRow = {
+    student_id: number;
+    group_id: number;
+    status: "Y" | "N" | "A";
+    date_recorded: string;
+  };
+  type YearYRow = {
+    student_id: number;
+    ufli_lessons: { lesson_number: number } | null;
+  };
+
   const [
-    membershipsResult,
-    attendanceProgressResult,
-    allYearYProgressResult,
+    membershipsData,
+    attendanceData,
+    allYearYData,
     baselineAssessmentsResult,
     baselineLessonsResult,
-    latestBandResult,
+    latestBandData,
   ] = await Promise.all([
     // Group memberships (for "Tutoring Group" column)
-    supabase
-      .from("group_memberships")
-      .select(
-        "student_id, instructional_groups!inner(group_id, group_name, school_id)",
-      )
-      .in("student_id", studentIds)
-      .eq("is_active", true),
+    fetchAllRows<MembershipRow>(
+      (from, to) =>
+        supabase
+          .from("group_memberships")
+          .select(
+            "student_id, instructional_groups!inner(group_id, group_name, school_id)",
+          )
+          .in("student_id", studentIds)
+          .eq("is_active", true)
+          .range(from, to) as unknown as PromiseLike<{
+          data: MembershipRow[] | null;
+          error: { message: string } | null;
+        }>,
+    ),
     // Attendance window: all lesson_progress rows for these students in window
-    supabase
-      .from("lesson_progress")
-      .select("student_id, group_id, status, date_recorded")
-      .in("student_id", studentIds)
-      .eq("year_id", yearId)
-      .gte("date_recorded", windowStartIso)
-      .lte("date_recorded", windowEndIso),
+    fetchAllRows<AttendanceRow>(
+      (from, to) =>
+        supabase
+          .from("lesson_progress")
+          .select("student_id, group_id, status, date_recorded")
+          .in("student_id", studentIds)
+          .eq("year_id", yearId)
+          .gte("date_recorded", windowStartIso)
+          .lte("date_recorded", windowEndIso)
+          .range(from, to),
+    ),
     // All-year Y rows for high-water-mark current mastery
-    supabase
-      .from("lesson_progress")
-      .select("student_id, ufli_lessons!inner(lesson_number)")
-      .in("student_id", studentIds)
-      .eq("year_id", yearId)
-      .eq("status", "Y"),
-    // Baseline initial_assessments (snapshot_type='baseline')
+    fetchAllRows<YearYRow>(
+      (from, to) =>
+        supabase
+          .from("lesson_progress")
+          .select("student_id, ufli_lessons!inner(lesson_number)")
+          .in("student_id", studentIds)
+          .eq("year_id", yearId)
+          .eq("status", "Y")
+          .range(from, to) as unknown as PromiseLike<{
+          data: YearYRow[] | null;
+          error: { message: string } | null;
+        }>,
+    ),
+    // Baseline initial_assessments (snapshot_type='baseline') — 1 per student, safe
     supabase
       .from("initial_assessments")
       .select(
@@ -355,30 +402,26 @@ export async function getGrantReportDataset(
     // Baseline lesson rows (for Min Grade % computation per grade)
     // We'll fetch them separately after we know the assessment ids
     Promise.resolve(null),
-    // Latest band assignment per student
-    supabase
-      .from("band_assignments")
-      .select(
-        "student_id, assigned_date, band, archetype, movement, swiss_cheese_gap_count",
-      )
-      .in("student_id", studentIds)
-      .eq("year_id", yearId)
-      .order("assigned_date", { ascending: false }),
+    // Latest band assignment per student — can have multiple per student over time
+    fetchAllRows<LatestBandRow>(
+      (from, to) =>
+        supabase
+          .from("band_assignments")
+          .select(
+            "student_id, assigned_date, band, archetype, movement, swiss_cheese_gap_count",
+          )
+          .in("student_id", studentIds)
+          .eq("year_id", yearId)
+          .order("assigned_date", { ascending: false })
+          .range(from, to),
+    ),
   ]);
 
   // 4. Build per-student lookups
 
   // Group name per student (pick the active membership, first one if multiple)
   const groupNameByStudent = new Map<number, string>();
-  for (const row of membershipsResult.data ?? []) {
-    const r = row as unknown as {
-      student_id: number;
-      instructional_groups: {
-        group_id: number;
-        group_name: string;
-        school_id: number;
-      } | null;
-    };
+  for (const r of membershipsData) {
     if (!r.instructional_groups) continue;
     if (r.instructional_groups.school_id !== schoolId) continue;
     if (!groupNameByStudent.has(r.student_id)) {
@@ -391,14 +434,7 @@ export async function getGrantReportDataset(
   const studentAbsenceDates = new Map<number, Set<string>>();
   const studentGroupDates = new Map<number, Set<string>>();
 
-  type AttRow = {
-    student_id: number;
-    group_id: number;
-    status: "Y" | "N" | "A";
-    date_recorded: string;
-  };
-
-  for (const row of (attendanceProgressResult.data ?? []) as AttRow[]) {
+  for (const row of attendanceData) {
     // Distinct session dates per group
     let gset = groupSessionDates.get(row.group_id);
     if (!gset) {
@@ -427,11 +463,7 @@ export async function getGrantReportDataset(
 
   // High-water-mark passed lesson set per student
   const passedByStudent = new Map<number, Set<number>>();
-  for (const row of allYearYProgressResult.data ?? []) {
-    const r = row as unknown as {
-      student_id: number;
-      ufli_lessons: { lesson_number: number } | null;
-    };
+  for (const r of allYearYData) {
     if (!r.ufli_lessons) continue;
     let set = passedByStudent.get(r.student_id);
     if (!set) {
@@ -458,16 +490,8 @@ export async function getGrantReportDataset(
   }
 
   // Latest band per student (already ordered desc by assigned_date)
-  type LatestBandRow = {
-    student_id: number;
-    assigned_date: string;
-    band: BandLevel;
-    archetype: StudentArchetype;
-    movement: BandMovement;
-    swiss_cheese_gap_count: number;
-  };
   const latestBandByStudent = new Map<number, LatestBandRow>();
-  for (const row of (latestBandResult.data ?? []) as LatestBandRow[]) {
+  for (const row of latestBandData) {
     if (!latestBandByStudent.has(row.student_id)) {
       latestBandByStudent.set(row.student_id, row);
     }

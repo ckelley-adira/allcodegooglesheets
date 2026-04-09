@@ -12,6 +12,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { COACHING_THRESHOLDS } from "@/config/ufli";
 import {
   CLIFFS,
@@ -72,37 +73,46 @@ export async function getCliffAlerts(
   const groupIds = groups.map((g) => g.group_id);
 
   // 2. Member counts per group
-  const { data: memberRows } = await supabase
-    .from("group_memberships")
-    .select("group_id")
-    .in("group_id", groupIds)
-    .eq("is_active", true);
+  const memberRows = await fetchAllRows<{ group_id: number }>(
+    (from, to) =>
+      supabase
+        .from("group_memberships")
+        .select("group_id")
+        .in("group_id", groupIds)
+        .eq("is_active", true)
+        .range(from, to),
+  );
 
   const memberCounts = new Map<number, number>();
-  for (const row of memberRows ?? []) {
-    const r = row as { group_id: number };
+  for (const r of memberRows) {
     memberCounts.set(r.group_id, (memberCounts.get(r.group_id) ?? 0) + 1);
   }
 
   // 3. Max lesson per group in the window (excluding absences)
-  const { data: progressRows } = await supabase
-    .from("lesson_progress")
-    .select(
-      "group_id, status, ufli_lessons!inner(lesson_number, is_review)",
-    )
-    .in("group_id", groupIds)
-    .eq("year_id", yearId)
-    .gte("date_recorded", windowStartIso)
-    .neq("status", "A");
+  type CliffProgressRow = {
+    group_id: number;
+    ufli_lessons: { lesson_number: number; is_review: boolean } | null;
+  };
+  const progressRows = await fetchAllRows<CliffProgressRow>(
+    (from, to) =>
+      supabase
+        .from("lesson_progress")
+        .select(
+          "group_id, status, ufli_lessons!inner(lesson_number, is_review)",
+        )
+        .in("group_id", groupIds)
+        .eq("year_id", yearId)
+        .gte("date_recorded", windowStartIso)
+        .neq("status", "A")
+        .range(from, to) as unknown as PromiseLike<{
+        data: CliffProgressRow[] | null;
+        error: { message: string } | null;
+      }>,
+  );
 
   const maxLessonByGroup = new Map<number, number>();
-  for (const row of progressRows ?? []) {
-    const r = row as unknown as {
-      group_id: number;
-      ufli_lessons: { lesson_number: number; is_review: boolean } | null;
-    };
+  for (const r of progressRows) {
     if (!r.ufli_lessons) continue;
-    // Review lessons are still instructional attempts, so count them
     const ln = r.ufli_lessons.lesson_number;
     const existing = maxLessonByGroup.get(r.group_id) ?? 0;
     if (ln > existing) maxLessonByGroup.set(r.group_id, ln);

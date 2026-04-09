@@ -26,6 +26,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import {
   FOUNDATIONAL_RANGE,
   MIN_GRADE_SKILLS_DENOMINATOR,
@@ -106,14 +107,15 @@ async function listAllProgress(
 ): Promise<StudentLessonRow[]> {
   if (studentIds.length === 0) return [];
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("lesson_progress")
-    .select("student_id, lesson_id, status, date_recorded, ufli_lessons(lesson_number)")
-    .in("student_id", studentIds)
-    .eq("year_id", yearId);
-
-  if (error) throw new Error(error.message);
-  return (data ?? []) as unknown as StudentLessonRow[];
+  // Paginated: 500 students × 128 lessons = 64K+ rows at scale.
+  return fetchAllRows<StudentLessonRow>((from, to) =>
+    supabase
+      .from("lesson_progress")
+      .select("student_id, lesson_id, status, date_recorded, ufli_lessons(lesson_number)")
+      .in("student_id", studentIds)
+      .eq("year_id", yearId)
+      .range(from, to),
+  );
 }
 
 /**

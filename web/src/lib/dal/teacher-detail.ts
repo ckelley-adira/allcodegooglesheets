@@ -10,6 +10,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import { classifyHealth, daysBetween, type GroupHealth } from "./group-health";
 
 export type { GroupHealth };
@@ -143,11 +144,18 @@ export async function getTeacherDetail(
   }
 
   // 4. Last-activity date per group: max(date_recorded) across the group's
-  // lesson_progress rows. Pull the columns and reduce in JS.
-  const { data: activityRows } = await supabase
-    .from("lesson_progress")
-    .select("group_id, date_recorded, status")
-    .in("group_id", groupIds);
+  // lesson_progress rows. Paginated — teacher's groups can have 10K+ rows.
+  const activityRows = await fetchAllRows<{
+    group_id: number;
+    date_recorded: string;
+    status: "Y" | "N" | "A";
+  }>((from, to) =>
+    supabase
+      .from("lesson_progress")
+      .select("group_id, date_recorded, status")
+      .in("group_id", groupIds)
+      .range(from, to),
+  );
 
   const lastActivityMap = new Map<number, string>();
   // Recent (28-day) Y/N/A counts per group
@@ -160,12 +168,7 @@ export async function getTeacherDetail(
   windowStart.setDate(windowStart.getDate() - 28);
   const windowStartIso = windowStart.toISOString().split("T")[0];
 
-  for (const r of activityRows ?? []) {
-    const row = r as {
-      group_id: number;
-      date_recorded: string;
-      status: "Y" | "N" | "A";
-    };
+  for (const row of activityRows) {
     const existing = lastActivityMap.get(row.group_id);
     if (!existing || row.date_recorded > existing) {
       lastActivityMap.set(row.group_id, row.date_recorded);

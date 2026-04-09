@@ -22,6 +22,7 @@
  */
 
 import { createClient } from "@/lib/supabase/server";
+import { fetchAllRows } from "@/lib/supabase/fetch-all";
 import {
   sectionForLesson,
   type SkillSectionName,
@@ -118,26 +119,32 @@ export async function getDiagnosticsRollup(
     totalActiveStudents = count ?? 0;
   }
 
-  // ── 2. lesson_progress in the window ──────────────────────────────────
-  let progressQuery = supabase
-    .from("lesson_progress")
-    .select("student_id, status, ufli_lessons!inner(lesson_number, is_review)")
-    .in("status", ["Y", "N"])
-    .gte("date_recorded", windowStartIso);
-
-  if (studentIds !== null) {
-    if (studentIds.length === 0) {
-      return {
-        windowDays,
-        totalActiveStudents: 0,
-        sections: [],
-        topMissedWords: [],
-      };
-    }
-    progressQuery = progressQuery.in("student_id", studentIds);
+  // ── 2. lesson_progress in the window (paginated — can exceed 1K at scale) ─
+  if (studentIds !== null && studentIds.length === 0) {
+    return {
+      windowDays,
+      totalActiveStudents: 0,
+      sections: [],
+      topMissedWords: [],
+    };
   }
 
-  const { data: progressRows } = await progressQuery;
+  type ProgressRow = {
+    student_id: number;
+    status: "Y" | "N";
+    ufli_lessons: { lesson_number: number; is_review: boolean } | null;
+  };
+  const progressRows = await fetchAllRows<ProgressRow>((from, to) => {
+    let q = supabase
+      .from("lesson_progress")
+      .select("student_id, status, ufli_lessons!inner(lesson_number, is_review)")
+      .in("status", ["Y", "N"])
+      .gte("date_recorded", windowStartIso);
+    if (studentIds !== null) {
+      q = q.in("student_id", studentIds);
+    }
+    return q.range(from, to);
+  });
 
   // Aggregate per section
   const sectionAgg = new Map<
@@ -150,12 +157,7 @@ export async function getDiagnosticsRollup(
     }
   >();
 
-  for (const row of progressRows ?? []) {
-    const r = row as unknown as {
-      student_id: number;
-      status: "Y" | "N";
-      ufli_lessons: { lesson_number: number; is_review: boolean } | null;
-    };
+  for (const r of progressRows) {
     const lessonNumber = r.ufli_lessons?.lesson_number;
     if (!lessonNumber) continue;
     if (r.ufli_lessons?.is_review) continue;
