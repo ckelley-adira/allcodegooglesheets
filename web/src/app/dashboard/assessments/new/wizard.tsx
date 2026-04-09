@@ -232,25 +232,25 @@ export function AssessmentWizard({
         >
           <form
             action={(fd) => {
-              // DEBUG: Log what's being submitted (clearer format)
+              // DEBUG: Save full sections to localStorage
               const sectionsStr = fd.get("sections");
               if (typeof sectionsStr === "string") {
+                localStorage.setItem("debug_assessment_json", sectionsStr);
+                console.log("[FORM DEBUG] Full sections JSON saved to localStorage under 'debug_assessment_json'");
                 try {
                   const parsed = JSON.parse(sectionsStr);
-                  console.log("[FORM JSON] Full sections JSON:", JSON.stringify(parsed, null, 2).substring(0, 1000));
-                  if (parsed.length > 0) {
-                    const firstWord = parsed[0].words[0];
-                    console.log("[FORM DEBUG] First word:", firstWord.word);
-                    console.log("[FORM DEBUG] First word first component raw:", firstWord.components[0]);
-                    console.log("[FORM DEBUG] Is first component an object?", typeof firstWord.components[0] === "object");
-                    // Log a sampling of component results
-                    console.log("[FORM DEBUG] Component results in first section:");
-                    for (const w of parsed[0].words.slice(0, 3)) {
-                      for (const c of w.components) {
-                        console.log(`  ${w.word} / ${c.name}: ${c.result}`);
+                  // Count all Y and N by scanning entire submission
+                  let totalCorrect = 0, totalIncorrect = 0, totalUnset = 0;
+                  for (const section of parsed) {
+                    for (const word of section.words) {
+                      for (const component of word.components) {
+                        if (component.result === "correct") totalCorrect++;
+                        else if (component.result === "incorrect") totalIncorrect++;
+                        else totalUnset++;
                       }
                     }
                   }
+                  console.log(`[FORM DEBUG] Totals - Correct: ${totalCorrect}, Incorrect: ${totalIncorrect}, Unset: ${totalUnset}`);
                 } catch(e) {
                   console.error("[FORM DEBUG] Failed to parse sections:", e);
                 }
