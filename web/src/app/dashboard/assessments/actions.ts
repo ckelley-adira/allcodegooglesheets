@@ -78,17 +78,6 @@ export async function submitAssessmentAction(
   let sections: SubmittedSection[];
   try {
     sections = JSON.parse(sectionsJson) as SubmittedSection[];
-    // DEBUG: Log the first word's first component
-    if (sections.length > 0 && sections[0].words.length > 0) {
-      const firstWord = sections[0].words[0];
-      console.error("[ASSESSMENT DEBUG] First word:", firstWord.word);
-      console.error("[ASSESSMENT DEBUG] First word first component:", firstWord.components[0]);
-      console.error("[ASSESSMENT DEBUG] Component has name/lessons/result?", {
-        name: firstWord.components[0]?.name,
-        lessons: firstWord.components[0]?.lessons,
-        result: firstWord.components[0]?.result,
-      });
-    }
   } catch {
     return { error: "Invalid assessment payload.", success: false };
   }

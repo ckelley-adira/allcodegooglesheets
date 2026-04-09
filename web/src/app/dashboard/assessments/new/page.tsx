@@ -63,20 +63,28 @@ export default async function NewAssessmentPage() {
 }
 
 /**
- * Converts a grade name like "KG", "K", "1", "2", "G3" to the numeric grade
- * level (0=KG, 1-8).
+ * Parses a grade name like "KG", "K", "1", "2", "G3" to numeric grade level.
  *
- * Returns 0 for unrecognized values so KG-only sections still render rather
- * than crashing.
+ * **Returns:** 0 (KG), 1-8 (G1-G8 standard grades), or 0 (fallback for invalid).
  *
- * BUG FIX (2026-04): the previous implementation did
+ * **Critical Bug Fixed (2026-04):** The previous implementation did
  *   parseInt(gradeName.toUpperCase().replace(/[^0-9KG]/g, ""), 10)
- * which returned NaN for "G1".."G8" because parseInt("G3") bails on the
- * non-digit first character. Every G1-G8 student was silently downgraded
- * to grade 0 and rendered as a KG student, so the assessment wizard only
- * showed KG-eligible sections (alphabet + blends, plus digraphs + VCE if
- * KG-EOY). That's the "only Alphabet and Digraphs" symptom. Fix: strip
- * the leading G prefix before parseInt.
+ * which returned NaN for "G1".."G8" because parseInt("G3") fails when the
+ * first character isn't a digit. Every G1-G8 student was silently downgraded
+ * to grade 0 (KG), so the assessment wizard only showed KG-eligible sections:
+ * alphabet_consonants, blends, and optionally digraphs/VCE if KG-EOY.
+ *
+ * This silently broke G1-G2 simplification entirely — students never saw
+ * simplified sections because the wizard thought they were KG.
+ *
+ * **Fix:** Strip the leading "G" prefix before parsing digits. Now:
+ *   "K" or "KG" → 0
+ *   "G1" → 1, "G2" → 2, ..., "G8" → 8
+ *   "1", "2" → same (students in databases may use either format)
+ *   "X" or blank → 0 (fallback; KG-only sections still render)
+ *
+ * @param gradeName Student's grade from database (e.g., "G2", "KG", "2")
+ * @returns Numeric grade: 0 (KG) or 1-8 (standard grades)
  */
 function parseGradeNumber(gradeName: string): number {
   const upper = gradeName.toUpperCase().trim();

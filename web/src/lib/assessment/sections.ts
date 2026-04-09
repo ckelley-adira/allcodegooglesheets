@@ -88,9 +88,27 @@ export function getAllSections(): AssessmentSection[] {
  * Returns sections filtered to a specific grade level, with G1–G2
  * simplification applied to non-foundational sections.
  *
- * @param grade Student grade (0=KG, 1-8 standard).
+ * **Grade-Level Filtering:**
+ * - Grade 0 (KG): alphabet_consonants, blends, plus digraphs/VCE if EOY
+ * - Grade 1–2: All 15+ sections (except alphabet_consonants/blends are unmodified)
+ * - Grade 3+: Same sections as G1-G2 but without simplification
+ *
+ * **Simplification (G1-G2 non-foundational only):**
+ * Multi-component words collapse to single primary component with unioned
+ * lesson array. Example: JAZZ [j:29, a:1, zz:42, z:34] → [zz:[1,29,34,42]].
+ * Exception: DO_NOT_SIMPLIFY words (SNAPSHOT, ABSENT, CUPID) retain all
+ * components for multi-syllable decoding assessment.
+ *
+ * Simplification prevents N-override cascading when students struggle:
+ * if marking Digraphs incorrect overwrites earlier SCV successes on
+ * shared lesson numbers, the assessment loses fidelity. Single-component
+ * words solve this by atomizing each skill area's assessment.
+ *
+ * @param grade Student grade (0=KG, 1-8 standard). Invalid grades default to 0.
  * @param isKindergartenEoy When true, KG students see digraphs + VCE in
  *                          addition to the foundational sections.
+ * @returns Deep-cloned sections, filtered and simplified as appropriate.
+ *          Mutations do not affect the SECTIONS constant.
  */
 export function getAssessmentSectionsForGrade(
   grade: number,
@@ -144,16 +162,52 @@ function cloneSection(section: AssessmentSection): AssessmentSection {
 }
 
 /**
- * Collapses a word to a single primary-component button whose lesson list is
- * the union of every component's lessons. This preserves all mastery data:
- * a single click marks every underlying lesson, just as if the tutor had
- * clicked every original component button.
+ * Collapses a multi-component word to a single primary-component button.
+ *
+ * For G1-G2 students on non-foundational sections, this transformation
+ * prevents N-override semantics from cascading errors across skill areas.
+ * Example: JAZZ has [j:29, a:1, zz:42, z:34]. Simplifying to [zz] with
+ * lessons [1,29,34,42] means one click marks all underlying lessons,
+ * preserving the pedagogical intent without multi-button complexity.
+ *
+ * The lesson union ensures no assessment data is lost — every lesson that
+ * appears in ANY component remains in the simplified component's array.
+ *
+ * @param word The word to simplify. Components are assumed non-empty.
+ * @returns A new word object with a single component containing all unioned lessons.
+ * @throws Error if word has no components or no primaryComponent.
  */
 function simplifyWord(word: AssessmentWord): AssessmentWord {
+  if (!word.components || word.components.length === 0) {
+    throw new Error(
+      `Cannot simplify word "${word.word}": no components defined`
+    );
+  }
+  if (!word.primaryComponent) {
+    throw new Error(
+      `Cannot simplify word "${word.word}": no primaryComponent defined`
+    );
+  }
+
   const unionedLessons = new Set<number>();
   for (const c of word.components) {
-    for (const lessonNumber of c.lessons) unionedLessons.add(lessonNumber);
+    for (const lessonNumber of c.lessons) {
+      if (!Number.isInteger(lessonNumber) || lessonNumber <= 0) {
+        console.warn(
+          `Skipping invalid lesson number ${lessonNumber} in word "${word.word}" component "${c.name}"`
+        );
+        continue;
+      }
+      unionedLessons.add(lessonNumber);
+    }
   }
+
+  if (unionedLessons.size === 0) {
+    console.warn(
+      `Word "${word.word}" has no valid lessons after simplification`
+    );
+  }
+
   return {
     word: word.word,
     number: word.number,
