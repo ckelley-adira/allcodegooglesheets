@@ -162,19 +162,29 @@ function cloneSection(section: AssessmentSection): AssessmentSection {
 }
 
 /**
- * Collapses a multi-component word to a single primary-component button.
+ * Collapses a multi-component word to a single primary-component button (G1-G2 only).
  *
  * For G1-G2 students on non-foundational sections, this transformation
  * prevents N-override semantics from cascading errors across skill areas.
- * Example: JAZZ has [j:29, a:1, zz:42, z:34]. Simplifying to [zz] with
- * lessons [1,29,34,42] means one click marks all underlying lessons,
- * preserving the pedagogical intent without multi-button complexity.
  *
- * The lesson union ensures no assessment data is lost — every lesson that
- * appears in ANY component remains in the simplified component's array.
+ * Example: JAZZ has components [j:29, a:1, zz:42, z:34]. Simplifying to a
+ * single [zz] button uses ONLY the primary component's lessons [42]. This
+ * prevents an incorrect marking on JAZZ from cascading N-override to lessons
+ * 1, 29, 34 (which are foundational lessons marked Y in earlier sections).
+ *
+ * The primary component's lessons are authoritative for the skill being
+ * assessed in that section. Shared vowels/consonants from SVC/Blends are
+ * their own assessments in earlier sections.
+ *
+ * **Grade-specific behavior:**
+ * - G1-G2: Use ONLY primary component's lessons (this function)
+ * - G3+: Use original multi-component structure unsimplified (no call to this)
+ * - G3+ non-foundational words may have SVC/Blends lessons unioned at the
+ *   component level to backfill shared lessons
  *
  * @param word The word to simplify. Components are assumed non-empty.
- * @returns A new word object with a single component containing all unioned lessons.
+ * @returns A new word object with a single component using only the
+ *          primary component's lessons.
  * @throws Error if word has no components or no primaryComponent.
  */
 function simplifyWord(word: AssessmentWord): AssessmentWord {
@@ -189,22 +199,32 @@ function simplifyWord(word: AssessmentWord): AssessmentWord {
     );
   }
 
-  const unionedLessons = new Set<number>();
-  for (const c of word.components) {
-    for (const lessonNumber of c.lessons) {
-      if (!Number.isInteger(lessonNumber) || lessonNumber <= 0) {
-        console.warn(
-          `Skipping invalid lesson number ${lessonNumber} in word "${word.word}" component "${c.name}"`
-        );
-        continue;
-      }
-      unionedLessons.add(lessonNumber);
-    }
+  // Find the primary component and use ONLY its lessons
+  const primaryComp = word.components.find(
+    (c) => c.name.toLowerCase() === word.primaryComponent.toLowerCase()
+  );
+
+  if (!primaryComp) {
+    throw new Error(
+      `Cannot simplify word "${word.word}": primaryComponent "${word.primaryComponent}" not found in components`
+    );
   }
 
-  if (unionedLessons.size === 0) {
+  // Validate lessons
+  const validLessons: number[] = [];
+  for (const lessonNumber of primaryComp.lessons) {
+    if (!Number.isInteger(lessonNumber) || lessonNumber <= 0) {
+      console.warn(
+        `Skipping invalid lesson number ${lessonNumber} in word "${word.word}" primary component "${primaryComp.name}"`
+      );
+      continue;
+    }
+    validLessons.push(lessonNumber);
+  }
+
+  if (validLessons.length === 0) {
     console.warn(
-      `Word "${word.word}" has no valid lessons after simplification`
+      `Word "${word.word}" primary component has no valid lessons after simplification`
     );
   }
 
@@ -215,7 +235,7 @@ function simplifyWord(word: AssessmentWord): AssessmentWord {
     components: [
       {
         name: word.primaryComponent.toLowerCase(),
-        lessons: [...unionedLessons].sort((a, b) => a - b),
+        lessons: validLessons.sort((a, b) => a - b),
       },
     ],
   };
