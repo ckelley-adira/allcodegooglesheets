@@ -180,6 +180,7 @@ export function computeGatewayState(
   const result = new Map<SkillSectionName, SectionGatewayState>();
 
   for (const [section, reviews] of Object.entries(SECTION_REVIEW_LESSONS)) {
+    if (!reviews) continue;
     const assigned = reviews.filter((l) => attemptedLessons.has(l));
     const passed = reviews.filter((l) => passedLessons.has(l));
 
