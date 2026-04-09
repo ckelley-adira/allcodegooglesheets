@@ -13,22 +13,21 @@
  *   - Review lessons are excluded entirely from scoring.
  */
 
+import { REVIEW_LESSONS as CANONICAL_REVIEW_LESSONS } from "@/config/ufli";
 import type { AssessmentSection, AssessmentWord } from "./sections";
 
 /** Total UFLI lesson count. */
 export const TOTAL_LESSONS = 128;
 
 /**
- * Lessons that are marked is_review=true in ufli_lessons. These are NEVER
- * assessed and NEVER contribute to mastery percentages. Kept here as a
- * literal set for fast in-memory checks.
+ * Re-export canonical REVIEW_LESSONS from config/ufli.ts to ensure
+ * assessment scoring uses the same review lesson set as all other
+ * calculations (Big Four metrics, banding, coaching, etc.).
  *
- * If you change this list, update both ufli_lessons.is_review in the seed
- * AND the matching set in the legacy AssessmentEngine.gs.
+ * Per D-006: The 23 canonical review lessons are the single source of truth.
+ * All mastery calculations must exclude these.
  */
-export const REVIEW_LESSONS: ReadonlySet<number> = new Set([
-  5, 10, 19, 49, 53, 59, 62, 71, 76, 79, 83, 88, 92, 97, 106, 128,
-]);
+export const REVIEW_LESSONS = CANONICAL_REVIEW_LESSONS;
 
 /** Three-state value for a single component button. */
 export type ComponentResult = "correct" | "incorrect" | "unset";
