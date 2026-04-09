@@ -171,9 +171,13 @@ BEGIN
       -- HEURISTIC 2: If 4+ words, assume "First Middle Last1 Last2" (compound last name)
       ELSIF v_n >= 4 THEN
         v_last_name_count := 2;
-      -- HEURISTIC 3: For 3-word names, check if last word looks like a compound last name marker
-      -- (e.g., starts with lowercase after hyphen, or follows another surname)
-      -- For now, keep traditional single-word last name for 3-word names without particles
+      -- HEURISTIC 3: For 3-word names, check if both last two words are capitalized
+      -- (strong signal for compound last name like "Diaz Huerta", "Glen Shira")
+      ELSIF v_n = 3 THEN
+        -- Check if penultimate word (v_parts[2]) starts with uppercase
+        IF v_parts[v_n - 1] ~ '^[A-Z]' AND v_parts[v_n] ~ '^[A-Z]' THEN
+          v_last_name_count := 2;
+        END IF;
       END IF;
     END IF;
 
@@ -196,7 +200,8 @@ COMMENT ON FUNCTION public.split_person_name(text) IS
   1. "Last, First" format: Explicit — "Garcia Lopez, John" → John | Garcia Lopez
   2. Particles: Detects particles (de, von, van, da, etc.) — "John de Garcia" → John | de Garcia
   3. 4+ words: Assumes "First Middle Last1 Last2" — "John Mary Garcia Lopez" → John Mary | Garcia Lopez
-  4. Hyphenated: "John Garcia-Lopez" → John | Garcia-Lopez (inherent in word splitting)';
+  4. 3-word capitalized: Both last two words capitalized → compound — "Diana Diaz Huerta" → Diana | Diaz Huerta
+  5. Hyphenated: "John Garcia-Lopez" → John | Garcia-Lopez (inherent in word splitting)';
 
 
 -- ── import_teachers ─────────────────────────────────────────────────────────
