@@ -273,12 +273,43 @@ export function AssessmentWizard({
               value={JSON.stringify(sections)}
               ref={(el) => {
                 if (el && el.value) {
-                  console.log("[FORM INPUT VALUE] Hidden input sections value first 500 chars:", el.value.substring(0, 500));
                   try {
                     const parsed = JSON.parse(el.value);
-                    console.log("[FORM INPUT PARSED] First word result:", parsed[0]?.words[0]?.components[0]?.result);
+                    console.log("[FORM SUBMIT] Assessment data summary:", {
+                      totalSections: parsed.length,
+                      sections: parsed.map((s: SubmittedSection) => {
+                        let correct = 0, incorrect = 0, unset = 0;
+                        for (const w of s.words) {
+                          for (const c of w.components) {
+                            if (c.result === "correct") correct++;
+                            else if (c.result === "incorrect") incorrect++;
+                            else unset++;
+                          }
+                        }
+                        return {
+                          key: s.key,
+                          wordCount: s.words.length,
+                          correct,
+                          incorrect,
+                          unset,
+                        };
+                      }),
+                    });
+                    // Log first word of first section in detail
+                    if (parsed[0]?.words[0]) {
+                      const fw = parsed[0].words[0];
+                      console.log("[FORM SUBMIT] First word details:", {
+                        section: parsed[0].key,
+                        word: fw.word,
+                        components: fw.components.map((c: any) => ({
+                          name: c.name,
+                          result: c.result,
+                          lessons: c.lessons,
+                        })),
+                      });
+                    }
                   } catch(e) {
-                    console.error("[FORM INPUT ERROR]", e);
+                    console.error("[FORM SUBMIT ERROR] Failed to log sections:", e);
                   }
                 }
               }}

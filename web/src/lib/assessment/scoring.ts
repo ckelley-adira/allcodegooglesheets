@@ -196,6 +196,21 @@ export function scoreAssessment(sections: SubmittedSection[]): ScoredAssessment 
   const lessonResults = new Map<number, LessonResult>();
   const componentErrors: ComponentErrorRecord[] = [];
 
+  // DEBUG: Log input structure for first word
+  if (sections.length > 0 && sections[0].words.length > 0) {
+    const firstWord = sections[0].words[0];
+    console.log("[SCORING] Processing first word:", {
+      section: sections[0].key,
+      word: firstWord.word,
+      components: firstWord.components.map(c => ({
+        name: c.name,
+        lessonCount: c.lessons.length,
+        lessons: c.lessons,
+        result: c.result,
+      })),
+    });
+  }
+
   for (const section of sections) {
     for (const word of section.words) {
       const correctNames: string[] = [];
@@ -236,6 +251,16 @@ export function scoreAssessment(sections: SubmittedSection[]): ScoredAssessment 
       }
     }
   }
+
+  // DEBUG: Log results summary
+  const correctCount = Array.from(lessonResults.values()).filter(v => v === "Y").length;
+  const incorrectCount = Array.from(lessonResults.values()).filter(v => v === "N").length;
+  console.log("[SCORING] Results summary:", {
+    totalLessons: lessonResults.size,
+    correct: correctCount,
+    incorrect: incorrectCount,
+    correctPct: correctCount > 0 ? Math.round((correctCount / (correctCount + incorrectCount)) * 100) : 0,
+  });
 
   return {
     lessonResults,
