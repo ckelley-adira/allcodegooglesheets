@@ -659,7 +659,7 @@ export async function insertGatewayLessonsToSequence(
   const { data: lessonRows, error: lessonErr } = await supabase
     .from("ufli_lessons")
     .select("lesson_id, lesson_number")
-    .in("lesson_number", Array.from(reviewLessonNumbers));
+    .in("lesson_number", [...reviewLessonNumbers]);
 
   if (lessonErr) throw new Error(lessonErr.message);
   const lessonMap = new Map<number, number>();

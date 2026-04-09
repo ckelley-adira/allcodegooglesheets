@@ -18,7 +18,7 @@
  * which is scoped to the initial-assessment scoring engine.
  */
 
-import { SKILL_SECTIONS } from "@/config/ufli";
+import { SKILL_SECTIONS, SECTION_REVIEW_LESSONS } from "@/config/ufli";
 
 export type SkillSectionName = keyof typeof SKILL_SECTIONS;
 
