@@ -78,6 +78,13 @@ export async function submitAssessmentAction(
   let sections: SubmittedSection[];
   try {
     sections = JSON.parse(sectionsJson) as SubmittedSection[];
+    // DEBUG: Log the first 3 words' component results
+    if (sections.length > 0 && sections[0].words.length > 0) {
+      console.error("[ASSESSMENT DEBUG] First section components:");
+      sections[0].words.slice(0, 3).forEach((w, idx) => {
+        console.error(`  Word ${idx + 1} (${w.word}):`, w.components.map(c => `${c.name}:${c.result}`).join(", "));
+      });
+    }
   } catch {
     return { error: "Invalid assessment payload.", success: false };
   }

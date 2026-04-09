@@ -219,7 +219,24 @@ export function AssessmentWizard({
           onJumpToSection={(idx) => setPage({ section: idx })}
         >
           <form
-            action={(fd) => startTransition(() => formAction(fd))}
+            action={(fd) => {
+              // DEBUG: Log what's being submitted
+              const sectionsStr = fd.get("sections");
+              if (typeof sectionsStr === "string") {
+                try {
+                  const parsed = JSON.parse(sectionsStr);
+                  if (parsed.length > 0) {
+                    console.log("[FORM DEBUG] First section first 3 words:", parsed[0].words.slice(0, 3).map((w: any) => ({
+                      word: w.word,
+                      components: w.components.map((c: any) => `${c.name}:${c.result}`)
+                    })));
+                  }
+                } catch(e) {
+                  console.error("[FORM DEBUG] Failed to parse sections:", e);
+                }
+              }
+              startTransition(() => formAction(fd));
+            }}
             className="flex flex-wrap items-center gap-2 pt-2"
           >
             <input type="hidden" name="studentId" value={String(studentId ?? "")} />
