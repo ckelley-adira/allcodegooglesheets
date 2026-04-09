@@ -535,33 +535,53 @@ function ReviewPage(props: ReviewPageProps) {
 
       <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
         <h3 className="text-sm font-semibold">Sections</h3>
-        <div className="mt-2 flex flex-wrap gap-2">
+        <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
+          Per-section breakdown of what you&rsquo;re about to submit. Click a
+          chip to jump back to that section.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
           {props.sections.map((section, idx) => {
-            const sectionTotal = section.words.reduce(
-              (acc, w) => acc + w.components.length,
-              0,
-            );
-            const sectionAssessed = section.words.reduce(
-              (acc, w) =>
-                acc + w.components.filter((c) => c.result !== "unset").length,
-              0,
-            );
-            const isComplete = sectionAssessed === sectionTotal;
+            let sCorrect = 0;
+            let sIncorrect = 0;
+            let sUnset = 0;
+            for (const w of section.words) {
+              for (const c of w.components) {
+                if (c.result === "correct") sCorrect++;
+                else if (c.result === "incorrect") sIncorrect++;
+                else sUnset++;
+              }
+            }
+            const sectionTotal = sCorrect + sIncorrect + sUnset;
+            const isComplete = sUnset === 0 && sectionTotal > 0;
+            const allWrong = sectionTotal > 0 && sIncorrect === sectionTotal;
             return (
               <button
                 key={section.key}
                 type="button"
                 onClick={() => props.onJumpToSection(idx)}
                 className={cn(
-                  "rounded-full border px-3 py-1 text-xs font-medium",
-                  isComplete
-                    ? "border-green-300 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950 dark:text-green-300"
-                    : sectionAssessed > 0
-                      ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300"
-                      : "border-zinc-300 bg-zinc-50 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400",
+                  "rounded-md border px-3 py-1.5 text-left text-xs font-medium",
+                  allWrong
+                    ? "border-red-400 bg-red-100 text-red-900 dark:border-red-700 dark:bg-red-950 dark:text-red-200"
+                    : isComplete
+                      ? "border-green-300 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950 dark:text-green-300"
+                      : sCorrect + sIncorrect > 0
+                        ? "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300"
+                        : "border-zinc-300 bg-zinc-50 text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-400",
                 )}
               >
-                {section.name} {sectionAssessed}/{sectionTotal}
+                <div className="font-semibold">{section.name}</div>
+                <div className="mt-0.5 flex gap-2 text-[10px] tabular-nums">
+                  <span className="text-green-700 dark:text-green-400">
+                    ✓ {sCorrect}
+                  </span>
+                  <span className="text-red-700 dark:text-red-400">
+                    ✗ {sIncorrect}
+                  </span>
+                  <span className="text-zinc-500">
+                    ? {sUnset}
+                  </span>
+                </div>
               </button>
             );
           })}
