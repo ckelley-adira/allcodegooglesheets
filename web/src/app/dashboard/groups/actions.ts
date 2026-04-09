@@ -276,7 +276,7 @@ export async function addStudentAction(
  */
 export async function removeStudentAction(
   formData: FormData,
-): Promise<GroupFormState> {
+): Promise<void> {
   const user = await requireRole("coach", "school_admin", "tilt_admin");
   const activeSchoolId = await getActiveSchoolId(user);
 
@@ -285,11 +285,11 @@ export async function removeStudentAction(
 
   // Validate input: membershipId must be a positive integer
   if (!Number.isInteger(membershipId) || membershipId <= 0) {
-    return { error: "Invalid membership ID.", success: false };
+    throw new Error("Invalid membership ID.");
   }
 
   if (!groupId) {
-    return { error: "Invalid group ID.", success: false };
+    throw new Error("Invalid group ID.");
   }
 
   try {
@@ -305,10 +305,9 @@ export async function removeStudentAction(
     });
 
     revalidatePath(`/dashboard/groups/${groupId}`);
-    return { error: null, success: true };
   } catch (err: unknown) {
     const message =
       err instanceof Error ? err.message : "Failed to remove student from group.";
-    return { error: message, success: false };
+    throw new Error(message);
   }
 }
