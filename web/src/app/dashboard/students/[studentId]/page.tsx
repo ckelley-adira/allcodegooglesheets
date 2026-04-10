@@ -29,6 +29,8 @@ import {
   DEFICIT_META,
   getDiagnosticRulesForSections,
 } from "@/lib/diagnostic/framework";
+import { listLessons } from "@/lib/dal/sessions";
+import { ManualLessonEntry } from "./manual-lesson-entry";
 
 const BAND_LABELS = {
   not_started: "Not Started",
@@ -107,6 +109,10 @@ export default async function StudentDetailPage({
     getLatestBandAssignment(studentId, currentYear.yearId),
   ]);
   if (!detail) notFound();
+
+  const canManualEntry =
+    user.role === "school_admin" || user.isTiltAdmin;
+  const allLessons = canManualEntry ? await listLessons() : [];
 
   // Sparkline data: chronological (oldest first), capped at 8 weeks.
   const sparklineWeeks = [...weeklySnapshots].reverse();
@@ -768,6 +774,15 @@ export default async function StudentDetailPage({
           )}
         </div>
       </section>
+
+      {/* Admin: Manual Lesson Entry */}
+      {canManualEntry && (
+        <ManualLessonEntry
+          studentId={studentId}
+          yearId={currentYear.yearId}
+          lessons={allLessons}
+        />
+      )}
     </div>
   );
 }

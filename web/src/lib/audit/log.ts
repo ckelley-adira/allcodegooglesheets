@@ -34,7 +34,9 @@ export type AuditAction =
   | "LOGOUT"
   | "ADVANCE_SEQUENCE"
   | "RECORD_LESSON_OUTCOMES"
-  | "SUBMIT_INITIAL_ASSESSMENT";
+  | "SUBMIT_INITIAL_ASSESSMENT"
+  | "MANUAL_LESSON_ENTRY"
+  | "MANUAL_MAP_CELL_UPDATE";
 
 export interface AuditLogInput {
   /** School the row belongs to (for RLS scoping) */

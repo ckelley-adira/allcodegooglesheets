@@ -69,6 +69,8 @@ export default async function UfliMapPage({ searchParams }: UfliMapPageProps) {
           groupName: g.groupName,
         }))}
         selectedGroupId={groupId}
+        canEdit={user.role === "school_admin" || user.isTiltAdmin}
+        yearId={yearId}
       />
     </div>
   );

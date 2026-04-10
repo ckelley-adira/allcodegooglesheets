@@ -16,13 +16,17 @@ export interface LessonOutcome {
   status: "Y" | "N" | "A";
 }
 
+export type DataSource = "form" | "manual" | "import" | "api" | "assessment";
+
 export interface RecordSessionInput {
-  groupId: number;
+  groupId: number | null;
   lessonId: number;
   yearId: number;
   dateRecorded: string;
   recordedBy: number;
   outcomes: LessonOutcome[];
+  /** Data source tag for audit trail. Default 'form'. */
+  source?: DataSource;
 }
 
 export interface ExistingOutcome {
@@ -154,7 +158,7 @@ export async function recordLessonOutcomes(
     status: o.status,
     date_recorded: input.dateRecorded,
     recorded_by: input.recordedBy || null,
-    source: "form" as const,
+    source: (input.source ?? "form") as DataSource,
   }));
 
   const { data, error } = await supabase

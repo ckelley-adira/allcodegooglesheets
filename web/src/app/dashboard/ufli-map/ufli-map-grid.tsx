@@ -18,7 +18,9 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
+import { useState, useTransition } from "react";
 import { cn } from "@/lib/utils";
+import { updateMapCellAction } from "./actions";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -57,6 +59,10 @@ interface UfliMapGridProps {
   skillSections: SkillSection[];
   groups: GroupOption[];
   selectedGroupId?: number;
+  /** When true, cells are clickable and cycle through Y → N → A → empty */
+  canEdit?: boolean;
+  /** Required when canEdit is true — the academic year for recording */
+  yearId?: number;
 }
 
 // ── Cell colors (matching GAS Phase2_ProgressTracking.gs) ────────────────
@@ -82,15 +88,64 @@ const SECTION_COLORS = [
 
 // ── Component ────────────────────────────────────────────────────────────
 
+/** Cycle to next status: empty → Y → N → A → empty */
+const NEXT_STATUS: Record<string, "Y" | "N" | "A" | null> = {
+  "": "Y",
+  Y: "N",
+  N: "A",
+  A: null,
+};
+
 export function UfliMapGrid({
   lessons,
   students,
   skillSections,
   groups,
   selectedGroupId,
+  canEdit = false,
+  yearId,
 }: UfliMapGridProps) {
   const router = useRouter();
   const pathname = usePathname();
+
+  // Optimistic cell overrides (studentId-lessonId → status)
+  const [overrides, setOverrides] = useState<Map<string, "Y" | "N" | "A" | null>>(new Map());
+  const [isPending, startTransition] = useTransition();
+
+  function handleCellClick(
+    studentId: number,
+    lessonId: number,
+    currentStatus: "Y" | "N" | "A" | null,
+  ) {
+    if (!canEdit || !yearId) return;
+    const next = NEXT_STATUS[currentStatus ?? ""];
+    const key = `${studentId}-${lessonId}`;
+
+    // Optimistic update
+    setOverrides((prev) => {
+      const next2 = new Map(prev);
+      next2.set(key, next);
+      return next2;
+    });
+
+    // Fire server action
+    if (next) {
+      startTransition(async () => {
+        const result = await updateMapCellAction(studentId, lessonId, yearId, next);
+        if (!result.success) {
+          // Revert on error
+          setOverrides((prev) => {
+            const reverted = new Map(prev);
+            reverted.delete(key);
+            return reverted;
+          });
+        }
+      });
+    }
+    // When next is null (clearing), we show empty optimistically but don't
+    // delete from DB — manual entries with null status are just visual resets.
+    // The original record persists. A future "delete" action could be added.
+  }
 
   function handleGroupFilter(groupId: string) {
     if (groupId) {
@@ -292,15 +347,32 @@ export function UfliMapGrid({
 
                       {/* Lesson cells */}
                       {lessons.map((l) => {
-                        const status = student.outcomes[l.lessonId] ?? null;
+                        const key = `${student.studentId}-${l.lessonId}`;
+                        const override = overrides.get(key);
+                        const status =
+                          override !== undefined
+                            ? override
+                            : student.outcomes[l.lessonId] ?? null;
                         return (
                           <td
                             key={l.lessonId}
                             className={cn(
                               "border-b border-r border-zinc-100 px-0 py-0 text-center dark:border-zinc-800",
                               status ? CELL_STYLES[status] : "",
+                              canEdit &&
+                                "cursor-pointer transition-opacity hover:opacity-70",
                             )}
                             style={{ minWidth: 28, maxWidth: 28, height: 28 }}
+                            onClick={
+                              canEdit
+                                ? () =>
+                                    handleCellClick(
+                                      student.studentId,
+                                      l.lessonId,
+                                      status,
+                                    )
+                                : undefined
+                            }
                           >
                             {status ?? ""}
                           </td>
