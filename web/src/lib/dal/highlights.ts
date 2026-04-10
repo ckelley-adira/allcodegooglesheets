@@ -77,11 +77,18 @@ export interface GrowthHighlightsResult {
 
 const WINDOW_WEEKS = 4;
 const TOP_MOVER_MIN_RATIO_PCT = 100; // at or above aimline
-const TOP_MOVER_LIMIT = 15;
+
+export interface HighlightsFilterOptions {
+  /** Grade names to include, e.g. ["KG", "G1"]. Empty = all. */
+  gradeFilter?: string[];
+  /** Case-insensitive student name substring search */
+  searchQuery?: string;
+}
 
 export async function getGrowthHighlights(
   schoolId: number,
   yearId: number,
+  filters?: HighlightsFilterOptions,
 ): Promise<GrowthHighlightsResult> {
   const supabase = await createClient();
 
@@ -98,13 +105,23 @@ export async function getGrowthHighlights(
     last_name: string;
     grade_levels: { name: string } | null;
   };
-  const students = ((studentRows ?? []) as unknown as StudentRow[]).map(
+  let students = ((studentRows ?? []) as unknown as StudentRow[]).map(
     (r) => ({
       studentId: r.student_id,
       studentName: `${r.first_name} ${r.last_name}`.trim(),
       gradeName: r.grade_levels?.name ?? null,
     }),
   );
+
+  // Apply filters early so downstream queries scope to fewer students
+  if (filters?.gradeFilter && filters.gradeFilter.length > 0) {
+    const grades = new Set(filters.gradeFilter);
+    students = students.filter((s) => s.gradeName && grades.has(s.gradeName));
+  }
+  if (filters?.searchQuery) {
+    const q = filters.searchQuery.toLowerCase();
+    students = students.filter((s) => s.studentName.toLowerCase().includes(q));
+  }
 
   if (students.length === 0) {
     return {
@@ -278,7 +295,7 @@ function computeTopMovers(
     }
     return b.totalPassed - a.totalPassed;
   });
-  return rows.slice(0, TOP_MOVER_LIMIT);
+  return rows;
 }
 
 // ── Band Advancers ───────────────────────────────────────────────────────
