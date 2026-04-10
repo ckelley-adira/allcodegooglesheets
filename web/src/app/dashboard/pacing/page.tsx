@@ -176,13 +176,9 @@ export default async function PacingPage({ searchParams }: Props) {
               >
                 <summary className="flex cursor-pointer items-center justify-between px-4 py-3 hover:bg-zinc-50 dark:hover:bg-zinc-900/50">
                   <div className="flex items-center gap-2">
-                    <Link
-                      href={`/dashboard/groups/${group.groupId}`}
-                      className="text-sm font-semibold hover:underline"
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                    <span className="text-sm font-semibold">
                       {group.groupName}
-                    </Link>
+                    </span>
                     <span className="text-xs text-zinc-500">
                       {group.gradeName} &middot; {group.staffName}
                     </span>
@@ -207,6 +203,22 @@ export default async function PacingPage({ searchParams }: Props) {
                   </div>
                 </summary>
                 <div className="border-t border-zinc-100 dark:border-zinc-800">
+                  <div className="flex items-center gap-2 px-4 py-2 text-xs text-zinc-500">
+                    <Link
+                      href={`/dashboard/groups/${group.groupId}`}
+                      className="font-medium text-zinc-700 hover:underline dark:text-zinc-300"
+                    >
+                      View group &rarr;
+                    </Link>
+                    <span>&middot;</span>
+                    <span>{group.memberCount} members</span>
+                    {group.lastActivityDate && (
+                      <>
+                        <span>&middot;</span>
+                        <span>Last activity {group.lastActivityDate}</span>
+                      </>
+                    )}
+                  </div>
                   {group.students.length === 0 ? (
                     <p className="px-4 py-3 text-xs text-zinc-400">
                       No students in this group.
