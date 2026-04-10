@@ -117,7 +117,7 @@ function LessonSlot({
     <div
       title={`L${lesson.lessonNumber}${lesson.lessonName ? ` — ${lesson.lessonName}` : ""}${lesson.isReview ? " (Review)" : ""}${lesson.plannedDate ? ` | ${lesson.plannedDate}` : ""}`}
       className={cn(
-        "flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-[10px] font-bold transition-all",
+        "flex h-9 shrink-0 items-center justify-center rounded-md px-1.5 text-[10px] font-bold whitespace-nowrap transition-all",
         // Status colors
         isCompleted &&
           "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400",
@@ -134,7 +134,7 @@ function LessonSlot({
           "ring-2 ring-amber-400 ring-offset-1 dark:ring-amber-600 dark:ring-offset-zinc-950",
       )}
     >
-      {lesson.lessonNumber}
+      L{lesson.lessonNumber}
     </div>
   );
 }
