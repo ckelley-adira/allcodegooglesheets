@@ -361,7 +361,16 @@ export async function getPacingDetail(
     }
   }
 
-  // 3. All lesson_progress rows for per-student last-seen + timeline
+  // 3. Lesson_progress rows for per-student last-seen + timeline
+  //    We need 8 weeks for the timeline + enough history to find each
+  //    student's most recent record. 90 days covers the timeline and
+  //    any "stale 2w+" students while avoiding fetching the full year.
+  //    Students with NO records in this window will correctly show as
+  //    "never_logged" (their last-seen stays null).
+  const today = new Date();
+  const ninetyDaysAgo = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
+  const ninetyDaysAgoIso = isoDate(ninetyDaysAgo);
+
   const progressRows = await fetchAllRows<{
     student_id: number;
     date_recorded: string;
@@ -370,6 +379,7 @@ export async function getPacingDetail(
       .from("lesson_progress")
       .select("student_id, date_recorded")
       .in("student_id", studentIds)
+      .gte("date_recorded", ninetyDaysAgoIso)
       .range(from, to),
   );
 
@@ -383,7 +393,6 @@ export async function getPacingDetail(
   }
 
   // 4. Coverage timeline: last 8 weeks
-  const today = new Date();
   const thisMonday = startOfWeekMonday(today);
   const coverageTimeline: CoverageWeek[] = [];
 

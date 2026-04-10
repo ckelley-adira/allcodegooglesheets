@@ -19,9 +19,9 @@ import { getActiveSchoolId } from "@/lib/auth/school-context";
 import { getPacingDetail, type GroupHealth } from "@/lib/dal/school-pacing";
 import { GradeFilterChips, parseGradeFilter } from "@/components/filters";
 import { Badge } from "@/components/ui/badge";
-import { ShowMore } from "@/app/dashboard/highlights/_components/show-more";
 import { formatPct } from "@/lib/format/percent";
 import { cn } from "@/lib/utils";
+import { StudentLogTable } from "./student-log-table";
 
 interface Props {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -271,73 +271,7 @@ export default async function PacingPage({ searchParams }: Props) {
           </div>
         ) : (
           <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-            <table className="min-w-full divide-y divide-zinc-200 dark:divide-zinc-800">
-              <thead className="bg-zinc-50 dark:bg-zinc-900">
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
-                    Student
-                  </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
-                    Grade
-                  </th>
-                  <th className="px-4 py-2 text-left text-xs font-medium uppercase tracking-wider text-zinc-500">
-                    Group
-                  </th>
-                  <th className="px-4 py-2 text-right text-xs font-medium uppercase tracking-wider text-zinc-500">
-                    Last Seen
-                  </th>
-                  <th className="px-4 py-2 text-right text-xs font-medium uppercase tracking-wider text-zinc-500">
-                    Days
-                  </th>
-                  <th className="px-4 py-2 text-right text-xs font-medium uppercase tracking-wider text-zinc-500">
-                    Status
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-100 dark:divide-zinc-800">
-                <ShowMore initialCount={25}>
-                  {pacing.allStudents.map((s) => (
-                    <tr
-                      key={s.studentId}
-                      className="hover:bg-zinc-50 dark:hover:bg-zinc-900/50"
-                    >
-                      <td className="px-4 py-2 text-sm">
-                        <Link
-                          href={`/dashboard/students/${s.studentId}`}
-                          className="font-medium hover:underline"
-                        >
-                          {s.studentName}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-2 text-sm text-zinc-500">
-                        {s.gradeName || "\u2014"}
-                      </td>
-                      <td className="px-4 py-2 text-sm text-zinc-500">
-                        {s.groupName ? (
-                          <Link
-                            href={`/dashboard/groups/${s.groupId}`}
-                            className="hover:underline"
-                          >
-                            {s.groupName}
-                          </Link>
-                        ) : (
-                          <span className="text-zinc-400">No group</span>
-                        )}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-2 text-right text-sm text-zinc-500">
-                        {s.lastActivityDate ?? "never"}
-                      </td>
-                      <td className="whitespace-nowrap px-4 py-2 text-right text-sm tabular-nums text-zinc-500">
-                        {s.daysSinceLastActivity ?? "\u2014"}
-                      </td>
-                      <td className="px-4 py-2 text-right">
-                        <HealthBadge health={s.health} />
-                      </td>
-                    </tr>
-                  ))}
-                </ShowMore>
-              </tbody>
-            </table>
+            <StudentLogTable students={pacing.allStudents} />
           </div>
         )}
       </section>
