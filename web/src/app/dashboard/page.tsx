@@ -128,7 +128,7 @@ export default async function DashboardPage() {
       count: formatPct(pacing.coveragePct),
       label: "Coverage (7d)",
       subtitle: `${pacing.studentsWithRecentActivity} of ${pacing.totalActiveStudents} students seen`,
-      href: "/dashboard/students",
+      href: "/dashboard/pacing",
       tone: pctTone(pacing.coveragePct),
     },
     {
