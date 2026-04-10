@@ -424,6 +424,193 @@ export async function getGrowthSlope4Week(
   };
 }
 
+// ── Per-Grade Breakdown ─────────────────────────────────────────────────
+
+export interface GradeMetricRow {
+  gradeName: string;
+  studentCount: number;
+  foundationalPct: number | null;
+  minGradePct: number | null;
+  currentYearGoalPct: number | null;
+  onPacePct: number | null;
+  onPaceCount: number;
+  evaluableCount: number;
+  presenceConcernCount: number;
+}
+
+/**
+ * Computes all four Big Four metrics broken down by grade. Single pass
+ * over the data: fetches students + progress once, then groups by grade
+ * and computes all metrics per-grade in memory.
+ *
+ * Used by the /dashboard/big-four detail page.
+ */
+export async function getBigFourByGrade(
+  schoolId: number,
+  yearId: number,
+): Promise<GradeMetricRow[]> {
+  const students = await listActiveStudentsWithGrade(schoolId);
+  if (students.length === 0) return [];
+
+  const allProgress = await listAllProgress(
+    students.map((s) => s.studentId),
+    yearId,
+  );
+  const highWater = buildHighWaterMarks(allProgress);
+
+  // Pre-compute foundational lesson range
+  const foundationalLessons: number[] = [];
+  for (let n = FOUNDATIONAL_RANGE.start; n <= FOUNDATIONAL_RANGE.end; n++) {
+    foundationalLessons.push(n);
+  }
+
+  // Pre-compute per-grade lesson sets for current year goal
+  const yearGoalByGrade = new Map<string, number[]>();
+  for (const grade of Object.keys(CURRENT_YEAR_GOAL_DENOMINATOR)) {
+    const target = CURRENT_YEAR_GOAL_DENOMINATOR[grade];
+    const set: number[] = [];
+    let n = 1;
+    while (set.length < target && n <= 128) {
+      if (!REVIEW_LESSONS.has(n)) set.push(n);
+      n++;
+    }
+    yearGoalByGrade.set(grade, set);
+  }
+
+  // Growth slope: window boundaries
+  const windowDays = GROWTH_SLOPE_WEEKS * 7;
+  const today = new Date();
+  const windowStart = new Date(today);
+  windowStart.setDate(windowStart.getDate() - windowDays);
+  const windowStartIso = windowStart.toISOString().split("T")[0];
+
+  // Build per-student slope data
+  interface SlopeData {
+    passedBeforeWindow: Set<number>;
+    newGrowth: Set<number>;
+    absences: number;
+  }
+  const slopeData = new Map<number, SlopeData>();
+  for (const s of students) {
+    slopeData.set(s.studentId, {
+      passedBeforeWindow: new Set(),
+      newGrowth: new Set(),
+      absences: 0,
+    });
+  }
+  for (const r of allProgress) {
+    if (r.status === "Y" && r.date_recorded < windowStartIso) {
+      const ln = r.ufli_lessons?.lesson_number;
+      if (ln) slopeData.get(r.student_id)?.passedBeforeWindow.add(ln);
+    }
+  }
+  for (const r of allProgress) {
+    if (r.date_recorded < windowStartIso) continue;
+    const ps = slopeData.get(r.student_id);
+    if (!ps) continue;
+    if (r.status === "A") {
+      ps.absences++;
+    } else if (r.status === "Y") {
+      const ln = r.ufli_lessons?.lesson_number;
+      if (ln && !ps.passedBeforeWindow.has(ln)) ps.newGrowth.add(ln);
+    }
+  }
+
+  const expected = TARGET_LESSONS_PER_WEEK * GROWTH_SLOPE_WEEKS;
+
+  // Group students by grade
+  const byGrade = new Map<
+    string,
+    { studentId: number; gradeName: string }[]
+  >();
+  for (const s of students) {
+    const arr = byGrade.get(s.gradeName) ?? [];
+    arr.push(s);
+    byGrade.set(s.gradeName, arr);
+  }
+
+  // Compute per-grade
+  const rows: GradeMetricRow[] = [];
+  for (const [gradeName, gradeStudents] of byGrade.entries()) {
+    // Foundational
+    let foundSum = 0;
+    for (const s of gradeStudents) {
+      const passed = countMastered(s.studentId, highWater, foundationalLessons);
+      foundSum += (passed / foundationalLessons.length) * 100;
+    }
+    const foundationalPct = gradeStudents.length > 0
+      ? foundSum / gradeStudents.length
+      : null;
+
+    // Min Grade
+    const minDenom = MIN_GRADE_SKILLS_DENOMINATOR[gradeName];
+    let minGradePct: number | null = null;
+    if (minDenom && minDenom > 0) {
+      const lessonsInRange: number[] = [];
+      for (let n = 1; n <= minDenom; n++) {
+        if (!REVIEW_LESSONS.has(n)) lessonsInRange.push(n);
+      }
+      let minSum = 0;
+      for (const s of gradeStudents) {
+        const passed = countMastered(s.studentId, highWater, lessonsInRange);
+        minSum += (passed / lessonsInRange.length) * 100;
+      }
+      minGradePct = gradeStudents.length > 0 ? minSum / gradeStudents.length : null;
+    }
+
+    // Current Year Goal
+    const yearLessons = yearGoalByGrade.get(gradeName);
+    let currentYearGoalPct: number | null = null;
+    if (yearLessons && yearLessons.length > 0) {
+      let yearSum = 0;
+      for (const s of gradeStudents) {
+        const passed = countMastered(s.studentId, highWater, yearLessons);
+        yearSum += (passed / yearLessons.length) * 100;
+      }
+      currentYearGoalPct = gradeStudents.length > 0
+        ? yearSum / gradeStudents.length
+        : null;
+    }
+
+    // Growth Slope
+    let onPaceCount = 0;
+    let evaluableCount = 0;
+    let presenceConcernCount = 0;
+    for (const s of gradeStudents) {
+      const ps = slopeData.get(s.studentId);
+      if (!ps) continue;
+      const adjustedExpected = expected - ps.absences;
+      if (adjustedExpected <= 0) {
+        presenceConcernCount++;
+        continue;
+      }
+      evaluableCount++;
+      if (ps.newGrowth.size / adjustedExpected >= 0.85) onPaceCount++;
+    }
+
+    rows.push({
+      gradeName,
+      studentCount: gradeStudents.length,
+      foundationalPct,
+      minGradePct,
+      currentYearGoalPct,
+      onPacePct: evaluableCount > 0 ? (onPaceCount / evaluableCount) * 100 : null,
+      onPaceCount,
+      evaluableCount,
+      presenceConcernCount,
+    });
+  }
+
+  // Sort by grade name (KG first, then G1, G2, ...)
+  rows.sort((a, b) => {
+    if (a.gradeName === "KG") return -1;
+    if (b.gradeName === "KG") return 1;
+    return a.gradeName.localeCompare(b.gradeName);
+  });
+
+  return rows;
+}
+
 // ── Aggregator ───────────────────────────────────────────────────────────
 
 export interface BigFourMetrics {
