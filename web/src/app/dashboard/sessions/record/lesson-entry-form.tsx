@@ -19,6 +19,7 @@
 import { useActionState, useState, useEffect, useCallback } from "react";
 import { recordSessionAction, type SessionFormState } from "../actions";
 import { cn } from "@/lib/utils";
+import { SequenceMiniMap } from "./sequence-mini-map";
 
 const initialState: SessionFormState = { error: null, success: false };
 
@@ -45,6 +46,23 @@ interface PendingLesson {
   isReview: boolean;
   sortOrder: number;
   plannedDate: string | null;
+}
+
+interface SequenceMapLesson {
+  lessonId: number;
+  lessonNumber: number;
+  lessonName: string | null;
+  isReview: boolean;
+  status: "upcoming" | "current" | "completed" | "skipped";
+  plannedDate: string | null;
+}
+
+interface SequenceMapData {
+  sequenceId: number;
+  sequenceName: string;
+  lessonCount: number;
+  completedCount: number;
+  lessons: SequenceMapLesson[];
 }
 
 type Status = "Y" | "N" | "A" | null;
@@ -82,6 +100,7 @@ export function LessonEntryForm({
   const [statuses, setStatuses] = useState<Map<number, Status>>(new Map());
   const [isLoadingStudents, setIsLoadingStudents] = useState(false);
   const [isEditingExisting, setIsEditingExisting] = useState(false);
+  const [sequenceMap, setSequenceMap] = useState<SequenceMapData | null>(null);
   // Bumped after a successful save to force a re-fetch of pending lessons
   // (so the just-recorded lesson disappears from the cards).
   const [refreshKey, setRefreshKey] = useState(0);
@@ -92,6 +111,7 @@ export function LessonEntryForm({
       setStatuses(new Map());
       setSelectedLessonId(null);
       setPendingLessons([]);
+      setSequenceMap(null);
       setIsEditingExisting(false);
       return;
     }
@@ -103,6 +123,7 @@ export function LessonEntryForm({
         setStudents(data.students ?? []);
         setStatuses(new Map());
         setIsEditingExisting(false);
+        setSequenceMap(data.sequenceMap ?? null);
         const next: PendingLesson[] = data.pendingLessons ?? [];
         setPendingLessons(next);
         // Auto-select the first pending lesson when there's exactly one
@@ -115,6 +136,7 @@ export function LessonEntryForm({
         setStudents([]);
         setSelectedLessonId(null);
         setPendingLessons([]);
+        setSequenceMap(null);
       })
       .finally(() => {
         setIsLoadingStudents(false);
@@ -246,6 +268,14 @@ export function LessonEntryForm({
           </select>
         </div>
       </section>
+
+      {/* Sequence Mini Map — visual progress strip */}
+      {selectedGroupId && sequenceMap && (
+        <SequenceMiniMap
+          sequenceMap={sequenceMap}
+          selectedLessonId={selectedLessonId}
+        />
+      )}
 
       {/* Step 2: Teaching This Week — pending lessons from active sequence */}
       {selectedGroupId && (

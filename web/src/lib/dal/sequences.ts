@@ -395,6 +395,87 @@ export async function markSequenceLessonCompleted(
   }
 }
 
+// ── Sequence Mini Map (for Tutor Input Form) ────────────────────────────
+
+export interface SequenceMapLesson {
+  lessonId: number;
+  lessonNumber: number;
+  lessonName: string | null;
+  isReview: boolean;
+  status: SequenceLessonStatus;
+  plannedDate: string | null;
+}
+
+export interface SequenceMapData {
+  sequenceId: number;
+  sequenceName: string;
+  lessonCount: number;
+  completedCount: number;
+  lessons: SequenceMapLesson[];
+}
+
+/**
+ * Returns a lightweight view of the active sequence's lessons for the
+ * Tutor Input Form's mini map — a compact horizontal strip showing
+ * completed/current/upcoming lessons. Excludes fields the map doesn't
+ * need (completedAt, skillSection, sortOrder) to keep the payload small.
+ */
+export async function getSequenceMapForGroup(
+  groupId: number,
+): Promise<SequenceMapData | null> {
+  const supabase = await createClient();
+
+  const { data: seq } = await supabase
+    .from("instructional_sequences")
+    .select("sequence_id, name")
+    .eq("group_id", groupId)
+    .eq("status", "active")
+    .maybeSingle();
+
+  if (!seq) return null;
+  const { sequence_id: sequenceId, name: sequenceName } = seq as {
+    sequence_id: number;
+    name: string;
+  };
+
+  const { data: lessons } = await supabase
+    .from("instructional_sequence_lessons")
+    .select(
+      "lesson_id, planned_date, status, ufli_lessons(lesson_number, lesson_name, is_review)",
+    )
+    .eq("sequence_id", sequenceId)
+    .order("sort_order", { ascending: true });
+
+  const mapped: SequenceMapLesson[] = (lessons ?? []).map((l) => {
+    const r = l as unknown as {
+      lesson_id: number;
+      planned_date: string | null;
+      status: SequenceLessonStatus;
+      ufli_lessons: {
+        lesson_number: number;
+        lesson_name: string | null;
+        is_review: boolean;
+      } | null;
+    };
+    return {
+      lessonId: r.lesson_id,
+      lessonNumber: r.ufli_lessons?.lesson_number ?? 0,
+      lessonName: r.ufli_lessons?.lesson_name ?? null,
+      isReview: r.ufli_lessons?.is_review ?? false,
+      status: r.status,
+      plannedDate: r.planned_date,
+    };
+  });
+
+  return {
+    sequenceId,
+    sequenceName,
+    lessonCount: mapped.length,
+    completedCount: mapped.filter((l) => l.status === "completed").length,
+    lessons: mapped,
+  };
+}
+
 // ── Building / updating ──────────────────────────────────────────────────
 
 /**
